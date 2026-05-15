@@ -59,21 +59,30 @@ int lx_add_tok(struct lx_tok **list, size_t *size, size_t *cap,
     tok->kind = kind;
 
     if (start != NULL) {
-        tok->value = malloc(len + 1); /* +1 for '\0' */
+    /* then remove dbqts and allocate storage for the word */
+        tok->value = malloc(len + 1);
         if (tok->value == NULL)
             return -1;
-        memcpy(tok->value, start, len);
-        tok->value[len] = '\0';
+
+        size_t value_idx = 0;
+        for (size_t i = 0; i < len; ++i) {
+            if (start[i] == '\"')
+                continue;
+
+            tok->value[value_idx++] = start[i];
+        }
+
+        tok->value[value_idx] = '\0';
     } else
         tok->value = NULL;
 
     return 0;
 }
 
-struct lx_tok *lx_tokenize(const char *cmd) {
+size_t lx_tokenize(const char *cmd, struct lx_tok **out_list) {
     if (cmd == NULL || strlen(cmd) == 0) {
         errno = EINVAL;
-        return NULL;
+        return -1;
     }
 
     size_t size = 0;
@@ -81,7 +90,7 @@ struct lx_tok *lx_tokenize(const char *cmd) {
 
     struct lx_tok *list = malloc(cap * sizeof(struct lx_tok));
     if (list == NULL)
-        return NULL;
+        return -1;
 
     enum lx_code tok_kind;
     const char *tok_start = NULL;
@@ -119,8 +128,6 @@ struct lx_tok *lx_tokenize(const char *cmd) {
             }
         }
 
-        /* TODO: Check for builtins */
-
         if (tok_start == NULL) {
         /* then we are at the start of a new LX_TOK_WORD */
             tok_start = &cmd[i];
@@ -135,12 +142,12 @@ struct lx_tok *lx_tokenize(const char *cmd) {
             goto fail;
     }
 
-    if (lx_add_tok(&list, &size, &cap, LX_TOK_END, NULL, 0) == -1)
-        goto fail;
-
-    return list;
+    *out_list = list;
+    return size;
 
 fail:
+    for (size_t i = 0; i < size; ++i)
+        free(list[i].value);
     free(list);
-    return NULL;
+    return -1;
 }
