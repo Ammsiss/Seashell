@@ -1,0 +1,8 @@
+.cache/
+.clangd
+.git/
+build/
+compile_commands.json
+seashell
+test_*
+!test_*.c
