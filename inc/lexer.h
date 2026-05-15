@@ -3,33 +3,32 @@
 
 #include <stddef.h>
 
-enum lx_token_kind {
-    LX_TOKEN_WORD,
+enum lx_code {
+    /* TOKENS */
+    LX_TOK_WORD,
+    LX_TOK_END,
     /* Operators */
-    LX_TOKEN_PIPE, // |
-    LX_TOKEN_REDL, // <
-    LX_TOKEN_REDR, // >
-    LX_TOKEN_INBG, // &
-    /* Special characters */
-    LX_TOKEN_DBQT, // Double quote
-    LX_TOKEN_WTSP, // White space
+    LX_TOK_PIPE, // |
+    LX_TOK_REDL, // <
+    LX_TOK_REDR, // >
+    LX_TOK_INBG, // &
     /* Builtins */
-    LX_TOKEN_EXIT,
-    LX_TOKEN_CHDR,
-    LX_TOKEN_JOBS,
-    LX_TOKEN_FG,
-    LX_TOKEN_BG,
+    LX_TOK_EXIT,
+    LX_TOK_CHDR,
+    LX_TOK_JOBS,
+    LX_TOK_FG,
+    LX_TOK_BG,
 
-    LX_TOKEN_EOF,
-    LX_TOKEN_END,
+    /* SPECIAL CHARACTERS */
+    LX_DBQT, // Double quote
+    LX_WTSP, // White space
 };
 
-struct lx_token {
-    enum lx_token_kind kind;
-    const char *start;
-    int len;
+struct lx_tok {
+    enum lx_code kind;
+    char *value;
 };
 
-struct lx_token *lx_tokenize(const char *cmd);
+struct lx_tok *lx_tokenize(const char *cmd);
 
 #endif

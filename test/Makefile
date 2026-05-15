@@ -25,17 +25,17 @@ test_lexer: $(BLD_DIR)/lexer.o $(BLD_DIR)/test_lexer.o $(UOBJ)
 # C module
 $(BLD_DIR)/%.o: $(MSRC_DIR)/%.c
 	mkdir -p $(BLD_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # Test module
 $(BLD_DIR)/test_%.o: test_%.c
 	mkdir -p $(BLD_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # Unity module
 $(UOBJ): $(USRC)
 	mkdir -p $(BLD_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 
 .PHONY: clean
 clean:
