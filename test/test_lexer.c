@@ -7,13 +7,6 @@
 #include "unity.h"
 #include "lexer.h"
 
-/*
- * struct lx_tok tok {
- *     LX_TOK_WORD,
- *     value_ptr
- * };
- */
-
 /************************* Utility Funcs *************************/
 
 void print_lx_tok_list(struct lx_tok *list, size_t len, const char *msg) {
@@ -43,10 +36,6 @@ void tearDown(void) {}
 
 /************************* lx_push_tok *************************/
 
-struct lx_tok *lx_push_tok(struct lx_tok **list, size_t *size, size_t *cap);
-int lx_add_tok(struct lx_tok **list, size_t *size, size_t *cap,
-        enum lx_code kind, const char *start, size_t len);
-
 void helper_push_tok(size_t ex_size, size_t size, size_t ex_cap, size_t cap) {
     struct lx_tok *list = malloc(cap * sizeof(struct lx_tok));
     TEST_ASSERT_NOT_NULL(list);
@@ -68,24 +57,6 @@ void test_push_tok_size_cap_equal(void) {
 
 void test_push_tok_size_less_than_cap(void) {
     helper_push_tok(3, 2, 3, 3);
-}
-
-/* stress tests */
-
-void stest_push_tok_size_cap_equal(void) {
-    for (size_t i = 0; i < 10000; ++i) {
-        size_t size = rand() % 100 + 1;
-        size_t cap = size;
-        helper_push_tok(size + 1, size, cap * 2, cap);
-    }
-}
-
-void stest_push_tok_size_less_than_cap(void) {
-    for (size_t i = 0; i < 10000; ++i) {
-        size_t size = rand() % 100 + 1;
-        size_t cap = rand() % 100 + size + 1;
-        helper_push_tok(size + 1, size, cap, cap);
-    }
 }
 
 void test_push_tok_resize_preserves_data(void) {
@@ -111,6 +82,24 @@ void test_push_tok_resize_preserves_data(void) {
 
     free(list[0].value);
     free(list);
+}
+
+/* stress tests */
+
+void stress_push_tok_size_cap_equal(void) {
+    for (size_t i = 0; i < 10000; ++i) {
+        size_t size = rand() % 100 + 1;
+        size_t cap = size;
+        helper_push_tok(size + 1, size, cap * 2, cap);
+    }
+}
+
+void stress_push_tok_size_less_than_cap(void) {
+    for (size_t i = 0; i < 10000; ++i) {
+        size_t size = rand() % 100 + 1;
+        size_t cap = rand() % 100 + size + 1;
+        helper_push_tok(size + 1, size, cap, cap);
+    }
 }
 
 /************************* lx_add_tok *************************/
@@ -142,11 +131,10 @@ void helper_lx_tokenize_assert_tokens(
         size_t expected_len
 ) {
     struct lx_tok *list;
-    size_t list_len = lx_tokenize(cmd, &list);
+    size_t list_len;
 
-    TEST_ASSERT_NOT_EQUAL_INT((size_t) -1, list_len);
+    TEST_ASSERT_EQUAL(0, lx_tokenize(cmd, &list, &list_len));
     TEST_ASSERT_EQUAL_size_t(expected_len, list_len);
-
     TEST_ASSERT_NOT_NULL(list);
 
     for (size_t i = 0; i < list_len; ++i) {
@@ -183,15 +171,14 @@ void test_lx_tokenize_whitespace_only(void) {
     const char *cmd = "   \t   ";
 
     struct lx_tok *list;
-    size_t list_len = lx_tokenize(cmd, &list);
+    size_t list_len;
 
-    TEST_ASSERT_NOT_EQUAL_INT((size_t) -1, list_len);
+    TEST_ASSERT_EQUAL(0, lx_tokenize(cmd, &list, &list_len));
     TEST_ASSERT_EQUAL(0, list_len);
 
     free_lx_tok_list(list, list_len);
 }
 
-/* Token 1: "hello"   Token 2: "<"   Token 3: "world!" */
 void test_lx_tokenize_words_operators_whitespace(void) {
     const struct lx_tok expected[3] = {
         { LX_TOK_WORD, "hello" },
@@ -218,7 +205,6 @@ void test_lx_tokenize_quoted_string(void) {
     helper_lx_tokenize_assert_tokens("\"Hello,World!\"", expected, 1);
 }
 
-/*   Token 1: ""hi"& |"   Token 2: &   Token 3: hello" "   */
 void test_lx_tokenize_quoted_string_with_delimiters(void) {
     const struct lx_tok expected[3] = {
         { LX_TOK_WORD, "hi& |" },
@@ -231,7 +217,7 @@ void test_lx_tokenize_quoted_string_with_delimiters(void) {
 
 /* stress tests */
 
-void stest_lx_tokenize_words_operators_whitespace(void) {
+void stress_lx_tokenize_words_operators_whitespace(void) {
     // TODO: Implement this
 }
 
@@ -247,8 +233,8 @@ int main(void) {
     RUN_TEST(test_push_tok_size_less_than_cap);
     RUN_TEST(test_push_tok_resize_preserves_data);
     /* stress tests */
-    RUN_TEST(stest_push_tok_size_less_than_cap);
-    RUN_TEST(stest_push_tok_size_cap_equal);
+    RUN_TEST(stress_push_tok_size_less_than_cap);
+    RUN_TEST(stress_push_tok_size_cap_equal);
 
     /* lx_add_tok */
     RUN_TEST(test_lx_add_tok_token_value_is_null_terminated);
@@ -262,7 +248,7 @@ int main(void) {
     RUN_TEST(test_lx_tokenize_quoted_string);
     RUN_TEST(test_lx_tokenize_quoted_string_with_delimiters);
     /* stress tests */
-    // RUN_TEST(stest_lx_tokenize_words_operators_whitespace);
+    // RUN_TEST(stress_lx_tokenize_words_operators_whitespace);
 
     return UNITY_END();
 }

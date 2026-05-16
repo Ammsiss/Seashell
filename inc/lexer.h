@@ -21,6 +21,9 @@ struct lx_tok {
     char *value;
 };
 
-size_t lx_tokenize(const char *cmd, struct lx_tok **list);
+int lx_tokenize(const char *cmd, struct lx_tok **list, size_t *out_len);
+struct lx_tok *lx_push_tok(struct lx_tok **list, size_t *size, size_t *cap);
+int lx_add_tok(struct lx_tok **list, size_t *size, size_t *cap,
+        enum lx_code kind, const char *start, size_t len);
 
 #endif

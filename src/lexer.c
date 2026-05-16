@@ -1,10 +1,3 @@
-/* Finish a word and add a token */
-/* Add a token for a operator */
-/* Keep track of double quote count */
-/* White space should delim except when double quote count is 1 */
-/* White space does not create a token */
-
-#include <errno.h>
 #include <malloc.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,10 +21,8 @@ int get_tok(char c, enum lx_code *kind) {
 struct lx_tok *lx_push_tok(struct lx_tok **list, size_t *size,
         size_t *cap) {
     if (list == NULL || *list == NULL || size == NULL || cap == NULL ||
-            *size > *cap || *cap <= 0 || *size < 0) {
-        errno = EINVAL;
+            *size > *cap || *cap <= 0 || *size < 0)
         return NULL;
-    }
 
     if (*size < *cap) {
         *size += 1;
@@ -79,11 +70,15 @@ int lx_add_tok(struct lx_tok **list, size_t *size, size_t *cap,
     return 0;
 }
 
-size_t lx_tokenize(const char *cmd, struct lx_tok **out_list) {
-    if (cmd == NULL || strlen(cmd) == 0) {
-        errno = EINVAL;
+int lx_tokenize(const char *cmd, struct lx_tok **out_list, size_t *out_len) {
+    size_t cmd_len = 0;
+
+    if (cmd == NULL || out_list == NULL || out_len == NULL ||
+            (cmd_len = strlen(cmd)) == 0)
         return -1;
-    }
+
+    *out_list = NULL;
+    *out_len = 0;
 
     size_t size = 0;
     size_t cap = 1;
@@ -98,7 +93,6 @@ size_t lx_tokenize(const char *cmd, struct lx_tok **out_list) {
 
     int delim_on = 1;
 
-    size_t cmd_len = strlen(cmd);
     for (size_t i = 0; i < cmd_len; ++i) {
 
         if (get_tok(cmd[i], &tok_kind)) {
@@ -143,7 +137,9 @@ size_t lx_tokenize(const char *cmd, struct lx_tok **out_list) {
     }
 
     *out_list = list;
-    return size;
+    *out_len = size;
+
+    return 0;
 
 fail:
     for (size_t i = 0; i < size; ++i)
