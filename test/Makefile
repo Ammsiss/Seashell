@@ -8,7 +8,7 @@ USRC_DIR := ../deps/Unity/src
 BLD_DIR  := build
 COMPCOM  := compile_commands.json
 
-CFLAGS   := -O0 -fno-omit-frame-pointer -Wall -Wextra \
+CFLAGS   := -g -O0 -fno-omit-frame-pointer -Wall -Wextra \
 			-Wpedantic -std=c23 -I$(MINC_DIR) -I$(USRC_DIR)
 DEPFLAGS := -MMD -MP
 

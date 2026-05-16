@@ -15,11 +15,7 @@ A simple linux shell.
 
 ### Lexer
 
-Add tokens for: >>, <<, EOF, ;, \n, ||, &&, (, )
-Handle: \
-
-Lexer should preserve quotes either directly or as
-meta data.
+- Make functions for parser like lx_peek(), lx_next() etc
 
 ## THINKING!!
 

@@ -5,7 +5,7 @@ INC_DIR  := inc
 BLD_DIR  := build
 COMPCOM  := compile_commands.json
 
-CFLAGS   := -O0 -fno-omit-frame-pointer -Wall -Wextra -Wpedantic -std=c23 \
+CFLAGS   := -g -O0 -fno-omit-frame-pointer -Wall -Wextra -Wpedantic -std=c23 \
 -I$(INC_DIR)
 DEPFLAGS := -MMD -MP
 
