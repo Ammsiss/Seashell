@@ -14,9 +14,9 @@ void print_lx_tok_list(struct lx_tok *list, size_t len, const char *msg) {
     for (size_t i = 0; i < len; ++i) {
         switch (list->kind) {
         case LX_TOK_WORD: printf(" LX_TOK_WORD [%s] ", list->value); break;
-        case LX_TOK_INBG: printf(" LX_TOK_INBG [&] "); break;
-        case LX_TOK_REDL: printf(" LX_TOK_REDL [<] "); break;
-        case LX_TOK_REDR: printf(" LX_TOK_REDR [>] "); break;
+        case LX_TOK_BG: printf(" LX_TOK_INBG [&] "); break;
+        case LX_TOK_RDR_IN: printf(" LX_TOK_REDL [<] "); break;
+        case LX_TOK_RDR_OUT: printf(" LX_TOK_REDR [>] "); break;
         case LX_TOK_PIPE: printf(" LX_TOK_PIPE [|] "); break;
         default: break;
         }
@@ -84,8 +84,6 @@ void test_push_tok_resize_preserves_data(void) {
     free(list);
 }
 
-/* stress tests */
-
 void stress_push_tok_size_cap_equal(void) {
     for (size_t i = 0; i < 10000; ++i) {
         size_t size = rand() % 100 + 1;
@@ -111,7 +109,7 @@ void test_lx_add_tok_token_value_is_null_terminated(void) {
     struct lx_tok *list = malloc(cap * sizeof(struct lx_tok));
     TEST_ASSERT_NOT_NULL(list);
 
-    int token_len = 8;   /* 1 less then strlen(token_text) */
+    int token_len = 8;   /* 1 less than strlen(token_text) */
     const char *token_text = "Hi there!";
 
     TEST_ASSERT_NOT_EQUAL_INT(-1, lx_add_tok(&list, &size, &cap,
@@ -151,9 +149,9 @@ void helper_lx_tokenize_assert_tokens(
 void test_lx_tokenize_operators_only(void) {
     const struct lx_tok expected[4] = {
         { LX_TOK_PIPE, NULL },
-        { LX_TOK_REDL, NULL },
-        { LX_TOK_INBG, NULL },
-        { LX_TOK_REDR, NULL },
+        { LX_TOK_RDR_IN, NULL },
+        { LX_TOK_BG, NULL },
+        { LX_TOK_RDR_OUT, NULL },
     };
 
     helper_lx_tokenize_assert_tokens("|<&>", expected, 4);
@@ -180,13 +178,16 @@ void test_lx_tokenize_whitespace_only(void) {
 }
 
 void test_lx_tokenize_words_operators_whitespace(void) {
-    const struct lx_tok expected[3] = {
+    const struct lx_tok expected[6] = {
         { LX_TOK_WORD, "hello" },
-        { LX_TOK_REDL, NULL },
+        { LX_TOK_RDR_IN, NULL },
         { LX_TOK_WORD, "world!" },
+        { LX_TOK_WORD, "bye" },
+        { LX_TOK_BG, NULL },
+        { LX_TOK_WORD, "lol" },
     };
 
-    helper_lx_tokenize_assert_tokens("hello <world! ", expected, 3);
+    helper_lx_tokenize_assert_tokens("hello <world! bye&lol", expected, 6);
 }
 
 void test_lx_tokenize_empty_quote(void) {
@@ -208,17 +209,18 @@ void test_lx_tokenize_quoted_string(void) {
 void test_lx_tokenize_quoted_string_with_delimiters(void) {
     const struct lx_tok expected[3] = {
         { LX_TOK_WORD, "hi& |" },
-        { LX_TOK_INBG, NULL },
+        { LX_TOK_BG, NULL },
         { LX_TOK_WORD, "hello " },
     };
 
     helper_lx_tokenize_assert_tokens("\"\"hi\"& |\"&hello\" \"", expected, 3);
 }
 
-/* stress tests */
+void test_lx_tokenize_unmatched_quotes_should_fail(void) {
+    struct lx_tok *list;
+    size_t list_len;
 
-void stress_lx_tokenize_words_operators_whitespace(void) {
-    // TODO: Implement this
+    TEST_ASSERT_EQUAL(-1, lx_tokenize("\"hello", &list, &list_len));
 }
 
 int main(void) {
@@ -232,7 +234,6 @@ int main(void) {
     RUN_TEST(test_push_tok_size_cap_equal);
     RUN_TEST(test_push_tok_size_less_than_cap);
     RUN_TEST(test_push_tok_resize_preserves_data);
-    /* stress tests */
     RUN_TEST(stress_push_tok_size_less_than_cap);
     RUN_TEST(stress_push_tok_size_cap_equal);
 
@@ -247,8 +248,7 @@ int main(void) {
     RUN_TEST(test_lx_tokenize_empty_quote);
     RUN_TEST(test_lx_tokenize_quoted_string);
     RUN_TEST(test_lx_tokenize_quoted_string_with_delimiters);
-    /* stress tests */
-    // RUN_TEST(stress_lx_tokenize_words_operators_whitespace);
+    RUN_TEST(test_lx_tokenize_unmatched_quotes_should_fail);
 
     return UNITY_END();
 }

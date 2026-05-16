@@ -8,9 +8,9 @@ enum lx_code {
     LX_TOK_WORD,
     /* Operators */
     LX_TOK_PIPE, // |
-    LX_TOK_REDL, // <
-    LX_TOK_REDR, // >
-    LX_TOK_INBG, // &
+    LX_TOK_RDR_IN, // <
+    LX_TOK_RDR_OUT, // >
+    LX_TOK_BG, // &
     /* SPECIAL CHARACTERS */
     LX_DBQT, // Double quote
     LX_WTSP, // White space

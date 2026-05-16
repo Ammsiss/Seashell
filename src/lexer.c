@@ -7,9 +7,9 @@
 int get_tok(char c, enum lx_code *kind) {
     switch (c) {
     case '|': *kind = LX_TOK_PIPE; return 1;
-    case '<': *kind = LX_TOK_REDL; return 1;
-    case '>': *kind = LX_TOK_REDR; return 1;
-    case '&': *kind = LX_TOK_INBG; return 1;
+    case '<': *kind = LX_TOK_RDR_IN; return 1;
+    case '>': *kind = LX_TOK_RDR_OUT; return 1;
+    case '&': *kind = LX_TOK_BG; return 1;
     case '\"': *kind = LX_DBQT; return 1;
     case ' ': case '\t': case '\v': case '\r':
         *kind = LX_WTSP; return 1;
@@ -128,6 +128,10 @@ int lx_tokenize(const char *cmd, struct lx_tok **out_list, size_t *out_len) {
             tok_start_idx = i;
         }
     }
+
+    /* Unmatched double quote */
+    if (!delim_on)
+        goto fail;
 
     if (tok_start != NULL) {
     /* then the command ended with a LX_TOK_WORD */
