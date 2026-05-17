@@ -9,9 +9,9 @@
 
 /************************* Utility Funcs *************************/
 
-void print_lx_tok_list(const struct lx_tok *list, size_t len, const char *msg) {
+void print_tok_list(const struct lx_tok *list, size_t size, const char *msg) {
     printf("%s: ", msg);
-    for (size_t i = 0; i < len; ++i) {
+    for (size_t i = 0; i < size; ++i) {
         switch (list[i].kind) {
         /* Single ops */
         case LX_TOK_PIPE: printf("PIPE(|) "); break;
@@ -20,7 +20,7 @@ void print_lx_tok_list(const struct lx_tok *list, size_t len, const char *msg) {
         case LX_TOK_RDR_OUT: printf("RDR_OUT(>) "); break;
         case LX_TOK_LPAREN: printf("LPAREN(() "); break;
         case LX_TOK_RPAREN: printf("RPAREN()) "); break;
-        case LX_TOK_SEMI: printf("SEMI(;)) "); break;
+        case LX_TOK_SEMI: printf("SEMI(;) "); break;
         case LX_TOK_EOF: printf("EOF()) "); break;
         /* Double ops */
         case LX_TOK_HDOC: printf("HDOC(<<) "); break;
@@ -34,13 +34,6 @@ void print_lx_tok_list(const struct lx_tok *list, size_t len, const char *msg) {
         }
     }
     printf("\n");
-}
-
-void free_lx_tok_list(struct lx_tok *list, size_t len) {
-    for (size_t i = 0; i < len; ++i )
-        if (list[i].kind == LX_TOK_WORD)
-            free(list[i].value);
-    free(list);
 }
 
 void setUp(void) {}
@@ -132,7 +125,7 @@ void test_lx_add_tok_token_value_is_null_terminated(void) {
     TEST_ASSERT_EQUAL_MEMORY("Hi there", list[0].value, token_len);
     TEST_ASSERT_EQUAL_CHAR('\0', list[0].value[token_len]);
 
-    free_lx_tok_list(list, size);
+    lx_free(list, size);
 }
 
 /************************* lx_tokenize *************************/
@@ -140,20 +133,20 @@ void test_lx_add_tok_token_value_is_null_terminated(void) {
 void helper_lx_tokenize_assert_tokens(
         const char *cmd,
         const struct lx_tok *expected,
-        size_t expected_len
+        size_t expected_size
 ) {
     struct lx_tok *list;
-    size_t list_len;
+    size_t list_size;
 
-    TEST_ASSERT_EQUAL(0, lx_tokenize(cmd, &list, &list_len));
+    TEST_ASSERT_EQUAL(0, lx_tokenize(cmd, &list, &list_size));
     TEST_ASSERT_NOT_NULL(list);
 
-    // print_lx_tok_list(expected, expected_len, "RESULT");
-    // print_lx_tok_list(list, list_len, "RESULT");
+    // print_tok_list(expected, expected_size, "EXPECT");
+    // print_tok_list(list, list_size, "RESULT");
 
-    TEST_ASSERT_EQUAL_size_t(expected_len, list_len);
+    TEST_ASSERT_EQUAL_size_t(expected_size, list_size);
 
-    for (size_t i = 0; i < list_len; ++i) {
+    for (size_t i = 0; i < list_size; ++i) {
         TEST_ASSERT_EQUAL(expected[i].kind, list[i].kind);
         if (expected[i].value == NULL) {
             TEST_ASSERT_NULL(list[i].value);
@@ -161,7 +154,7 @@ void helper_lx_tokenize_assert_tokens(
             TEST_ASSERT_EQUAL_STRING(expected[i].value, list[i].value);
     }
 
-    free_lx_tok_list(list, list_len);
+    lx_free(list, list_size);
 }
 
 void test_lx_tokenize_operators_only(void) {
@@ -195,12 +188,12 @@ void test_lx_tokenize_whitespace_only(void) {
     const char *cmd = "      ";
 
     struct lx_tok *list;
-    size_t list_len;
+    size_t list_size;
 
-    TEST_ASSERT_EQUAL(0, lx_tokenize(cmd, &list, &list_len));
-    TEST_ASSERT_EQUAL(0, list_len);
+    TEST_ASSERT_EQUAL(0, lx_tokenize(cmd, &list, &list_size));
+    TEST_ASSERT_EQUAL(0, list_size);
 
-    free_lx_tok_list(list, list_len);
+    lx_free(list, list_size);
 }
 
 void test_lx_tokenize_words_operators_whitespace(void) {
@@ -244,9 +237,9 @@ void test_lx_tokenize_quoted_string_with_delimiters(void) {
 
 void test_lx_tokenize_unmatched_quotes_should_fail(void) {
     struct lx_tok *list;
-    size_t list_len;
+    size_t list_size;
 
-    TEST_ASSERT_EQUAL(-1, lx_tokenize("\"hello", &list, &list_len));
+    TEST_ASSERT_EQUAL(-1, lx_tokenize("\"hello", &list, &list_size));
 }
 
 void test_lx_tokenize_escaped_quotes_are_skipped(void) {

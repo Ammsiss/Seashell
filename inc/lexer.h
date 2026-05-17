@@ -4,7 +4,7 @@
 #include <stddef.h>
 
 /* TOKENS */
-enum lx_code {
+enum lx_kind {
     /* Single ops */
     LX_TOK_PIPE,    // |
     LX_TOK_BG,      // &
@@ -15,7 +15,7 @@ enum lx_code {
     LX_TOK_SEMI,    // ;
     LX_TOK_EOF,
     /* Double ops */
-    LX_TOK_HDOC,       // <<
+    LX_TOK_HDOC,       // <<, shell will set up pipe with hdoc contents
     LX_TOK_APPEND,     // >>
     LX_TOK_AND_IF,     // &&
     LX_TOK_OR_IF,      // ||
@@ -26,13 +26,23 @@ enum lx_code {
 };
 
 struct lx_tok {
-    enum lx_code kind;
+    enum lx_kind kind;
     char *value;
 };
 
-int lx_tokenize(const char *cmd, struct lx_tok **list, size_t *out_len);
+void lx_free(struct lx_tok *list, size_t size);
+
 struct lx_tok *lx_push_tok(struct lx_tok **list, size_t *size, size_t *cap);
-int lx_add_tok(struct lx_tok **list, size_t *size, size_t *cap,
-        enum lx_code kind, const char *start, const char *end);
+
+int lx_add_tok(
+    struct lx_tok **list,
+    size_t *size,
+    size_t *cap,
+    enum lx_kind kind,
+    const char *start,
+    const char *end
+);
+
+int lx_tokenize(const char *cmd, struct lx_tok **list, size_t *out_size);
 
 #endif
