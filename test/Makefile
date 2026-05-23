@@ -15,20 +15,26 @@ DEPFLAGS := -MMD -MP
 USRC     := $(USRC_DIR)/unity.c
 UOBJ     := $(BLD_DIR)/unity.o
 
-.PHONY: all
-all:
-	$(MAKE) test_lexer
+LEX_MODS := $(UOBJ) $(BLD_DIR)/test_lexer.o $(BLD_DIR)/lexer.o \
+			$(BLD_DIR)/dyn_arr.o
+DA_MODS  := $(UOBJ) $(BLD_DIR)/test_dyn_arr.o $(BLD_DIR)/dyn_arr.o
 
-test_lexer: $(BLD_DIR)/lexer.o $(BLD_DIR)/test_lexer.o $(UOBJ)
+.PHONY: all
+all: test_lexer test_dyn_arr
+
+test_lexer: $(LEX_MODS)
 	$(CC) $(CFLAGS) $^ -o $@
 
-# C module
-$(BLD_DIR)/%.o: $(MSRC_DIR)/%.c
-	mkdir -p $(BLD_DIR)
-	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
+test_dyn_arr: $(DA_MODS)
+	$(CC) $(CFLAGS) $^ -o $@
 
 # Test module
 $(BLD_DIR)/test_%.o: test_%.c
+	mkdir -p $(BLD_DIR)
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
+
+# C module
+$(BLD_DIR)/%.o: $(MSRC_DIR)/%.c
 	mkdir -p $(BLD_DIR)
 	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 
@@ -39,6 +45,6 @@ $(UOBJ): $(USRC)
 
 .PHONY: clean
 clean:
-	rm -rf $(BLD_DIR) $(COMPCOM)
+	rm -rf $(BLD_DIR) $(COMPCOM) $(T_LEXER) $(T_DYN_ARR)
 
 -include $(BLD_DIR)/*.d

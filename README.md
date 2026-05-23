@@ -20,6 +20,9 @@ A simple linux shell.
 
 - Make dynamic array module
 - Combine LX_TOK_RDR_OUT and LX_TOK_RDR_STDOUT
+- Use typdefs for structs and enums
+- Replace if (ptr == NULL) with if (!ptr)
+- Change out_list to list
 
 ### Lexer
 
