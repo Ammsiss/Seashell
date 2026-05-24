@@ -3,6 +3,8 @@
 
 #include <stddef.h>
 
+#include "dyn_arr.h"
+
 /* TOKENS */
 enum lx_kind {
     /* Single ops */
@@ -30,19 +32,11 @@ struct lx_tok {
     char *value;
 };
 
-void lx_free(struct lx_tok *list, size_t size);
+void lx_free(struct dyn_arr *list);
 
-struct lx_tok *lx_push_tok(struct lx_tok **list, size_t *size, size_t *cap);
+int lx_add_tok(struct dyn_arr *list, enum lx_kind kind, const char *start,
+    const char *end);
 
-int lx_add_tok(
-    struct lx_tok **list,
-    size_t *size,
-    size_t *cap,
-    enum lx_kind kind,
-    const char *start,
-    const char *end
-);
-
-int lx_tokenize(const char *cmd, struct lx_tok **list, size_t *out_size);
+int lx_tokenize(const char *cmd, struct dyn_arr *list);
 
 #endif

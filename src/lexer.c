@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "lexer.h"
+#include "dyn_arr.h"
 
 /* Expects *c to point to a null terminated string and
  * that it is not pointing at the terminating null byte */
@@ -75,33 +76,16 @@ int lx_kind_is_delim(enum lx_kind kind) {
     }
 }
 
-/* Expects initially mallocated list of at least 1 element */
-struct lx_tok *lx_push_tok(struct lx_tok **list, size_t *size,
-        size_t *cap) {
-    if (list == NULL || *list == NULL || size == NULL || cap == NULL ||
-            *size > *cap || *cap <= 0 || *size < 0)
-        return NULL;
-
-    if (*size < *cap) {
-        *size += 1;
-        return &(*list)[*size - 1];
-    }
-
-    struct lx_tok *new_ptr = reallocarray(*list,
-            *cap * 2, sizeof(struct lx_tok));
-    if (new_ptr == NULL)
-        return NULL;
-
-    *size += 1;
-    *cap *= 2;
-    *list = new_ptr;
-
-    return &new_ptr[*size - 1];
+void lx_free(struct dyn_arr *list) {
+    for (size_t i = 0; i < list->size; ++i)
+        if (DA_GET(list, i, struct lx_tok)->kind == LX_TOK_WORD)
+            free(DA_GET(list, i, struct lx_tok)->value);
+    da_free(list);
 }
 
-int lx_add_tok(struct lx_tok **list, size_t *size, size_t *cap,
-        enum lx_kind kind, const char *start, const char *end) {
-    struct lx_tok *tok = lx_push_tok(list, size, cap);
+int lx_add_tok(struct dyn_arr *list, enum lx_kind kind, const char *start,
+        const char *end) {
+    struct lx_tok *tok = da_push(list);
     if (tok == NULL)
         return -1;
 
@@ -124,28 +108,12 @@ int lx_add_tok(struct lx_tok **list, size_t *size, size_t *cap,
     return 0;
 }
 
-void lx_free(struct lx_tok *list, size_t size) {
-    for (size_t i = 0; i < size; ++i)
-        if (list[i].kind == LX_TOK_WORD)
-            free(list[i].value);
-    free(list);
-}
-
-int lx_tokenize(const char *cmd, struct lx_tok **out_list, size_t *out_size) {
-    size_t cmd_len = 0;
-
-    if (cmd == NULL || out_list == NULL || out_size == NULL ||
-            (cmd_len = strlen(cmd)) == 0)
+int lx_tokenize(const char *cmd, struct dyn_arr *list) {
+    size_t cmd_len = strlen(cmd);
+    if (cmd == NULL || cmd_len == 0 || list == NULL)
         return -1;
 
-    *out_list = NULL;
-    *out_size = 0;
-
-    size_t size = 0;
-    size_t cap = 1;
-
-    struct lx_tok *list = malloc(cap * sizeof(struct lx_tok));
-    if (list == NULL)
+    if (da_init(list, 0, sizeof(struct lx_tok)) == -1)
         return -1;
 
     enum lx_kind tok_kind;
@@ -164,8 +132,7 @@ int lx_tokenize(const char *cmd, struct lx_tok **out_list, size_t *out_size) {
         case ' ':
             if (delim_on) {
                 if (tok_start != NULL)
-                    if (lx_add_tok(&list, &size, &cap, LX_TOK_WORD,
-                                tok_start, c) == -1)
+                    if (lx_add_tok(list, LX_TOK_WORD, tok_start, c) == -1)
                         goto fail;
                 tok_start = NULL;
             }
@@ -189,12 +156,11 @@ int lx_tokenize(const char *cmd, struct lx_tok **out_list, size_t *out_size) {
         if (delim_on && lx_kind_is_delim(tok_kind)) {
             /* Tokenize Word */
             if (tok_start != NULL)
-                if (lx_add_tok(&list, &size, &cap, LX_TOK_WORD,
-                            tok_start, c) == -1)
+                if (lx_add_tok(list, LX_TOK_WORD, tok_start, c) == -1)
                     goto fail;
 
             /* Tokenize Operator */
-            if (lx_add_tok(&list, &size, &cap, tok_kind, NULL, NULL) == -1)
+            if (lx_add_tok(list, tok_kind, NULL, NULL) == -1)
                 goto fail;
 
             /* This must be after tokenizing the word */
@@ -214,20 +180,12 @@ int lx_tokenize(const char *cmd, struct lx_tok **out_list, size_t *out_size) {
         goto fail;
 
     /* Tokenize Final Word */
-    if (tok_start != NULL) {
-        if (lx_add_tok(&list, &size, &cap, LX_TOK_WORD,
-                    tok_start, &cmd[cmd_len]) == -1)
+    if (tok_start != NULL)
+        if (lx_add_tok(list, LX_TOK_WORD, tok_start, &cmd[cmd_len]) == -1)
             goto fail;
-    }
-
-    *out_list = list;
-    *out_size = size;
 
     return 0;
-
 fail:
-    for (size_t i = 0; i < size; ++i)
-        free(list[i].value);
-    free(list);
+    lx_free(list);
     return -1;
 }

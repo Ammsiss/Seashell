@@ -6,13 +6,14 @@
 
 #include "unity.h"
 #include "lexer.h"
+#include "dyn_arr.h"
 
 /************************* Utility Funcs *************************/
 
-void print_tok_list(const struct lx_tok *list, size_t size, const char *msg) {
+void print_tok_list(const struct dyn_arr *list, const char *msg) {
     printf("%s: ", msg);
-    for (size_t i = 0; i < size; ++i) {
-        switch (list[i].kind) {
+    for (size_t i = 0; i < list->size; ++i) {
+        switch (DA_GET(list, i, struct lx_tok)->kind) {
         /* Single ops */
         case LX_TOK_PIPE: printf("PIPE(|) "); break;
         case LX_TOK_BG: printf("INBG(&) "); break;
@@ -29,8 +30,11 @@ void print_tok_list(const struct lx_tok *list, size_t size, const char *msg) {
         case LX_TOK_OR_IF: printf("OR_IF(||) "); break;
         case LX_TOK_RDR_STDOUT: printf("RDR_STDOUT(1>) "); break;
         case LX_TOK_RDR_STDERR: printf("RDR_STDERR(2>) "); break;
-        case LX_TOK_WORD: printf("WORD(%s) ", list[i].value); break;
-        default: break;
+        case LX_TOK_WORD:
+            printf("WORD(%s) ", DA_GET(list, i, struct lx_tok)->value);
+            break;
+        default:
+            break;
         }
     }
     printf("\n");
@@ -39,93 +43,26 @@ void print_tok_list(const struct lx_tok *list, size_t size, const char *msg) {
 void setUp(void) {}
 void tearDown(void) {}
 
-/************************* lx_push_tok *************************/
-
-void helper_push_tok(size_t ex_size, size_t size, size_t ex_cap, size_t cap) {
-    struct lx_tok *list = malloc(cap * sizeof(struct lx_tok));
-    TEST_ASSERT_NOT_NULL(list);
-
-    struct lx_tok *token = lx_push_tok(&list, &size, &cap);
-
-    TEST_ASSERT_NOT_NULL(token);
-    TEST_ASSERT_EQUAL_PTR(&list[size - 1], token);
-
-    TEST_ASSERT_EQUAL_size_t(ex_size, size);
-    TEST_ASSERT_EQUAL_size_t(ex_cap, cap);
-
-    free(list);
-}
-
-void test_push_tok_size_cap_equal(void) {
-    helper_push_tok(2, 1, 2, 1);
-}
-
-void test_push_tok_size_less_than_cap(void) {
-    helper_push_tok(3, 2, 3, 3);
-}
-
-void test_push_tok_resize_preserves_data(void) {
-    size_t size = 1;
-    size_t cap = 1;
-
-    struct lx_tok *list = malloc(cap * sizeof(struct lx_tok));
-    TEST_ASSERT_NOT_NULL(list);
-
-    const char *demo_value = "x";
-
-    list[0].kind = LX_TOK_WORD;
-
-    list[0].value = malloc(2);
-    TEST_ASSERT_NOT_NULL(list[0].value);
-    list[0].value[0] = 'x';
-    list[0].value[1] = '\0';
-
-    TEST_ASSERT_NOT_NULL(lx_push_tok(&list, &size, &cap));
-
-    TEST_ASSERT_EQUAL_INT(LX_TOK_WORD, list[0].kind);
-    TEST_ASSERT_EQUAL_STRING(demo_value, list[0].value);
-
-    free(list[0].value);
-    free(list);
-}
-
-void stress_push_tok_size_cap_equal(void) {
-    for (size_t i = 0; i < 10000; ++i) {
-        size_t size = rand() % 100 + 1;
-        size_t cap = size;
-        helper_push_tok(size + 1, size, cap * 2, cap);
-    }
-}
-
-void stress_push_tok_size_less_than_cap(void) {
-    for (size_t i = 0; i < 10000; ++i) {
-        size_t size = rand() % 100 + 1;
-        size_t cap = rand() % 100 + size + 1;
-        helper_push_tok(size + 1, size, cap, cap);
-    }
-}
-
 /************************* lx_add_tok *************************/
 
 void test_lx_add_tok_token_value_is_null_terminated(void) {
-    size_t size = 0;
-    size_t cap = 1;
-
-    struct lx_tok *list = malloc(cap * sizeof(struct lx_tok));
-    TEST_ASSERT_NOT_NULL(list);
+    struct dyn_arr list;
+    TEST_ASSERT_EQUAL_INT(0, da_init(&list, 0, sizeof(struct lx_tok)));
 
     const char *token_text = "Hi there!";
 
     int token_len = 8;
     const char *end = &token_text[7];
 
-    TEST_ASSERT_NOT_EQUAL_INT(-1, lx_add_tok(&list, &size, &cap,
-                LX_TOK_WORD, token_text, end + 1));
+    TEST_ASSERT_NOT_EQUAL_INT(-1, lx_add_tok(&list, LX_TOK_WORD, token_text,
+                end + 1));
 
-    TEST_ASSERT_EQUAL_MEMORY("Hi there", list[0].value, token_len);
-    TEST_ASSERT_EQUAL_CHAR('\0', list[0].value[token_len]);
+    TEST_ASSERT_EQUAL_MEMORY("Hi there",
+            DA_GET(&list, 0, struct lx_tok)->value, token_len);
+    TEST_ASSERT_EQUAL_CHAR('\0',
+            DA_GET(&list, 0, struct lx_tok)->value[token_len]);
 
-    lx_free(list, size);
+    lx_free(&list);
 }
 
 /************************* lx_tokenize *************************/
@@ -135,26 +72,24 @@ void helper_lx_tokenize_assert_tokens(
         const struct lx_tok *expected,
         size_t expected_size
 ) {
-    struct lx_tok *list;
-    size_t list_size;
+    struct dyn_arr list;
 
-    TEST_ASSERT_EQUAL(0, lx_tokenize(cmd, &list, &list_size));
-    TEST_ASSERT_NOT_NULL(list);
+    TEST_ASSERT_EQUAL(0, lx_tokenize(cmd, &list));
 
-    // print_tok_list(expected, expected_size, "EXPECT");
-    // print_tok_list(list, list_size, "RESULT");
+    print_tok_list(&list, "RESULT");
 
-    TEST_ASSERT_EQUAL_size_t(expected_size, list_size);
+    TEST_ASSERT_EQUAL_size_t(expected_size, list.size);
 
-    for (size_t i = 0; i < list_size; ++i) {
-        TEST_ASSERT_EQUAL(expected[i].kind, list[i].kind);
+    for (size_t i = 0; i < list.size; ++i) {
+        struct lx_tok *tok = DA_GET(&list, i, struct lx_tok);
+        TEST_ASSERT_EQUAL(expected[i].kind, tok->kind);
         if (expected[i].value == NULL) {
-            TEST_ASSERT_NULL(list[i].value);
+            TEST_ASSERT_NULL(tok->value);
         } else
-            TEST_ASSERT_EQUAL_STRING(expected[i].value, list[i].value);
+            TEST_ASSERT_EQUAL_STRING(expected[i].value, tok->value);
     }
 
-    lx_free(list, list_size);
+    lx_free(&list);
 }
 
 void test_lx_tokenize_operators_only(void) {
@@ -187,13 +122,12 @@ void test_lx_tokenize_word_only(void) {
 void test_lx_tokenize_whitespace_only(void) {
     const char *cmd = "      ";
 
-    struct lx_tok *list;
-    size_t list_size;
+    struct dyn_arr list;
 
-    TEST_ASSERT_EQUAL(0, lx_tokenize(cmd, &list, &list_size));
-    TEST_ASSERT_EQUAL(0, list_size);
+    TEST_ASSERT_EQUAL(0, lx_tokenize(cmd, &list));
+    TEST_ASSERT_EQUAL(0, list.size);
 
-    lx_free(list, list_size);
+    lx_free(&list);
 }
 
 void test_lx_tokenize_words_operators_whitespace(void) {
@@ -236,10 +170,8 @@ void test_lx_tokenize_quoted_string_with_delimiters(void) {
 }
 
 void test_lx_tokenize_unmatched_quotes_should_fail(void) {
-    struct lx_tok *list;
-    size_t list_size;
-
-    TEST_ASSERT_EQUAL(-1, lx_tokenize("\"hello", &list, &list_size));
+    struct dyn_arr list;
+    TEST_ASSERT_EQUAL(-1, lx_tokenize("\"hello", &list));
 }
 
 void test_lx_tokenize_escaped_quotes_are_skipped(void) {
@@ -290,13 +222,6 @@ int main(void) {
     srand(ts.tv_sec ^ ts.tv_nsec);
 
     UNITY_BEGIN();
-
-    /* lx_push_tok */
-    RUN_TEST(test_push_tok_size_cap_equal);
-    RUN_TEST(test_push_tok_size_less_than_cap);
-    RUN_TEST(test_push_tok_resize_preserves_data);
-    RUN_TEST(stress_push_tok_size_less_than_cap);
-    RUN_TEST(stress_push_tok_size_cap_equal);
 
     /* lx_add_tok */
     RUN_TEST(test_lx_add_tok_token_value_is_null_terminated);
