@@ -3,24 +3,24 @@
 
 #include <stddef.h>
 
-struct lx_tok;
+#include "lexer.h"
 
-struct ps_cmd {
+typedef struct {
     int argc;
     char **argv;
     char redirects[4];   /* stdin, stdout, stderr, append */
-};
+} ps_cmd;
 
-struct ps_pipeline {
+typedef struct {
     size_t cmd_cnt;
-};
+} ps_pipeline;
 
-struct ps_job {
-    /* struct ps_pipeline *pipelines; */
-    /* struct ps_command *commands; */
+typedef struct {
+    /* ps_pipeline *pipelines; */
+    /* ps_command *commands; */
     int background;
-};
+} ps_job;
 
-struct ps_job *ps_parse(struct lx_tok *tok_list, size_t tok_list_size);
+ps_job *ps_parse(lx_tok *tok_list, size_t tok_list_size);
 
 #endif

@@ -7,7 +7,7 @@
 
 /* Expects *c to point to a null terminated string and
  * that it is not pointing at the terminating null byte */
-enum lx_kind lx_get_kind(const char *c) {
+lx_kind lx_get_kind(const char *c) {
     if (strncmp("<<", c, 2) == 0)
         return LX_TOK_HDOC;
     if (strncmp(">>", c, 2) == 0)
@@ -39,7 +39,7 @@ enum lx_kind lx_get_kind(const char *c) {
     return LX_TOK_WORD;
 }
 
-int lx_kind_is_double_char_op(enum lx_kind kind) {
+int lx_kind_is_double_char_op(lx_kind kind) {
     switch (kind) {
     case LX_TOK_HDOC:
     case LX_TOK_APPEND:
@@ -53,7 +53,7 @@ int lx_kind_is_double_char_op(enum lx_kind kind) {
     }
 }
 
-int lx_kind_is_delim(enum lx_kind kind) {
+int lx_kind_is_delim(lx_kind kind) {
     switch (kind) {
     /* Single ops */
     case LX_TOK_PIPE:
@@ -76,28 +76,28 @@ int lx_kind_is_delim(enum lx_kind kind) {
     }
 }
 
-void lx_free(struct dyn_arr *list) {
+void lx_free(dyn_arr *list) {
     for (size_t i = 0; i < list->size; ++i)
-        if (DA_GET(list, i, struct lx_tok)->kind == LX_TOK_WORD)
-            free(DA_GET(list, i, struct lx_tok)->value);
+        if (DA_GET(list, i, lx_tok)->kind == LX_TOK_WORD)
+            free(DA_GET(list, i, lx_tok)->value);
     da_free(list);
 }
 
-int lx_add_tok(struct dyn_arr *list, enum lx_kind kind, const char *start,
+int lx_add_tok(dyn_arr *list, lx_kind kind, const char *start,
         const char *end) {
-    struct lx_tok *tok = da_push(list);
-    if (tok == NULL)
+    lx_tok *tok = da_push(list);
+    if (!tok)
         return -1;
 
     tok->kind = kind;
 
-    if (start != NULL && end != NULL) {
+    if (start && end) {
         size_t len = 0;
         for (const char *c = start; c != end; ++c)
             ++len;
 
         tok->value = malloc(len + 1);
-        if (tok->value == NULL)
+        if (!tok->value)
             return -1;
 
         memcpy(tok->value, start, len);
@@ -108,15 +108,15 @@ int lx_add_tok(struct dyn_arr *list, enum lx_kind kind, const char *start,
     return 0;
 }
 
-int lx_tokenize(const char *cmd, struct dyn_arr *list) {
+int lx_tokenize(const char *cmd, dyn_arr *list) {
     size_t cmd_len = strlen(cmd);
-    if (cmd == NULL || cmd_len == 0 || list == NULL)
+    if (!cmd || cmd_len == 0 || !list)
         return -1;
 
-    if (da_init(list, 0, sizeof(struct lx_tok)) == -1)
+    if (da_init(list, 0, sizeof(lx_tok)) == -1)
         return -1;
 
-    enum lx_kind tok_kind;
+    lx_kind tok_kind;
     const char *tok_start = NULL;
 
     int delim_on = 1;
@@ -131,7 +131,7 @@ int lx_tokenize(const char *cmd, struct dyn_arr *list) {
             break;
         case ' ':
             if (delim_on) {
-                if (tok_start != NULL)
+                if (tok_start)
                     if (lx_add_tok(list, LX_TOK_WORD, tok_start, c) == -1)
                         goto fail;
                 tok_start = NULL;
@@ -155,7 +155,7 @@ int lx_tokenize(const char *cmd, struct dyn_arr *list) {
 
         if (delim_on && lx_kind_is_delim(tok_kind)) {
             /* Tokenize Word */
-            if (tok_start != NULL)
+            if (tok_start)
                 if (lx_add_tok(list, LX_TOK_WORD, tok_start, c) == -1)
                     goto fail;
 
@@ -171,7 +171,7 @@ int lx_tokenize(const char *cmd, struct dyn_arr *list) {
             continue;
         }
 
-        if (tok_start == NULL)
+        if (!tok_start)
             tok_start = c;
     }
 
@@ -180,7 +180,7 @@ int lx_tokenize(const char *cmd, struct dyn_arr *list) {
         goto fail;
 
     /* Tokenize Final Word */
-    if (tok_start != NULL)
+    if (tok_start)
         if (lx_add_tok(list, LX_TOK_WORD, tok_start, &cmd[cmd_len]) == -1)
             goto fail;
 

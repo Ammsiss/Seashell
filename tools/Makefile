@@ -10,11 +10,12 @@ CFLAGS   := -g -O0 -fno-omit-frame-pointer -Wall -Wextra \
 			-Wpedantic -std=c23 -I$(MINC_DIR)
 DEPFLAGS := -MMD -MP
 
+BIN_DEPS := $(BLD_DIR)/shell_debug.o $(BLD_DIR)/lexer.o $(BLD_DIR)/dyn_arr.o
 
 .PHONY: all
 all: $(BIN)
 
-$(BIN): $(BLD_DIR)/shell_debug.o $(BLD_DIR)/lexer.o
+$(BIN): $(BIN_DEPS)
 	$(CC) $(CFLAGS) $^ -o $@
 
 # Debug binary

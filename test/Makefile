@@ -9,7 +9,8 @@ BLD_DIR  := build
 COMPCOM  := compile_commands.json
 
 CFLAGS   := -g -O0 -fno-omit-frame-pointer -Wall -Wextra \
-			-Wpedantic -std=c23 -I$(MINC_DIR) -I$(USRC_DIR)
+			-Wpedantic -std=c23 -I$(MINC_DIR) -I$(USRC_DIR) \
+			-DUNITY_OUTPUT_COLOR
 DEPFLAGS := -MMD -MP
 
 USRC     := $(USRC_DIR)/unity.c

@@ -3,11 +3,11 @@
 #include "parser.h"
 #include "lexer.h"
 
-struct ps_job *ps_parse(struct lx_tok *tok_list, size_t tok_list_size) {
-    if (tok_list == NULL || tok_list_size < 1)
+ps_job *ps_parse(lx_tok *tok_list, size_t tok_list_size) {
+    if (!tok_list || tok_list_size < 1)
         return NULL;
 
-    struct ps_job *cmd = malloc(sizeof(struct ps_cmd));
+    // ps_job *cmd = malloc(sizeof(ps_cmd));
 
     /* <, [>, 1>], >>, 2> */
     for (size_t i = 0; i < tok_list_size; ++i) {

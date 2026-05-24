@@ -6,7 +6,7 @@
 #include "dyn_arr.h"
 
 /* TOKENS */
-enum lx_kind {
+typedef enum {
     /* Single ops */
     LX_TOK_PIPE,    // |
     LX_TOK_BG,      // &
@@ -25,18 +25,18 @@ enum lx_kind {
     LX_TOK_RDR_STDERR, // 2>
 
     LX_TOK_WORD,
-};
+} lx_kind;
 
-struct lx_tok {
-    enum lx_kind kind;
+typedef struct {
+    lx_kind kind;
     char *value;
-};
+} lx_tok;
 
-void lx_free(struct dyn_arr *list);
+void lx_free(dyn_arr *list);
 
-int lx_add_tok(struct dyn_arr *list, enum lx_kind kind, const char *start,
+int lx_add_tok(dyn_arr *list, lx_kind kind, const char *start,
     const char *end);
 
-int lx_tokenize(const char *cmd, struct dyn_arr *list);
+int lx_tokenize(const char *cmd, dyn_arr *list);
 
 #endif

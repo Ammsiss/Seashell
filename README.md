@@ -1,6 +1,6 @@
 # Seashell
 
-A simple linux shell.
+A simple linux shell. Collect, compute, describe, perform.
 
 ## Capabilities
 
@@ -17,15 +17,6 @@ A simple linux shell.
 - Command substitution: `cat $(ls)`
 
 ## TODO
-
-- Combine LX_TOK_RDR_OUT and LX_TOK_RDR_STDOUT
-- Use typdefs for structs and enums
-- Replace if (ptr == NULL) with if (!ptr)
-- Change out_list to list
-
-### Lexer
-
-Interesting example: ```$ A="bye" sh -c 'echo "$A"'```
 
 ## License
 Seashell is licensed under the MIT License. See [LICENSE](LICENSE) for details.

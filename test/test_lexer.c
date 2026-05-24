@@ -10,10 +10,10 @@
 
 /************************* Utility Funcs *************************/
 
-void print_tok_list(const struct dyn_arr *list, const char *msg) {
+void print_tok_list(const dyn_arr *list, const char *msg) {
     printf("%s: ", msg);
     for (size_t i = 0; i < list->size; ++i) {
-        switch (DA_GET(list, i, struct lx_tok)->kind) {
+        switch (DA_GET(list, i, lx_tok)->kind) {
         /* Single ops */
         case LX_TOK_PIPE: printf("PIPE(|) "); break;
         case LX_TOK_BG: printf("INBG(&) "); break;
@@ -31,7 +31,7 @@ void print_tok_list(const struct dyn_arr *list, const char *msg) {
         case LX_TOK_RDR_STDOUT: printf("RDR_STDOUT(1>) "); break;
         case LX_TOK_RDR_STDERR: printf("RDR_STDERR(2>) "); break;
         case LX_TOK_WORD:
-            printf("WORD(%s) ", DA_GET(list, i, struct lx_tok)->value);
+            printf("WORD(%s) ", DA_GET(list, i, lx_tok)->value);
             break;
         default:
             break;
@@ -46,8 +46,8 @@ void tearDown(void) {}
 /************************* lx_add_tok *************************/
 
 void test_lx_add_tok_token_value_is_null_terminated(void) {
-    struct dyn_arr list;
-    TEST_ASSERT_EQUAL_INT(0, da_init(&list, 0, sizeof(struct lx_tok)));
+    dyn_arr list;
+    TEST_ASSERT_EQUAL_INT(0, da_init(&list, 0, sizeof(lx_tok)));
 
     const char *token_text = "Hi there!";
 
@@ -58,9 +58,9 @@ void test_lx_add_tok_token_value_is_null_terminated(void) {
                 end + 1));
 
     TEST_ASSERT_EQUAL_MEMORY("Hi there",
-            DA_GET(&list, 0, struct lx_tok)->value, token_len);
+            DA_GET(&list, 0, lx_tok)->value, token_len);
     TEST_ASSERT_EQUAL_CHAR('\0',
-            DA_GET(&list, 0, struct lx_tok)->value[token_len]);
+            DA_GET(&list, 0, lx_tok)->value[token_len]);
 
     lx_free(&list);
 }
@@ -69,21 +69,18 @@ void test_lx_add_tok_token_value_is_null_terminated(void) {
 
 void helper_lx_tokenize_assert_tokens(
         const char *cmd,
-        const struct lx_tok *expected,
+        const lx_tok *expected,
         size_t expected_size
 ) {
-    struct dyn_arr list;
-
+    dyn_arr list;
     TEST_ASSERT_EQUAL(0, lx_tokenize(cmd, &list));
-
-    print_tok_list(&list, "RESULT");
 
     TEST_ASSERT_EQUAL_size_t(expected_size, list.size);
 
     for (size_t i = 0; i < list.size; ++i) {
-        struct lx_tok *tok = DA_GET(&list, i, struct lx_tok);
+        lx_tok *tok = DA_GET(&list, i, lx_tok);
         TEST_ASSERT_EQUAL(expected[i].kind, tok->kind);
-        if (expected[i].value == NULL) {
+        if (!expected[i].value) {
             TEST_ASSERT_NULL(tok->value);
         } else
             TEST_ASSERT_EQUAL_STRING(expected[i].value, tok->value);
@@ -93,7 +90,7 @@ void helper_lx_tokenize_assert_tokens(
 }
 
 void test_lx_tokenize_operators_only(void) {
-    const struct lx_tok expected[12] = {
+    const lx_tok expected[12] = {
         { LX_TOK_RDR_IN, NULL },
         { LX_TOK_BG, NULL },
         { LX_TOK_SEMI, NULL },
@@ -112,7 +109,7 @@ void test_lx_tokenize_operators_only(void) {
 }
 
 void test_lx_tokenize_word_only(void) {
-    const struct lx_tok expected[1] = {
+    const lx_tok expected[1] = {
         { LX_TOK_WORD, "Hello,World!" },
     };
 
@@ -122,7 +119,7 @@ void test_lx_tokenize_word_only(void) {
 void test_lx_tokenize_whitespace_only(void) {
     const char *cmd = "      ";
 
-    struct dyn_arr list;
+    dyn_arr list;
 
     TEST_ASSERT_EQUAL(0, lx_tokenize(cmd, &list));
     TEST_ASSERT_EQUAL(0, list.size);
@@ -131,7 +128,7 @@ void test_lx_tokenize_whitespace_only(void) {
 }
 
 void test_lx_tokenize_words_operators_whitespace(void) {
-    const struct lx_tok expected[6] = {
+    const lx_tok expected[6] = {
         { LX_TOK_WORD, "hello" },
         { LX_TOK_RDR_IN, NULL },
         { LX_TOK_WORD, "world!" },
@@ -144,7 +141,7 @@ void test_lx_tokenize_words_operators_whitespace(void) {
 }
 
 void test_lx_tokenize_empty_quote(void) {
-    const struct lx_tok expected[1] = {
+    const lx_tok expected[1] = {
         { LX_TOK_WORD, "\"\"" },
     };
 
@@ -152,7 +149,7 @@ void test_lx_tokenize_empty_quote(void) {
 }
 
 void test_lx_tokenize_quoted_string(void) {
-    const struct lx_tok expected[1] = {
+    const lx_tok expected[1] = {
         { LX_TOK_WORD, "\"Hello,World!\"" },
     };
 
@@ -160,7 +157,7 @@ void test_lx_tokenize_quoted_string(void) {
 }
 
 void test_lx_tokenize_quoted_string_with_delimiters(void) {
-    const struct lx_tok expected[3] = {
+    const lx_tok expected[3] = {
         { LX_TOK_WORD, "\"\"hi\"& |\"" },
         { LX_TOK_BG, NULL },
         { LX_TOK_WORD, "hello\" \"" },
@@ -170,12 +167,12 @@ void test_lx_tokenize_quoted_string_with_delimiters(void) {
 }
 
 void test_lx_tokenize_unmatched_quotes_should_fail(void) {
-    struct dyn_arr list;
+    dyn_arr list;
     TEST_ASSERT_EQUAL(-1, lx_tokenize("\"hello", &list));
 }
 
 void test_lx_tokenize_escaped_quotes_are_skipped(void) {
-    const struct lx_tok expected[1] = {
+    const lx_tok expected[1] = {
         { LX_TOK_WORD, "\"He said \\\"n&thing...\\\"\"" },
     };
 
@@ -186,7 +183,7 @@ void test_lx_tokenize_escaped_quotes_are_skipped(void) {
 }
 
 void test_lx_tokenize_escaped_backslashes_are_skipped(void) {
-    const struct lx_tok expected[2] = {
+    const lx_tok expected[2] = {
         { LX_TOK_WORD, "echo" },
         { LX_TOK_WORD, "\"\\\\\"" },
     };
@@ -198,7 +195,7 @@ void test_lx_tokenize_escaped_backslashes_are_skipped(void) {
 }
 
 void test_lx_tokenize_two_char_operators(void) {
-    const struct lx_tok expected[9] = {
+    const lx_tok expected[9] = {
         { LX_TOK_WORD, "solaar" },
         { LX_TOK_WORD, "show" },
         { LX_TOK_RDR_STDERR, NULL },
