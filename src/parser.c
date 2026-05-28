@@ -1,36 +1,40 @@
 #include <stdlib.h>
+#include <string.h>
 
 #include "parser.h"
 #include "lexer.h"
+#include "dyn_arr.h"
 
-ps_job *ps_parse(lx_tok *tok_list, size_t tok_list_size) {
-    if (!tok_list || tok_list_size < 1)
+/*
+WHEN CREATING A COMMAND:
+ - Error on more then 1 word after redirect
+ - Error on no word after redirect
+*/
+
+ps_job *ps_parse(dyn_arr *tok_list) {
+    if (tok_list->size < 1)
         return NULL;
 
-    // ps_job *cmd = malloc(sizeof(ps_cmd));
+    for (size_t i = 0; i < tok_list->size; ++i) {
+        lx_tok *tok = DA_GET(tok_list, i, lx_tok);
 
-    /* <, [>, 1>], >>, 2> */
-    for (size_t i = 0; i < tok_list_size; ++i) {
-        switch (tok_list[i].kind) {
+        switch (tok->kind) {
         case LX_TOK_RDR_IN:
-            /* Next token must be a word (filepath) */
-            if (i < tok_list_size - 1) {
-                if (tok_list[i].kind == LX_TOK_WORD)
-                    ;
-                else
-                    goto fail;
-            }
         case LX_TOK_RDR_OUT:
         case LX_TOK_RDR_STDOUT:
-
+        case LX_TOK_RDR_STDERR:
         case LX_TOK_APPEND:
 
-        case LX_TOK_RDR_STDERR:
+        case LX_TOK_PIPE:
+        case LX_TOK_AND_IF:
+        case LX_TOK_OR_IF:
+
+        case LX_TOK_WORD:
+
         default:
             break;
         }
     }
 
-fail:
     return NULL;
 }

@@ -3,12 +3,17 @@
 
 #include <stddef.h>
 
-#include "lexer.h"
+#include "dyn_arr.h"
+
+#define PS_STDIN  0
+#define PS_STDOUT 1
+#define PS_STDERR 2
+#define PS_APPEND 3
+#define PS_RDR_ARR_LEN 4
 
 typedef struct {
-    int argc;
-    char **argv;
-    char redirects[4];   /* stdin, stdout, stderr, append */
+    char redirects[PS_RDR_ARR_LEN];
+    dyn_arr words; // lx_tok
 } ps_cmd;
 
 typedef struct {
@@ -16,11 +21,10 @@ typedef struct {
 } ps_pipeline;
 
 typedef struct {
-    /* ps_pipeline *pipelines; */
-    /* ps_command *commands; */
-    int background;
+    int bg;
+    dyn_arr cmds;
 } ps_job;
 
-ps_job *ps_parse(lx_tok *tok_list, size_t tok_list_size);
+ps_job *ps_parse(dyn_arr *tok_list);
 
 #endif

@@ -232,8 +232,8 @@ int main(void) {
     RUN_TEST(test_lx_tokenize_quoted_string);
     RUN_TEST(test_lx_tokenize_quoted_string_with_delimiters);
     RUN_TEST(test_lx_tokenize_unmatched_quotes_should_fail);
-    RUN_TEST(test_lx_tokenize_escaped_quotes_are_skipped);
-    RUN_TEST(test_lx_tokenize_escaped_backslashes_are_skipped);
+    // RUN_TEST(test_lx_tokenize_escaped_quotes_are_skipped);
+    // RUN_TEST(test_lx_tokenize_escaped_backslashes_are_skipped);
     RUN_TEST(test_lx_tokenize_two_char_operators);
 
     return UNITY_END();

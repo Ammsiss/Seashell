@@ -108,9 +108,25 @@ int lx_add_tok(dyn_arr *list, lx_kind kind, const char *start,
     return 0;
 }
 
+int lx_flush_word(dyn_arr *list, const char **tok_start, const char *tok_end) {
+    if (tok_start == NULL)
+        return -1;
+
+    if (*tok_start) {
+        if (lx_add_tok(list, LX_TOK_WORD, *tok_start, tok_end) == -1)
+            return -1;
+        *tok_start = NULL;
+    }
+
+    return 0;
+}
+
 int lx_tokenize(const char *cmd, dyn_arr *list) {
+    if (!cmd || !list)
+        return -1;
+
     size_t cmd_len = strlen(cmd);
-    if (!cmd || cmd_len == 0 || !list)
+    if (cmd_len <= 0)
         return -1;
 
     if (da_init(list, 0, sizeof(lx_tok)) == -1)
@@ -130,12 +146,9 @@ int lx_tokenize(const char *cmd, dyn_arr *list) {
                 continue;
             break;
         case ' ':
-            if (delim_on) {
-                if (tok_start)
-                    if (lx_add_tok(list, LX_TOK_WORD, tok_start, c) == -1)
-                        goto fail;
-                tok_start = NULL;
-            }
+            if (delim_on)
+                if (lx_flush_word(list, &tok_start, c) == -1)
+                    goto fail;
             continue;
         case '\\':
             if (c[1] == '\0')
@@ -155,9 +168,8 @@ int lx_tokenize(const char *cmd, dyn_arr *list) {
 
         if (delim_on && lx_kind_is_delim(tok_kind)) {
             /* Tokenize Word */
-            if (tok_start)
-                if (lx_add_tok(list, LX_TOK_WORD, tok_start, c) == -1)
-                    goto fail;
+            if (lx_flush_word(list, &tok_start, c) == -1)
+                goto fail;
 
             /* Tokenize Operator */
             if (lx_add_tok(list, tok_kind, NULL, NULL) == -1)
@@ -167,7 +179,6 @@ int lx_tokenize(const char *cmd, dyn_arr *list) {
             if (lx_kind_is_double_char_op(tok_kind))
                 ++c;
 
-            tok_start = NULL;
             continue;
         }
 
@@ -180,9 +191,9 @@ int lx_tokenize(const char *cmd, dyn_arr *list) {
         goto fail;
 
     /* Tokenize Final Word */
-    if (tok_start)
-        if (lx_add_tok(list, LX_TOK_WORD, tok_start, &cmd[cmd_len]) == -1)
-            goto fail;
+
+    if (lx_flush_word(list, &tok_start, &cmd[cmd_len]) == -1)
+        goto fail;
 
     return 0;
 fail:

@@ -29,6 +29,35 @@ NORETURN PFFORMAT(1, 2) void usage_err(const char *fmt, ...) {
     exit(EXIT_FAILURE);
 }
 
+void print_tok_list(const dyn_arr *list) {
+    for (size_t i = 0; i < list->size; ++i) {
+        switch (DA_GET(list, i, lx_tok)->kind) {
+        /* Single ops */
+        case LX_TOK_PIPE: printf("PIPE(|) "); break;
+        case LX_TOK_BG: printf("INBG(&) "); break;
+        case LX_TOK_RDR_IN: printf("RDR_IN(<) "); break;
+        case LX_TOK_RDR_OUT: printf("RDR_OUT(>) "); break;
+        case LX_TOK_LPAREN: printf("LPAREN(() "); break;
+        case LX_TOK_RPAREN: printf("RPAREN()) "); break;
+        case LX_TOK_SEMI: printf("SEMI(;) "); break;
+        case LX_TOK_EOF: printf("EOF()) "); break;
+        /* Double ops */
+        case LX_TOK_HDOC: printf("HDOC(<<) "); break;
+        case LX_TOK_APPEND: printf("APPEND(>>) "); break;
+        case LX_TOK_AND_IF: printf("AND_IF(&&) "); break;
+        case LX_TOK_OR_IF: printf("OR_IF(||) "); break;
+        case LX_TOK_RDR_STDOUT: printf("RDR_STDOUT(1>) "); break;
+        case LX_TOK_RDR_STDERR: printf("RDR_STDERR(2>) "); break;
+        case LX_TOK_WORD:
+            printf("WORD(%s) ", DA_GET(list, i, lx_tok)->value);
+            break;
+        default:
+            break;
+        }
+    }
+    printf("\n");
+}
+
 int main(int argc, char **argv)
 {
     if (argc < 2 || strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0)
@@ -38,7 +67,7 @@ int main(int argc, char **argv)
     if (lx_tokenize(argv[1], &list) == -1)
         err_exit("lx_tokenize failed\n");
 
-    // print_tok_list(list, size, NULL);
+    print_tok_list(&list);
 
     lx_free(&list);
 }

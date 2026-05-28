@@ -33,10 +33,9 @@ typedef struct {
 } lx_tok;
 
 void lx_free(dyn_arr *list);
-
 int lx_add_tok(dyn_arr *list, lx_kind kind, const char *start,
     const char *end);
-
+int lx_flush_word(dyn_arr *list, const char **tok_start, const char *tok_end);
 int lx_tokenize(const char *cmd, dyn_arr *list);
 
 #endif

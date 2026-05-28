@@ -18,13 +18,18 @@ UOBJ     := $(BLD_DIR)/unity.o
 
 LEX_MODS := $(UOBJ) $(BLD_DIR)/test_lexer.o $(BLD_DIR)/lexer.o \
 			$(BLD_DIR)/dyn_arr.o
+PS_MODS  := $(UOBJ) $(BLD_DIR)/test_parser.o $(BLD_DIR)/parser.o \
+			$(BLD_DIR)/dyn_arr.o
 DA_MODS  := $(UOBJ) $(BLD_DIR)/test_dyn_arr.o $(BLD_DIR)/dyn_arr.o
 
 .PHONY: all
-all: test_lexer test_dyn_arr
+all: test_lexer test_dyn_arr test_parser
 
 test_lexer: $(LEX_MODS)
 	$(CC) $(CFLAGS) $^ -o $@
+
+test_parser: $(PS_MODS)
+	$(CC) $(CLFAGS) $^ -o $@
 
 test_dyn_arr: $(DA_MODS)
 	$(CC) $(CFLAGS) $^ -o $@
