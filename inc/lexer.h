@@ -29,15 +29,16 @@ typedef enum {
 } lx_kind;
 
 typedef enum {
-    LX_DOUBLE_QUOTE,
-    LX_BACKSLASH,
-} lx_mode_op;
+    LX_M_NORMAL,
+    LX_M_Q_DOUBLE,
+    LX_M_BACKSLASH,
+} lx_mode;
 
 typedef enum {
-    LX_MODE_NORMAL,
-    LX_MODE_DOUBLE_QUOTE,
-    LX_MODE_AFTER_BACKSLASH,
-} lx_mode;
+    LX_Q_SINGLE,
+    LX_Q_DOUBLE,
+    LX_Q_NONE,
+} lx_quote;
 
 typedef struct {
     lx_mode mode;
@@ -49,6 +50,16 @@ typedef struct {
     lx_kind kind;
     char *value;
 } lx_tok;
+
+typedef struct {
+    char *raw;
+    lx_quote quote;
+} lx_part;
+
+typedef struct {
+    lx_kind kind;
+    dyn_arr parts;
+} lx_tok_better;
 
 int lx_add_tok(dyn_arr *list, lx_kind kind, lx_scanner *scanner);
 int lx_tokenize(const char *cmd, dyn_arr *list);

@@ -118,10 +118,11 @@ int lx_flush_word(dyn_arr *list, lx_scanner *scanner) {
 }
 
 int lx_handle_normal(dyn_arr *list, lx_scanner *scanner) {
-    if (*scanner->tok_cur == '"')
-        scanner->mode = LX_MODE_DOUBLE_QUOTE;
-
-    if (*scanner->tok_cur == ' ') {
+    if (*scanner->tok_cur == '"') {
+        scanner->mode = LX_M_Q_DOUBLE;
+    } else if (*scanner->tok_cur == '\\') {
+        scanner->mode = LX_M_BACKSLASH;
+    } else if (*scanner->tok_cur == ' ') {
         if (lx_flush_word(list, scanner) == -1)
             return -1;
         return 0;
@@ -146,12 +147,20 @@ int lx_handle_normal(dyn_arr *list, lx_scanner *scanner) {
 
 void lx_handle_double_quote(lx_scanner *scanner) {
     if (*scanner->tok_cur == '"')
-        scanner->mode = LX_MODE_NORMAL;
+        scanner->mode = LX_M_NORMAL;
 
-    /* Handle backslash here too... */
+    if (*scanner->tok_cur == '\\')
+        scanner->mode = LX_M_BACKSLASH;
 
     if (!scanner->tok_start)
         scanner->tok_start = scanner->tok_cur;
+}
+
+void lx_handle_after_backslash(lx_scanner *scanner, lx_mode prev_mode) {
+    if (!scanner->tok_start)
+        scanner->tok_start = scanner->tok_cur;
+
+    scanner->mode = prev_mode;
 }
 
 int lx_tokenize(const char *cmd, dyn_arr *list) {
@@ -165,17 +174,24 @@ int lx_tokenize(const char *cmd, dyn_arr *list) {
     if (da_init(list, 0, sizeof(lx_tok)) == -1)
         return -1;
 
-    lx_scanner scanner = { LX_MODE_NORMAL, NULL, cmd };
+    lx_scanner scanner = { LX_M_NORMAL, NULL, cmd };
+    lx_mode prev_mode = LX_M_NORMAL;
 
     for (; *scanner.tok_cur != '\0'; ++scanner.tok_cur) {
-        if (scanner.mode == LX_MODE_NORMAL) {
+        if (scanner.mode == LX_M_NORMAL) {
             if (lx_handle_normal(list, &scanner) == -1)
                 goto fail;
-        } else if (scanner.mode == LX_MODE_DOUBLE_QUOTE)
+            prev_mode = LX_M_NORMAL;
+        } else if (scanner.mode == LX_M_Q_DOUBLE) {
             lx_handle_double_quote(&scanner);
+            prev_mode = LX_M_Q_DOUBLE;
+        } else if (scanner.mode == LX_M_BACKSLASH) {
+            lx_handle_after_backslash(&scanner, prev_mode);
+            prev_mode = LX_M_BACKSLASH;
+        }
     }
 
-    if (scanner.mode == LX_MODE_DOUBLE_QUOTE)
+    if (scanner.mode == LX_M_Q_DOUBLE)
         goto fail;
 
     if (lx_flush_word(list, &scanner) == -1)

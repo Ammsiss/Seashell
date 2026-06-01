@@ -20,16 +20,5 @@ A simple linux shell. Collect, compute, describe, perform.
 
 - Lexer should handle adding quote meta data, and stripping quotes.
 
-```c
-typedef struct {
-    char *raw;
-    int quoted;
-} lx_part;
-
-typedef struct {
-    dyn_arr parts;
-} lx_tok;
-```
-
 ## License
 Seashell is licensed under the MIT License. See [LICENSE](LICENSE) for details.
