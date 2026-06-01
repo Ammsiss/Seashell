@@ -54,8 +54,9 @@ void test_lx_add_tok_token_value_is_null_terminated(void) {
     int token_len = 8;
     const char *end = &token_text[7];
 
-    TEST_ASSERT_NOT_EQUAL_INT(-1, lx_add_tok(&list, LX_TOK_WORD, token_text,
-                end + 1));
+    lx_scanner scanner = { LX_MODE_NORMAL, token_text, end + 1 };
+
+    TEST_ASSERT_NOT_EQUAL_INT(-1, lx_add_tok(&list, LX_TOK_WORD, &scanner));
 
     TEST_ASSERT_EQUAL_MEMORY("Hi there",
             DA_GET(&list, 0, lx_tok)->value, token_len);
@@ -74,6 +75,8 @@ void helper_lx_tokenize_assert_tokens(
 ) {
     dyn_arr list;
     TEST_ASSERT_EQUAL(0, lx_tokenize(cmd, &list));
+
+    print_tok_list(&list, "List");
 
     TEST_ASSERT_EQUAL_size_t(expected_size, list.size);
 
@@ -171,28 +174,28 @@ void test_lx_tokenize_unmatched_quotes_should_fail(void) {
     TEST_ASSERT_EQUAL(-1, lx_tokenize("\"hello", &list));
 }
 
-void test_lx_tokenize_escaped_quotes_are_skipped(void) {
-    const lx_tok expected[1] = {
-        { LX_TOK_WORD, "\"He said \\\"n&thing...\\\"\"" },
-    };
+// void test_lx_tokenize_escaped_quotes_are_skipped(void) {
+//     const lx_tok expected[1] = {
+//         { LX_TOK_WORD, "\"He said \\\"n&thing...\\\"\"" },
+//     };
+//
+//     helper_lx_tokenize_assert_tokens(
+//             "\"He said \\\"n&thing...\\\"\"",
+//             expected, 1
+//     );
+// }
 
-    helper_lx_tokenize_assert_tokens(
-            "\"He said \\\"n&thing...\\\"\"",
-            expected, 1
-    );
-}
-
-void test_lx_tokenize_escaped_backslashes_are_skipped(void) {
-    const lx_tok expected[2] = {
-        { LX_TOK_WORD, "echo" },
-        { LX_TOK_WORD, "\"\\\\\"" },
-    };
-
-    helper_lx_tokenize_assert_tokens(
-            "echo \"\\\\\"",
-            expected, 2
-    );
-}
+// void test_lx_tokenize_escaped_backslashes_are_skipped(void) {
+//     const lx_tok expected[2] = {
+//         { LX_TOK_WORD, "echo" },
+//         { LX_TOK_WORD, "\"\\\\\"" },
+//     };
+//
+//     helper_lx_tokenize_assert_tokens(
+//             "echo \"\\\\\"",
+//             expected, 2
+//     );
+// }
 
 void test_lx_tokenize_two_char_operators(void) {
     const lx_tok expected[9] = {
@@ -232,9 +235,10 @@ int main(void) {
     RUN_TEST(test_lx_tokenize_quoted_string);
     RUN_TEST(test_lx_tokenize_quoted_string_with_delimiters);
     RUN_TEST(test_lx_tokenize_unmatched_quotes_should_fail);
+    RUN_TEST(test_lx_tokenize_two_char_operators);
+
     // RUN_TEST(test_lx_tokenize_escaped_quotes_are_skipped);
     // RUN_TEST(test_lx_tokenize_escaped_backslashes_are_skipped);
-    RUN_TEST(test_lx_tokenize_two_char_operators);
 
     return UNITY_END();
 }
