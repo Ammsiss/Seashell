@@ -20,7 +20,7 @@ LEX_MODS := $(UOBJ) $(BLD_DIR)/test_lexer.o $(BLD_DIR)/lexer.o \
 			$(BLD_DIR)/dyn_arr.o
 PS_MODS  := $(UOBJ) $(BLD_DIR)/test_parser.o $(BLD_DIR)/parser.o \
 			$(BLD_DIR)/dyn_arr.o
-DA_MODS  := $(UOBJ) $(BLD_DIR)/test_dyn_arr.o $(BLD_DIR)/dyn_arr.o
+DA_MODS  := $(UOBJ) $(BLD_DIR)/test_dyn_arr.o
 
 .PHONY: all
 all: test_lexer test_dyn_arr test_parser

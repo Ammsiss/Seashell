@@ -6,14 +6,13 @@
 
 #include "unity.h"
 #include "lexer.h"
-#include "dyn_arr.h"
 
 /************************* Utility Funcs *************************/
 
-void print_tok_list(const dyn_arr *list, const char *msg) {
+void print_tok_list(const da_lx_tok *list, const char *msg) {
     printf("%s: ", msg);
     for (size_t i = 0; i < list->size; ++i) {
-        switch (DA_GET(list, i, lx_tok)->kind) {
+        switch (list->data[i].kind) {
         /* Single ops */
         case LX_TOK_PIPE: printf("PIPE(|) "); break;
         case LX_TOK_BG: printf("INBG(&) "); break;
@@ -31,7 +30,7 @@ void print_tok_list(const dyn_arr *list, const char *msg) {
         case LX_TOK_RDR_STDOUT: printf("RDR_STDOUT(1>) "); break;
         case LX_TOK_RDR_STDERR: printf("RDR_STDERR(2>) "); break;
         case LX_TOK_WORD:
-            printf("WORD(%s) ", DA_GET(list, i, lx_tok)->value);
+            printf("WORD(%s) ", list->data[i].value);
             break;
         default:
             break;
@@ -46,8 +45,8 @@ void tearDown(void) {}
 /************************* lx_add_tok *************************/
 
 void test_lx_add_tok_token_value_is_null_terminated(void) {
-    dyn_arr list;
-    TEST_ASSERT_EQUAL_INT(0, da_init(&list, 0, sizeof(lx_tok)));
+    da_lx_tok list;
+    TEST_ASSERT_EQUAL_INT(0, da_lx_tok_init(&list, 0));
 
     const char *token_text = "Hi there!";
 
@@ -59,9 +58,9 @@ void test_lx_add_tok_token_value_is_null_terminated(void) {
     TEST_ASSERT_NOT_EQUAL_INT(-1, lx_add_tok(&list, LX_TOK_WORD, &scanner));
 
     TEST_ASSERT_EQUAL_MEMORY("Hi there",
-            DA_GET(&list, 0, lx_tok)->value, token_len);
+            list.data[0].value, token_len);
     TEST_ASSERT_EQUAL_CHAR('\0',
-            DA_GET(&list, 0, lx_tok)->value[token_len]);
+            list.data[0].value[token_len]);
 
     lx_free(&list);
 }
@@ -73,7 +72,7 @@ void helper_lx_tokenize_assert_tokens(
         const lx_tok *expected,
         size_t expected_size
 ) {
-    dyn_arr list;
+    da_lx_tok list;
     TEST_ASSERT_EQUAL(0, lx_tokenize(cmd, &list));
 
     print_tok_list(&list, "List");
@@ -81,7 +80,7 @@ void helper_lx_tokenize_assert_tokens(
     TEST_ASSERT_EQUAL_size_t(expected_size, list.size);
 
     for (size_t i = 0; i < list.size; ++i) {
-        lx_tok *tok = DA_GET(&list, i, lx_tok);
+        lx_tok *tok = &list.data[i];
         TEST_ASSERT_EQUAL(expected[i].kind, tok->kind);
         if (!expected[i].value) {
             TEST_ASSERT_NULL(tok->value);
@@ -122,7 +121,7 @@ void test_lx_tokenize_word_only(void) {
 void test_lx_tokenize_whitespace_only(void) {
     const char *cmd = "      ";
 
-    dyn_arr list;
+    da_lx_tok list;
 
     TEST_ASSERT_EQUAL(0, lx_tokenize(cmd, &list));
     TEST_ASSERT_EQUAL(0, list.size);
@@ -170,7 +169,7 @@ void test_lx_tokenize_quoted_string_with_delimiters(void) {
 }
 
 void test_lx_tokenize_unmatched_quotes_should_fail(void) {
-    dyn_arr list;
+    da_lx_tok list;
     TEST_ASSERT_EQUAL(-1, lx_tokenize("\"hello", &list));
 }
 

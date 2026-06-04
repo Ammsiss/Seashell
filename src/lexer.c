@@ -3,7 +3,6 @@
 #include <string.h>
 
 #include "lexer.h"
-#include "dyn_arr.h"
 
 /* Expects *c to point to a null terminated string and
  * that it is not pointing at the terminating null byte */
@@ -76,15 +75,15 @@ int lx_kind_is_delim(lx_kind kind) {
     }
 }
 
-void lx_free(dyn_arr *list) {
+void lx_free(da_lx_tok *list) {
     for (size_t i = 0; i < list->size; ++i)
-        if (DA_GET(list, i, lx_tok)->kind == LX_TOK_WORD)
-            free(DA_GET(list, i, lx_tok)->value);
-    da_free(list);
+        if (list->data[i].kind == LX_TOK_WORD)
+            free(list->data[i].value);
+    da_lx_tok_free(list);
 }
 
-int lx_add_tok(dyn_arr *list, lx_kind kind, lx_scanner *scanner) {
-    lx_tok *tok = da_push(list);
+int lx_add_tok(da_lx_tok *list, lx_kind kind, lx_scanner *scanner) {
+    lx_tok *tok = da_lx_tok_push(list);
     if (!tok)
         return -1;
 
@@ -107,7 +106,7 @@ int lx_add_tok(dyn_arr *list, lx_kind kind, lx_scanner *scanner) {
     return 0;
 }
 
-int lx_flush_word(dyn_arr *list, lx_scanner *scanner) {
+int lx_flush_word(da_lx_tok *list, lx_scanner *scanner) {
     if (scanner->tok_start) {
         if (lx_add_tok(list, LX_TOK_WORD, scanner) == -1)
             return -1;
@@ -117,7 +116,7 @@ int lx_flush_word(dyn_arr *list, lx_scanner *scanner) {
     return 0;
 }
 
-int lx_handle_normal(dyn_arr *list, lx_scanner *scanner) {
+int lx_handle_normal(da_lx_tok *list, lx_scanner *scanner) {
     if (*scanner->tok_cur == '"') {
         scanner->mode = LX_M_Q_DOUBLE;
     } else if (*scanner->tok_cur == '\\') {
@@ -163,7 +162,7 @@ void lx_handle_after_backslash(lx_scanner *scanner, lx_mode prev_mode) {
     scanner->mode = prev_mode;
 }
 
-int lx_tokenize(const char *cmd, dyn_arr *list) {
+int lx_tokenize(const char *cmd, da_lx_tok *list) {
     if (!cmd || !list)
         return -1;
 
@@ -171,7 +170,7 @@ int lx_tokenize(const char *cmd, dyn_arr *list) {
     if (cmd_len <= 0)
         return -1;
 
-    if (da_init(list, 0, sizeof(lx_tok)) == -1)
+    if (da_lx_tok_init(list, 0) == -1)
         return -1;
 
     lx_scanner scanner = { LX_M_NORMAL, NULL, cmd };

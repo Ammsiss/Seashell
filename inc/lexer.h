@@ -2,6 +2,7 @@
 #define LEXER_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 #include "dyn_arr.h"
 
@@ -51,6 +52,10 @@ typedef struct {
     char *value;
 } lx_tok;
 
+DEFINE_DYN_ARR(da_lx_tok, lx_tok)
+
+/* New
+
 typedef struct {
     char *raw;
     lx_quote quote;
@@ -61,8 +66,10 @@ typedef struct {
     dyn_arr parts;
 } lx_tok_better;
 
-int lx_add_tok(dyn_arr *list, lx_kind kind, lx_scanner *scanner);
-int lx_tokenize(const char *cmd, dyn_arr *list);
-void lx_free(dyn_arr *list);
+*/
+
+int lx_add_tok(da_lx_tok *list, lx_kind kind, lx_scanner *scanner);
+int lx_tokenize(const char *cmd, da_lx_tok *list);
+void lx_free(da_lx_tok *list);
 
 #endif
