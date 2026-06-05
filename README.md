@@ -18,7 +18,5 @@ A simple linux shell. Collect, compute, describe, perform.
 
 ## TODO
 
-- Lexer should handle adding quote meta data, and stripping quotes.
-
 ## License
 Seashell is licensed under the MIT License. See [LICENSE](LICENSE) for details.

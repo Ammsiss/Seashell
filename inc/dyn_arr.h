@@ -36,9 +36,7 @@
             return; \
         \
         free(arr->data); \
-        arr->data = NULL; \
-        arr->size = 0; \
-        arr->cap = 0; \
+        *arr = (name){0}; \
     } \
     \
     static inline type *name##_push(name *arr) { \
@@ -60,6 +58,10 @@
         } \
         \
         return &arr->data[arr->size++]; \
+    } \
+    \
+    static inline type *name##_end(name *arr) { \
+        return &arr->data[arr->size - 1]; \
     }
 
 #endif

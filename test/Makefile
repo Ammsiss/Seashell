@@ -1,29 +1,29 @@
-CC       := clang
+CC        := clang
 
 MSRC_DIR  := ../src
 MINC_DIR  := ../inc
 
-USRC_DIR := ../deps/Unity/src
+USRC_DIR  := ../deps/Unity/src
 
-BLD_DIR  := build
-COMPCOM  := compile_commands.json
+BLD_DIR   := build
+COMPCOM   := compile_commands.json
 
-CFLAGS   := -g -O0 -fno-omit-frame-pointer -Wall -Wextra \
+CFLAGS    := -g -O0 -fno-omit-frame-pointer -Wall -Wextra \
 			-Wpedantic -std=c23 -I$(MINC_DIR) -I$(USRC_DIR) \
 			-DUNITY_OUTPUT_COLOR
-DEPFLAGS := -MMD -MP
+DEPFLAGS  := -MMD -MP
 
-USRC     := $(USRC_DIR)/unity.c
-UOBJ     := $(BLD_DIR)/unity.o
+USRC      := $(USRC_DIR)/unity.c
+UOBJ      := $(BLD_DIR)/unity.o
 
-LEX_MODS := $(UOBJ) $(BLD_DIR)/test_lexer.o $(BLD_DIR)/lexer.o \
-			$(BLD_DIR)/dyn_arr.o
-PS_MODS  := $(UOBJ) $(BLD_DIR)/test_parser.o $(BLD_DIR)/parser.o \
-			$(BLD_DIR)/dyn_arr.o
-DA_MODS  := $(UOBJ) $(BLD_DIR)/test_dyn_arr.o
+LEX_MODS  := $(UOBJ) $(BLD_DIR)/test_lexer.o $(BLD_DIR)/lexer.o
+PS_MODS   := $(UOBJ) $(BLD_DIR)/test_parser.o $(BLD_DIR)/parser.o
+DA_MODS   := $(UOBJ) $(BLD_DIR)/test_dyn_arr.o
+
+TEST_BINS := test_lexer test_dyn_arr test_parser
 
 .PHONY: all
-all: test_lexer test_dyn_arr test_parser
+all: $(TEST_BINS)
 
 test_lexer: $(LEX_MODS)
 	$(CC) $(CFLAGS) $^ -o $@
@@ -51,6 +51,6 @@ $(UOBJ): $(USRC)
 
 .PHONY: clean
 clean:
-	rm -rf $(BLD_DIR) $(COMPCOM) $(T_LEXER) $(T_DYN_ARR)
+	rm -rf $(BLD_DIR) $(COMPCOM) $(TEST_BINS)
 
 -include $(BLD_DIR)/*.d

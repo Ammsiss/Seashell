@@ -6,4 +6,5 @@ compile_commands.json
 seashell
 test_*
 !test_*.c
+!test_*.old
 shell-debug
