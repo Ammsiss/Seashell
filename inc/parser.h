@@ -3,42 +3,73 @@
 
 #include <stddef.h>
 
-#define PS_STDIN  0
-#define PS_STDOUT 1
-#define PS_STDERR 2
-#define PS_APPEND 3
-#define PS_RDR_ARR_LEN 4
+#include "lexer.h"
+#include "dyn_arr.h"
 
-/*
+typedef enum {
+    ERR_OP_POS,
+} err_codes;
 
-echo "hello" > file.txt
+typedef enum {
+    PS_AND_IF,
+    PS_OR_IF,
+    PS_NO_IF,
+} ps_andor_op;
 
-job {
-    pipeline {
-        commnads [
-            command {
-                da_lx_part argv[]
-                da_lx_part redirects[]
-            }
-        ]
-    }
-}
+typedef enum {
+    PS_Q_SINGLE,
+    PS_Q_DOUBLE,
+    PS_Q_NONE,
+} ps_quote;
 
-*/
+typedef struct {
+    char *raw;
+    ps_quote quote;
+} ps_segment;
+DEFINE_DYN_ARR(da_segment, ps_segment)
 
-// typedef struct {
-//     char redirects[PS_RDR_ARR_LEN];
-// } ps_cmd;
-//
-// typedef struct {
-//     size_t cmd_cnt;
-// } ps_pipeline;
-//
-// typedef struct {
-//     int bg;
-//     dyn_arr cmds;
-// } ps_job;
-//
-// ps_job *ps_parse(dyn_arr *tok_list);
+typedef struct {
+    da_segment segments;
+} ps_word;
+DEFINE_DYN_ARR(da_word, ps_word)
+
+typedef struct {
+    ps_word target;
+    int io_num;
+    int append;
+} ps_redir;
+DEFINE_DYN_ARR(da_redir, ps_redir)
+
+typedef struct {
+    da_word words;
+    da_redir redirs;
+} ps_cmd;
+DEFINE_DYN_ARR(da_cmd, ps_cmd)
+
+typedef struct {
+    da_cmd cmds;
+} ps_pipeline;
+
+typedef struct {
+    ps_pipeline pipeline;
+    ps_andor_op op;
+} ps_andor;
+DEFINE_DYN_ARR(da_andor, ps_andor)
+
+typedef struct {
+    da_andor andors;
+    int bg;
+} ps_job;
+
+typedef struct {
+    ps_pipeline *cur_pipeline;
+    ps_cmd *cur_cmd;
+    lx_tok *cur_tok;
+    ps_redir *queued_redir;
+    ps_andor_op cur_andor_op;
+} ps_scanner;
+
+void ps_free(ps_job *job);
+int ps_parse(da_tok *tokens, ps_job *job);
 
 #endif

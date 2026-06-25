@@ -18,7 +18,7 @@ void assert_tokens(
         size_t exp_size,
         int exp_rv
 ) {
-    da_lx_tok tokens = { 0 };
+    da_tok tokens = { 0 };
     TEST_ASSERT_EQUAL(exp_rv, lx_tokenize(cmd, &tokens));
     TEST_ASSERT_EQUAL_size_t(exp_size, tokens.size);
 
@@ -52,39 +52,38 @@ void assert_tokens(
 }
 
 void test_all_operators(void) {
-    const lx_kind kind[9] = {
+    const lx_kind kind[8] = {
         LX_TOK_PIPE,
         LX_TOK_BG,
         LX_TOK_RDR_IN,
-        LX_TOK_RDR_OUT,
-        LX_TOK_SEMI,
         LX_TOK_APPEND,
+        LX_TOK_RDR_OUT,
         LX_TOK_AND_IF,
         LX_TOK_OR_IF,
         LX_TOK_RDR_ERR,
     };
 
-    assert_tokens("|&<>;>>&&||2>", kind, NULL, NULL, 9, 0);
+    assert_tokens("|&<>>>&&||2>", kind, NULL, NULL, 8, 0);
 }
 
 void test_shell_usage(void) {
-    const lx_kind kind[10] = {
+    const lx_kind kind[9] = {
         LX_TOK_WORD, LX_TOK_WORD, LX_TOK_RDR_ERR, LX_TOK_WORD,
-        LX_TOK_RDR_OUT, LX_TOK_WORD, LX_TOK_BG, LX_TOK_SEMI,
-        LX_TOK_WORD, LX_TOK_WORD
+        LX_TOK_RDR_OUT, LX_TOK_WORD, LX_TOK_BG, LX_TOK_WORD,
+        LX_TOK_WORD
     };
-    const char *raw[11] = {
+    const char *raw[10] = {
         "solaar", "show", NULL, "file.txt", NULL,
-        "weird file", "3", NULL, NULL, "cat", "./file.txt"
+        "weird file", "3", NULL, "cat", "./file.txt"
     };
-    const lx_quote quote[11] = {
+    const lx_quote quote[10] = {
         LX_Q_NONE, LX_Q_NONE, LX_Q_NONE, LX_Q_NONE, LX_Q_NONE,
-        LX_Q_DOUBLE, LX_Q_NONE, LX_Q_NONE, LX_Q_NONE, LX_Q_NONE,
+        LX_Q_DOUBLE, LX_Q_NONE, LX_Q_NONE, LX_Q_NONE,
         LX_Q_NONE,
     };
 
-    assert_tokens("solaar show 2>file.txt >  \"weird file\"3&; cat ./file.txt",
-            kind, raw, quote, 10, 0);
+    assert_tokens("solaar show 2>file.txt >  \"weird file\"3& cat ./file.txt",
+            kind, raw, quote, 9, 0);
 }
 
 void test_quotes_galore(void) {

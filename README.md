@@ -1,22 +1,16 @@
 # Seashell
 
-A simple linux shell. Collect, compute, describe, perform.
+A simple linux shell for systems programming practice.
 
-## Capabilities
+## Goals
 
-- Execution: `./a` OR `a`
-- Builtins: `cd / exit`
-- Job control: `./cmd & / jobs / fg / bg`
+- Small subset of core shell operations
+- Expansion layer for variables and basic globbing
+- Basic job control
 
-- Piping: `a | b |...`
-- Redirection: `./cmd > f1 2> f2 >> f3`
-- Multiple jobs: `ls ; ls ..`
+## Non-goals
 
-- Variables: `FOO=dir ; (ls ~/$FOO)`
-- Globbing: `echo *.txt`
-- Command substitution: `cat $(ls)`
-
-## TODO
+- POSIX shell compliance
 
 ## License
 Seashell is licensed under the MIT License. See [LICENSE](LICENSE) for details.

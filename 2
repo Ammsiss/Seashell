@@ -24,7 +24,7 @@
             arr->data = malloc(init_cap * sizeof(*arr->data)); \
             if (!arr->data) \
                 return -1; \
-            \
+        \
             arr->cap = init_cap; \
         } \
         \
@@ -47,16 +47,19 @@
             return NULL; \
         \
         if (arr->size == arr->cap) { \
-            size_t new_cap = (arr->cap == 0) ? 1 : arr->cap * 2; \
-            if (new_cap < arr->cap) \
-                return NULL; \
+            if (arr->cap == 0) \
+                ++arr->cap; \
+            else \
+                arr->cap *= arr->cap; \
+            \
+            size_t new_cap = arr->cap * 2; \
             \
             void *tmp = realloc(arr->data, new_cap * sizeof(*arr->data)); \
             if (!tmp) \
                 return NULL; \
             \
-            arr->cap = new_cap; \
             arr->data = tmp; \
+            arr->cap = new_cap; \
         } \
         \
         memset(&arr->data[arr->size], 0, sizeof(*arr->data)); \

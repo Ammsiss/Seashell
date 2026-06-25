@@ -5,6 +5,38 @@
 
 #include "lexer.h"
 
+static int init_part(lx_part *part) {
+    assert(part);
+
+    *part = (lx_part){0};
+
+    return 0;
+}
+
+static void free_part(lx_part *part) {
+    free(part->raw);
+    *part = (lx_part){0};
+}
+
+static int init_tok(lx_tok *tok) {
+    assert(tok);
+
+    *tok = (lx_tok){0};
+    if (da_part_init(&tok->parts, 0) == -1)
+        return -1;
+
+    return 0;
+}
+
+static void free_tok(lx_tok *tok) {
+    for (size_t i = 0; i < tok->parts.size; ++i) {
+        lx_part *part = &tok->parts.data[i];
+        free_part(part);
+    }
+    da_part_free(&tok->parts);
+    *tok = (lx_tok){0};
+}
+
 static lx_kind get_kind(const char *cur_char) {
     if (strncmp("2>", cur_char, 2) == 0)
         return LX_TOK_RDR_ERR;
@@ -23,8 +55,6 @@ static lx_kind get_kind(const char *cur_char) {
         return LX_TOK_RDR_IN;
     if (strncmp(">", cur_char, 1) == 0)
         return LX_TOK_RDR_OUT;
-    if (strncmp(";", cur_char, 1) == 0)
-        return LX_TOK_SEMI;
 
     return LX_TOK_UNKNOWN;
 }
@@ -37,7 +67,6 @@ static int kind_is_delim(lx_kind kind) {
     case LX_TOK_RDR_OUT:
     case LX_TOK_RDR_ERR:
     case LX_TOK_APPEND:
-    case LX_TOK_SEMI:
     case LX_TOK_AND_IF:
     case LX_TOK_OR_IF:
         return 1;
@@ -58,26 +87,23 @@ static int kind_is_double_char_op(lx_kind kind) {
     }
 }
 
-static int add_tok(da_lx_tok *tokens, lx_kind kind, lx_scanner *scanner) {
+static int add_tok(da_tok *tokens, lx_kind kind, lx_scanner *scanner) {
     assert(scanner);
     assert(!scanner->cur_tok);
 
-    lx_tok *tok = da_lx_tok_push(tokens);
+    lx_tok *tok = da_tok_push(tokens);
     if (!tok)
+        return -1;
+    if (init_tok(tok) == -1)
         return -1;
 
     tok->kind = kind;
-    tok->parts = (da_lx_part){0};
-
-    if (kind == LX_TOK_WORD)
-        if (da_lx_part_init(&tok->parts, 0) == -1)
-            return -1;
 
     scanner->cur_tok = tok;
     return 0;
 }
 
-static int ensure_tok(da_lx_tok *tokens, lx_kind kind, lx_scanner *scanner) {
+static int ensure_tok(da_tok *tokens, lx_kind kind, lx_scanner *scanner) {
     if (!scanner->cur_tok)
         if (add_tok(tokens, kind, scanner) == -1)
             return -1;
@@ -94,11 +120,12 @@ static int add_part(lx_scanner *scanner, lx_quote quote) {
     assert(scanner->cur_tok);
     assert(!scanner->part_start);
 
-    lx_part *part = da_lx_part_push(&scanner->cur_tok->parts);
+    lx_part *part = da_part_push(&scanner->cur_tok->parts);
     if (!part)
         return -1;
+    if (init_part(part) == -1)
+        return -1;
 
-    part->raw = NULL;
     part->quote = quote;
 
     scanner->part_start = scanner->cur_char;
@@ -118,7 +145,8 @@ static int end_part(lx_scanner *scanner) {
     assert(scanner->cur_tok);
     assert(scanner->part_start);
 
-    lx_part *part = da_lx_part_end(&scanner->cur_tok->parts);
+    da_part *parts = &scanner->cur_tok->parts;
+    lx_part *part = &parts->data[parts->size - 1];
 
     size_t len = 0;
     for (const char *c = scanner->part_start; c != scanner->cur_char; ++c)
@@ -143,7 +171,8 @@ static int clear_part(lx_scanner *scanner) {
 }
 
 static int clear_empty_part(lx_scanner *scanner) {
-    lx_part *part = da_lx_part_end(&scanner->cur_tok->parts);
+    da_part *parts = &scanner->cur_tok->parts;
+    lx_part *part = &parts->data[parts->size - 1];
 
     part->raw = malloc(1);
     if (!part->raw)
@@ -156,7 +185,8 @@ static int clear_empty_part(lx_scanner *scanner) {
 
 static int handle_single_quote(lx_scanner *scanner) {
     if (*scanner->cur_char == '\'') {
-        clear_part(scanner);
+        if (clear_part(scanner) == -1)
+            return -1;
         scanner->mode = LX_M_NORMAL;
     }
 
@@ -165,14 +195,15 @@ static int handle_single_quote(lx_scanner *scanner) {
 
 static int handle_double_quote(lx_scanner *scanner) {
     if (*scanner->cur_char == '"') {
-        clear_part(scanner);
+        if (clear_part(scanner) == -1)
+            return -1;
         scanner->mode = LX_M_NORMAL;
     }
 
     return 0;
 }
 
-static int handle_normal(da_lx_tok *tokens, lx_scanner *scanner) {
+static int handle_normal(da_tok *tokens, lx_scanner *scanner) {
     if (*scanner->cur_char == '"') {
         if (scanner->cur_char[1] == '\0')
             return -1;
@@ -248,21 +279,15 @@ static int handle_normal(da_lx_tok *tokens, lx_scanner *scanner) {
     return 0;
 }
 
-void lx_free(da_lx_tok *tokens) {
+void lx_free(da_tok *tokens) {
     for (size_t i = 0; i < tokens->size; ++i) {
         lx_tok *tok = &tokens->data[i];
-        if (tok->kind == LX_TOK_WORD) {
-            for (size_t y = 0; y < tok->parts.size; ++y) {
-                lx_part *part = &tok->parts.data[y];
-                free(part->raw);
-            }
-            da_lx_part_free(&tok->parts);
-        }
+        free_tok(tok);
     }
-    da_lx_tok_free(tokens);
+    da_tok_free(tokens);
 }
 
-int lx_tokenize(const char *cmd, da_lx_tok *tokens) {
+int lx_tokenize(const char *cmd, da_tok *tokens) {
     if (!cmd || !tokens)
         return -1;
 
@@ -270,7 +295,7 @@ int lx_tokenize(const char *cmd, da_lx_tok *tokens) {
     if (cmd_len <= 0)
         return -1;
 
-    if (da_lx_tok_init(tokens, 0) == -1)
+    if (da_tok_init(tokens, 0) == -1)
         return -1;
 
     lx_scanner scanner = { LX_M_NORMAL, LX_M_NORMAL, NULL, NULL, cmd };
@@ -296,7 +321,7 @@ int lx_tokenize(const char *cmd, da_lx_tok *tokens) {
         goto fail;
 
     if (tokens->size == 0)
-        da_lx_tok_free(tokens);
+        da_tok_free(tokens);
 
     if (clear_part(&scanner) == -1)
         goto fail;

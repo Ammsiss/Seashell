@@ -11,7 +11,6 @@ typedef enum {
     LX_TOK_RDR_OUT, // >
     LX_TOK_RDR_ERR, // 2>
     LX_TOK_APPEND,  // >>
-    LX_TOK_SEMI,    // ;
     LX_TOK_AND_IF,  // &&
     LX_TOK_OR_IF,   // ||
 
@@ -35,13 +34,13 @@ typedef struct {
     char *raw;
     lx_quote quote;
 } lx_part;
-DEFINE_DYN_ARR(da_lx_part, lx_part)
+DEFINE_DYN_ARR(da_part, lx_part)
 
 typedef struct {
     lx_kind kind;
-    da_lx_part parts;
+    da_part parts;
 } lx_tok;
-DEFINE_DYN_ARR(da_lx_tok, lx_tok)
+DEFINE_DYN_ARR(da_tok, lx_tok)
 
 typedef struct {
     lx_mode mode;
@@ -51,7 +50,7 @@ typedef struct {
     const char *cur_char;
 } lx_scanner;
 
-void lx_free(da_lx_tok *tokens);
-int lx_tokenize(const char *cmd, da_lx_tok *tokens);
+void lx_free(da_tok *tokens);
+int lx_tokenize(const char *cmd, da_tok *tokens);
 
 #endif
