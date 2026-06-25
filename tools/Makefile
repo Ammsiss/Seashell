@@ -6,8 +6,9 @@ COMPCOM  := compile_commands.json
 MSRC_DIR  := ../src
 MINC_DIR  := ../inc
 
-CFLAGS   := -g -O0 -fno-omit-frame-pointer -Wall -Wextra \
-			-Wpedantic -std=c23 -I$(MINC_DIR)
+CFLAGS   := -g -O0 -fno-omit-frame-pointer -std=c23 -I$(MINC_DIR) \
+			-Wall -Wextra -Wpedantic \
+			-Wno-gnu-statement-expression-from-macro-expansion
 DEPFLAGS := -MMD -MP
 
 BIN_DEPS := $(BLD_DIR)/shell_debug.o $(BLD_DIR)/lexer.o $(BLD_DIR)/parser.o

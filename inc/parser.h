@@ -3,63 +3,42 @@
 
 #include <stddef.h>
 
-#include "lexer.h"
+#include "parser_types.h"
 #include "dyn_arr.h"
 
-typedef enum {
-    ERR_OP_POS,
-} err_codes;
-
-typedef enum {
-    PS_AND_IF,
-    PS_OR_IF,
-    PS_NO_IF,
-} ps_andor_op;
-
-typedef enum {
-    PS_Q_SINGLE,
-    PS_Q_DOUBLE,
-    PS_Q_NONE,
-} ps_quote;
-
-typedef struct {
+struct ps_segment {
     char *raw;
     ps_quote quote;
-} ps_segment;
-DEFINE_DYN_ARR(da_segment, ps_segment)
+};
 
-typedef struct {
+struct ps_word {
     da_segment segments;
-} ps_word;
-DEFINE_DYN_ARR(da_word, ps_word)
+};
 
-typedef struct {
+struct ps_redir {
     ps_word target;
     int io_num;
     int append;
-} ps_redir;
-DEFINE_DYN_ARR(da_redir, ps_redir)
+};
 
-typedef struct {
+struct ps_cmd {
     da_word words;
     da_redir redirs;
-} ps_cmd;
-DEFINE_DYN_ARR(da_cmd, ps_cmd)
+};
 
-typedef struct {
+struct ps_pipeline {
     da_cmd cmds;
-} ps_pipeline;
+};
 
-typedef struct {
+struct ps_andor {
     ps_pipeline pipeline;
     ps_andor_op op;
-} ps_andor;
-DEFINE_DYN_ARR(da_andor, ps_andor)
+};
 
-typedef struct {
+struct ps_job {
     da_andor andors;
     int bg;
-} ps_job;
+};
 
 typedef struct {
     ps_pipeline *cur_pipeline;

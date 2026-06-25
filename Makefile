@@ -5,8 +5,9 @@ INC_DIR  := inc
 BLD_DIR  := build
 COMPCOM  := compile_commands.json
 
-CFLAGS   := -g -O0 -fno-omit-frame-pointer -Wall -Wextra -Wpedantic -std=c23 \
--I$(INC_DIR)
+CFLAGS   := -g -O0 -fno-omit-frame-pointer -Wall -Wextra -Wpedantic \
+			-Wno-gnu-statement-expression-from-macro-expansion \
+			-std=c23 -I$(INC_DIR)
 DEPFLAGS := -MMD -MP
 
 SRCS   := $(wildcard $(SRC_DIR)/*.c)

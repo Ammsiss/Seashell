@@ -9,17 +9,19 @@ BLD_DIR   := build
 COMPCOM   := compile_commands.json
 
 CFLAGS    := -g -O0 -fno-omit-frame-pointer -Wall -Wextra \
-			-Wpedantic -std=c23 -I$(MINC_DIR) -I$(USRC_DIR) \
+			-Wpedantic -Wno-gnu-statement-expression-from-macro-expansion \
+			 -std=c23 -I$(MINC_DIR) -I$(USRC_DIR) \
 			-DUNITY_OUTPUT_COLOR
 DEPFLAGS  := -MMD -MP
 
 USRC      := $(USRC_DIR)/unity.c
 UOBJ      := $(BLD_DIR)/unity.o
 
-LEX_MODS  := $(UOBJ) $(BLD_DIR)/test_lexer.o $(BLD_DIR)/lexer.o
+LEX_MODS  := $(UOBJ) $(BLD_DIR)/test_lexer.o $(BLD_DIR)/lexer.o \
+			 $(BLD_DIR)/dyn_arr.o
 PS_MODS   := $(UOBJ) $(BLD_DIR)/test_parser.o $(BLD_DIR)/parser.o \
-			 $(BLD_DIR)/lexer.o
-DA_MODS   := $(UOBJ) $(BLD_DIR)/test_dyn_arr.o
+			 $(BLD_DIR)/lexer.o $(BLD_DIR)/dyn_arr.o
+DA_MODS   := $(UOBJ) $(BLD_DIR)/test_dyn_arr.o $(BLD_DIR)/dyn_arr.o
 
 TEST_BINS := test_lexer test_dyn_arr test_parser
 

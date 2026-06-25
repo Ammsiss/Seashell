@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "lexer.h"
+#include "dyn_arr.h"
 
 static int init_part(lx_part *part) {
     assert(part);
@@ -22,7 +23,7 @@ static int init_tok(lx_tok *tok) {
     assert(tok);
 
     *tok = (lx_tok){0};
-    if (da_part_init(&tok->parts, 0) == -1)
+    if (da_init(&tok->parts) == -1)
         return -1;
 
     return 0;
@@ -33,7 +34,7 @@ static void free_tok(lx_tok *tok) {
         lx_part *part = &tok->parts.data[i];
         free_part(part);
     }
-    da_part_free(&tok->parts);
+    da_free(&tok->parts);
     *tok = (lx_tok){0};
 }
 
@@ -91,10 +92,8 @@ static int add_tok(da_tok *tokens, lx_kind kind, lx_scanner *scanner) {
     assert(scanner);
     assert(!scanner->cur_tok);
 
-    lx_tok *tok = da_tok_push(tokens);
+    lx_tok *tok = da_push_init(tokens, init_tok);
     if (!tok)
-        return -1;
-    if (init_tok(tok) == -1)
         return -1;
 
     tok->kind = kind;
@@ -120,10 +119,8 @@ static int add_part(lx_scanner *scanner, lx_quote quote) {
     assert(scanner->cur_tok);
     assert(!scanner->part_start);
 
-    lx_part *part = da_part_push(&scanner->cur_tok->parts);
+    lx_part *part = da_push_init(&scanner->cur_tok->parts, init_part);
     if (!part)
-        return -1;
-    if (init_part(part) == -1)
         return -1;
 
     part->quote = quote;
@@ -284,7 +281,7 @@ void lx_free(da_tok *tokens) {
         lx_tok *tok = &tokens->data[i];
         free_tok(tok);
     }
-    da_tok_free(tokens);
+    da_free(tokens);
 }
 
 int lx_tokenize(const char *cmd, da_tok *tokens) {
@@ -295,7 +292,7 @@ int lx_tokenize(const char *cmd, da_tok *tokens) {
     if (cmd_len <= 0)
         return -1;
 
-    if (da_tok_init(tokens, 0) == -1)
+    if (da_init(tokens) == -1)
         return -1;
 
     lx_scanner scanner = { LX_M_NORMAL, LX_M_NORMAL, NULL, NULL, cmd };
@@ -321,7 +318,7 @@ int lx_tokenize(const char *cmd, da_tok *tokens) {
         goto fail;
 
     if (tokens->size == 0)
-        da_tok_free(tokens);
+        da_free(tokens);
 
     if (clear_part(&scanner) == -1)
         goto fail;

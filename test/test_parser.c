@@ -569,7 +569,7 @@ int main(void) {
     RUN_TEST(test_or_if_then_and_if);
     RUN_TEST(test_container_control_flow);
     RUN_TEST(test_and_if_with_redirects);
-    //
+
     RUN_TEST(test_redir_in);
     RUN_TEST(test_redir_out);
     RUN_TEST(test_redir_err);

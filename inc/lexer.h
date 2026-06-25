@@ -1,22 +1,10 @@
 #ifndef LEXER_H
 #define LEXER_H
 
-#include "dyn_arr.h"
 #include <stdint.h>
 
-typedef enum {
-    LX_TOK_PIPE,    // |
-    LX_TOK_BG,      // &
-    LX_TOK_RDR_IN,  // <
-    LX_TOK_RDR_OUT, // >
-    LX_TOK_RDR_ERR, // 2>
-    LX_TOK_APPEND,  // >>
-    LX_TOK_AND_IF,  // &&
-    LX_TOK_OR_IF,   // ||
-
-    LX_TOK_UNKNOWN,
-    LX_TOK_WORD,
-} lx_kind;
+#include "lexer_types.h"
+#include "dyn_arr.h"
 
 typedef enum {
     LX_M_NORMAL,
@@ -24,23 +12,15 @@ typedef enum {
     LX_M_SINGLEQ,
 } lx_mode;
 
-typedef enum {
-    LX_Q_SINGLE,
-    LX_Q_DOUBLE,
-    LX_Q_NONE,
-} lx_quote;
-
-typedef struct {
+struct lx_part {
     char *raw;
     lx_quote quote;
-} lx_part;
-DEFINE_DYN_ARR(da_part, lx_part)
+};
 
-typedef struct {
+struct lx_tok {
     lx_kind kind;
     da_part parts;
-} lx_tok;
-DEFINE_DYN_ARR(da_tok, lx_tok)
+};
 
 typedef struct {
     lx_mode mode;

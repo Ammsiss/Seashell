@@ -1,5 +1,207 @@
 ---------------------------------------------------------------------------------
 
+## 2026-06-25
+
+### Next
+
+- [ ] Replace integer boolean with the actual boolean type
+
+**Start**: `kind_is_delim()` and `kind_is_double_char_op()` should both return
+`true` or `false` not `0` or `1`.
+
+**Context**: Simply better readability.
+
+**Complete**: All appropriate variables changed to bool instead
+of int and all literals changed to true and false.
+
+### Tasks
+
+**Tooling**
+- [ ] Investigate very bad clangd performance on test_parser.c
+- [ ] Use --error-markers option to color valgrind output
+- [ ] Rewrite the run_all.sh script to use a shell function
+- [ ] Parse out "PASS" lines from the run_all.sh script
+- [ ] Block valgrind output if any tests fail
+
+**Documentation**
+- [ ] Fill out the rough skeleton of the mod/parser.md contract
+- [ ] In spec.md write out how redirects should work
+
+**Misc**
+- [ ] Remove all unnecessary identifier prefixes on static types
+- [ ] Write a tree view helper (Maybe generic?)
+- [ ] Start a diagnostics module
+- [ ] Maybe add explicit parenthesis to ALL macro args no matter what
+- [ ] Change the file names for dyn_arr, maybe dynarr
+
+**Complete**
+- [x] _Generic interface (part 2) used at all call sites
+- [x] Make helper macro for the push then init pattern
+- [x] Silence the "static function not used in TU" nonsense
+- [x] Change `malloc()` for `calloc()` wherever it makes sense
+
+### Notes
+
+Tried to fix the unused header warning in parser.c due to IWYU seeing that we
+only use the typedef from lexer_types.h and incorrectly concluding that the
+definition in lexer.h is not needed, even though we preform member access which
+does require the full definition.
+
+This is not an architectural problem just a result of IWYU style ownership
+being quite opinionated and strict. Going forward I'm just going to silence
+warnings of this class.
+
+The flow going forward will be if you only need types you include mod_types.h.
+If you only need definitions you include mod.h. If you wanted to be more
+explicit you could also include the mod_types.h file when you need definitions
+(because you would be using the typedefs regardless) but for the sake of
+brevity I won't.
+
+dyn_arr.c is no longer C portable because of the addition of the GNU statement
+expression macro.
+
+The da_push_init helper has a nice benefit of enforcing the memory contract.
+Any struct that can manage dynamic memory should be set to a known state before
+use. This helper combines those 2 operations so its harder to forget.
+
+---------------------------------------------------------------------------------
+
+## 2026-06-24
+
+### Next
+
+- [ ] _Generic interface (part 2) used at all call sites
+
+**Start**: Add the second generic macro to call the selected function.
+
+**Context**: We just made the generic interface, its tested and
+in a nice spot. We just haven't actually replaced all the typed
+calls yet, so this is the easy part!
+
+**Completion**: All relevant calls replaced with the new generic
+macro function.
+
+### Tasks
+
+**Dynamic Array**
+- [ ] Make helper macro for the `da_push` + init pattern
+
+**Tooling**
+- [ ] Investigate very bad clangd performance on test_parser.c
+- [ ] Silence the "static function not used in TU" nonsense
+- [ ] Use --error-markers option to color valgrind output
+- [ ] Rewrite the run_all.sh script to use a shell function
+- [ ] Parse out "PASS" lines from the run_all.sh script
+- [ ] Block valgrind output if any tests fail
+
+**Documentation**
+- [ ] Fill out the rough skeleton of the mod/parser.md contract
+- [ ] In spec.md write out how redirects should work
+
+**Misc**
+- [ ] Change `malloc()` for `calloc()` wherever it makes sense
+- [ ] Replace integer boolean with the actual boolean type
+- [ ] Remove all unnecessary identifier prefixes on static types
+- [ ] Debug dump tree view helper (Maybe generic?)
+- [ ] Start a diagnostics module
+- [ ] Centralize clang build flags (like -gnu23 so its easier to change)
+
+**Complete**:
+- [x] _Generic interface for da_type functions
+
+### Notes
+
+Figured out a way to fix the circular dependency (with dyn_arr.h and
+the module headers) that arised when I realized that the _Generic selector
+needed to see all the declarations and types of the dynamic arrays.
+
+At first the problem was that I was trying to use typedef statements as forward
+declarations but that doesn't work cause I had duplicate typedefs in the module
+headers.
+
+So my idea was to add only the typedef statements themselves into header files
+so that the dyn_arr.h file could include it while the module can still include
+the dyn_arr.h file.
+
+As a consequence the new contract is that dyn_arr types are centralized.
+Registration requires a DEFINE macro invocation in dyn_arr.c and a DECLARE
+macro invocation in dyn_arr.h.
+
+May be worth also creating a dyn_arr_types.h file as well and move the typedef
+in the DECLARE macro into something like a DEFINE_DYN_ARR_TYPE macro to be
+consistent with the other modules but it seems needless for now.
+
+---------------------------------------------------------------------------------
+
+## 2026-06-23
+
+### Next
+
+- [ ] _Generic interface for da_type functions
+
+**Start**: Remove all the scattered DEFINE_DYN_ARR macro invocations,
+then for each one, add an invocation of DECLARE_DYN_ARR in dyn_arr.h
+and DEFINE_DYN_ARR in dyn_arr.c. Then compile and see if the new structure
+is working.
+
+**Context**: We're currently in the process of adding the _Generic interface
+for the dyn_arr but the current method of defining an array in one shot where
+needed (like da_cmd in parser.h) won't work because for a file to call the
+generic interface it needs to know about each possible type it can resolve too
+as well as the functions declarations.
+
+We created a declare macro that has the declarations for each function as well
+as moved the struct definition into it. So the contract going forword will be
+for every new dyn arr that's needed we invoke the DECLARE macro in dyn_arr.h
+and the DEFINE in dyn_arr.c. That allows each file to invoke the generic
+interface without needing to include entire modules.
+
+**Completetion**: Generic dynamic array interface added, tests
+added.
+
+### Tasks
+
+**Dynamic Array**
+- [ ] Make helper functions for the `da_push` + init pattern
+
+**Tooling**
+- [ ] Investigate very bad clangd performance on test_parser.c
+- [ ] Silence the "static function not used in TU" nonsense
+- [ ] Use --error-markers option to color valgrind output
+- [ ] Rewrite the run_all.sh script to use a shell function
+- [ ] Parse out "PASS" lines from the run_all.sh script
+- [ ] Block valgrind output if any tests fail
+
+**Documentation**
+- [ ] Fill out the rough skeleton of the mod/parser.md contract
+- [ ] In spec.md write out how redirects should work
+
+**Misc**
+- [ ] Change `malloc()` for `calloc()` wherever it makes sense
+- [ ] Replace integer boolean with the actual boolean type
+- [ ] Remove all unnecessary identifier prefixes on static types
+- [ ] Debug dump tree view helper (Maybe generic?)
+- [ ] Start a diagnostics module
+
+**Complete**
+- [x] Factor out the growth pattern in `da_push()` into `da_reserve()`
+
+### Notes
+
+The refactor felt clean, the interface seems simpler and theres no longer any
+malloc special case after realizing that realloc with a null pointer is just
+the same as an equivalent malloc call.
+
+da_init can no longer fail (it just zeroes out the struct) but I will still
+check for -1 returns to stay consistent with the rest of the init functions.
+
+Came up with the supposedly good _Generic pattern myself which was cool.
+Basically you define 2 macros: One for function selection only and another for
+making the actual call with the resolved function. The key takeaway being that
+even if a type case is never selected the resolution still has to be valid C.
+
+---------------------------------------------------------------------------------
+
 ## 2026-06-22
 
 ### Next

@@ -3,7 +3,8 @@
 #include <string.h>
 
 #include "parser.h"
-#include "lexer.h"
+#include "lexer.h" // IWYU pragma: keep - See 2026-06-25 Notes
+#include "dyn_arr.h"
 
 static int init_ps_segment(ps_segment *segment) {
     assert(segment);
@@ -22,7 +23,7 @@ static int init_word(ps_word *word) {
     assert(word);
 
     *word = (ps_word){0};
-    if (da_segment_init(&word->segments, 0) == -1)
+    if (da_init(&word->segments) == -1)
         return -1;
 
     return 0;
@@ -34,7 +35,7 @@ static void free_word(ps_word *word) {
 
     for (size_t i = 0; i < word->segments.size; ++i)
         free_ps_segment(&word->segments.data[i]);
-    da_segment_free(&word->segments);
+    da_free(&word->segments);
     *word = (ps_word){0};
 }
 
@@ -42,7 +43,7 @@ static int init_redir(ps_redir *redir) {
     assert(redir);
 
     *redir = (ps_redir){0};
-    if (da_segment_init(&redir->target.segments, 0) == -1)
+    if (da_init(&redir->target.segments) == -1)
         return -1;
 
     return 0;
@@ -60,9 +61,9 @@ static int init_cmd(ps_cmd *cmd) {
     assert(cmd);
 
     *cmd = (ps_cmd){0};
-    if (da_word_init(&cmd->words, 0) == -1)
+    if (da_init(&cmd->words) == -1)
         return -1;
-    if (da_redir_init(&cmd->redirs, 0) == -1)
+    if (da_init(&cmd->redirs) == -1)
         return -1;
 
     return 0;
@@ -77,8 +78,8 @@ static void free_cmd(ps_cmd *cmd) {
     for (size_t i = 0; i < cmd->redirs.size; ++i)
         free_redir(&cmd->redirs.data[i]);
 
-    da_word_free(&cmd->words);
-    da_redir_free(&cmd->redirs);
+    da_free(&cmd->words);
+    da_free(&cmd->redirs);
 
     *cmd = (ps_cmd){0};
 }
@@ -87,7 +88,7 @@ static int init_pipeline(ps_pipeline *pipeline) {
     assert(pipeline);
 
     *pipeline = (ps_pipeline){0};
-    if (da_cmd_init(&pipeline->cmds, 0) == -1)
+    if (da_init(&pipeline->cmds) == -1)
         return -1;
 
     return 0;
@@ -99,7 +100,7 @@ static void free_pipeline(ps_pipeline *pipeline) {
 
     for (size_t i = 0; i < pipeline->cmds.size; ++i)
         free_cmd(&pipeline->cmds.data[i]);
-    da_cmd_free(&pipeline->cmds);
+    da_free(&pipeline->cmds);
 
     *pipeline = (ps_pipeline){0};
 }
@@ -127,23 +128,21 @@ static int init_job(ps_job *job) {
     assert(job);
 
     *job = (ps_job){0};
-    if (da_andor_init(&job->andors, 0) == -1)
+    if (da_init(&job->andors) == -1)
         return -1;
 
     return 0;
 }
 
-static int copy_word(ps_word *dst, lx_tok *src) {
+static int cpy_word(ps_word *dst, lx_tok *src) {
     assert(dst);
     assert(dst->segments.size == 0);
 
     for (size_t i = 0; i < src->parts.size; ++i) {
         lx_part *src_part = &src->parts.data[i];
 
-        ps_segment *dst_segment = da_segment_push(&dst->segments);
+        ps_segment *dst_segment = da_push_init(&dst->segments, init_ps_segment);
         if (!dst_segment)
-            return -1;
-        if (init_ps_segment(dst_segment) == -1)
             return -1;
 
         size_t n = strlen(src_part->raw) + 1;
@@ -168,10 +167,8 @@ static int add_andor(da_andor *andors, ps_andor_op op,
         ps_scanner *scanner) {
     assert(andors);
 
-    ps_andor *andor = da_andor_push(andors);
+    ps_andor *andor = da_push_init(andors, init_andor);
     if (!andor)
-        return -1;
-    if (init_andor(andor) == -1)
         return -1;
 
     andor->op = op;
@@ -193,10 +190,8 @@ static int ensure_pipeline(da_andor *andors, ps_andor_op op,
 static int add_cmd(da_cmd *cmds, ps_scanner *scanner) {
     assert(scanner);
 
-    ps_cmd *cmd = da_cmd_push(cmds);
+    ps_cmd *cmd = da_push_init(cmds, init_cmd);
     if (!cmd)
-        return -1;
-    if (init_cmd(cmd) == -1)
         return -1;
 
     scanner->cur_cmd = cmd;
@@ -215,10 +210,8 @@ static int ensure_cmd(ps_pipeline *pipeline, ps_scanner *scanner) {
 static int queue_redir(lx_kind kind, int append, ps_scanner *scanner) {
     assert(scanner);
 
-    ps_redir *redir = da_redir_push(&scanner->cur_cmd->redirs);
+    ps_redir *redir = da_push_init(&scanner->cur_cmd->redirs, init_redir);
     if (!redir)
-        return -1;
-    if (init_redir(redir) == -1)
         return -1;
 
     redir->append = append;
@@ -241,7 +234,7 @@ void ps_free(ps_job *job) {
 
     for (size_t i = 0; i < job->andors.size; ++i)
         free_andor(&job->andors.data[i]);
-    da_andor_free(&job->andors);
+    da_free(&job->andors);
 
     *job = (ps_job){0};
 }
@@ -269,7 +262,7 @@ int ps_parse(da_tok *tokens, ps_job *job) {
         switch (scanner.cur_tok->kind) {
         case LX_TOK_WORD: {
             if (scanner.queued_redir) {
-                if (copy_word(&scanner.queued_redir->target, scanner.cur_tok) == -1)
+                if (cpy_word(&scanner.queued_redir->target, scanner.cur_tok) == -1)
                     goto fail;
                 scanner.queued_redir = NULL;
                 continue;
@@ -278,13 +271,11 @@ int ps_parse(da_tok *tokens, ps_job *job) {
             ensure_pipeline(&job->andors, scanner.cur_andor_op, &scanner);
             ensure_cmd(scanner.cur_pipeline, &scanner);
 
-            ps_word *word = da_word_push(&scanner.cur_cmd->words);
-            if (!word)
-                goto fail;
+            ps_word *word = da_push_init(&scanner.cur_cmd->words, init_word);
             if (init_word(word) == -1)
                 goto fail;
 
-            if (copy_word(word, scanner.cur_tok) == -1)
+            if (cpy_word(word, scanner.cur_tok) == -1)
                 goto fail;
 
             break;
