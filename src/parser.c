@@ -33,6 +33,8 @@ static void free_word(ps_word *word) {
     if (!word)
         return;
 
+    free(word->arg);
+
     for (size_t i = 0; i < word->segments.size; ++i)
         free_ps_segment(&word->segments.data[i]);
     da_free(&word->segments);

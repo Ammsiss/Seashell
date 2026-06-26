@@ -1,5 +1,52 @@
 ---------------------------------------------------------------------------------
 
+## 2026-06-26
+
+### Next
+
+- [ ] Hook up procceses in pipelines before execing
+
+### Tasks
+
+**Executor**
+- [ ] Set up any relevant redirections
+- [ ] Record exit status of each pipeline for andor logic
+
+**Expander**
+- [ ] Parase for $ and expand any relevant env variables
+- [ ] Expand unquoted ~ with $HOME
+
+**Tooling**
+- [ ] Investigate very bad clangd performance on test_parser.c
+- [ ] Use --error-markers option to color valgrind output
+- [ ] Rewrite the run_all.sh script to use a shell function
+- [ ] Parse out "PASS" lines from the run_all.sh script
+- [ ] Block valgrind output if any tests fail
+
+**Misc**
+- [ ] Remove all unnecessary identifier prefixes on static types
+- [ ] Write a tree view helper (Maybe generic?)
+- [ ] Start a diagnostics module
+- [ ] Maybe add explicit parenthesis to ALL macro args no matter what
+- [ ] Change the file names for dyn_arr, maybe dynarr
+
+**Complete**
+- [x] Replace integer boolean with the actual boolean type
+- [x] (Removed) Fill out the rough skeleton of the mod/parser.md contract
+- [x] In spec.md write out how redirects should work
+
+### Notes
+
+MILESTONE! All the layers are created and we can officially go from a shell
+command to an execed program! The executor is just running commands and not
+doing any pipeline hookups, andor logic, or redirections but its nice to
+see the core flow working. See pics/milestone1 for a test run.
+
+Expander should parse redirects and just apply the fd dup rule naively so
+later redirects are the one you end up with if multiple are provided.
+
+---------------------------------------------------------------------------------
+
 ## 2026-06-25
 
 ### Next

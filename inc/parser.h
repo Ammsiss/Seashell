@@ -13,6 +13,7 @@ struct ps_segment {
 
 struct ps_word {
     da_segment segments;
+    char *arg;
 };
 
 struct ps_redir {

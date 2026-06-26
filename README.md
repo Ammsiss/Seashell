@@ -4,9 +4,8 @@ A simple linux shell for systems programming practice.
 
 ## Goals
 
-- Small subset of core shell operations
-- Expansion layer for variables and basic globbing
-- Basic job control
+- Individual lexer, parser, expander, and executor modules
+- Basic job control implementation
 
 ## Non-goals
 

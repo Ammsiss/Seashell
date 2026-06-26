@@ -535,6 +535,10 @@ void test_multiple_redirects(void) {
                         IO_NUM_OUT, APPEND_OFF
                     ),
                     REDIR(
+                        PLAIN_WORD("output2"),
+                        IO_NUM_OUT, APPEND_OFF
+                    ),
+                    REDIR(
                         PLAIN_WORD("errors"),
                         IO_NUM_ERR, APPEND_OFF
                     ),
@@ -542,7 +546,7 @@ void test_multiple_redirects(void) {
             )
         )
     );
-    validate("syslog > output 2> errors", &exp);
+    validate("syslog > output > output2 2> errors", &exp);
 }
 
 int main(void) {

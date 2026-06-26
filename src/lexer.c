@@ -60,7 +60,7 @@ static lx_kind get_kind(const char *cur_char) {
     return LX_TOK_UNKNOWN;
 }
 
-static int kind_is_delim(lx_kind kind) {
+static bool kind_is_delim(lx_kind kind) {
     switch (kind) {
     case LX_TOK_PIPE:
     case LX_TOK_BG:
@@ -70,21 +70,21 @@ static int kind_is_delim(lx_kind kind) {
     case LX_TOK_APPEND:
     case LX_TOK_AND_IF:
     case LX_TOK_OR_IF:
-        return 1;
+        return true;
     default:
-        return 0;
+        return false;
     }
 }
 
-static int kind_is_double_char_op(lx_kind kind) {
+static bool kind_is_double_char_op(lx_kind kind) {
     switch (kind) {
     case LX_TOK_RDR_ERR:
     case LX_TOK_APPEND:
     case LX_TOK_AND_IF:
     case LX_TOK_OR_IF:
-        return 1;
+        return true;
     default:
-        return 0;
+        return false;
     }
 }
 
