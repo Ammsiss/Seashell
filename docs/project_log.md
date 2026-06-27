@@ -4,6 +4,60 @@
 
 ### Next
 
+- [ ] Implement && and || handling.
+
+### Tasks
+
+**Logging**
+- [ ] The log_msg function should call write once so its atomic
+- [ ] Use tail -F plus a sym link to the latest session log
+
+**Executor**
+- [ ] Set up any relevant redirections
+- [ ] Record exit status of each pipeline for andor logic
+
+**Expander**
+- [ ] Parase for $ and expand any relevant env variables
+- [ ] Expand unquoted ~ with $HOME
+- [ ] Replace \n with a real newline in arg
+
+**Tooling**
+- [ ] Investigate very bad clangd performance on test_parser.c
+- [ ] Use --error-markers option to color valgrind output
+- [ ] Rewrite the run_all.sh script to use a shell function
+- [ ] Parse out "PASS" lines from the run_all.sh script
+- [ ] Block valgrind output if any tests fail
+
+**Misc**
+- [ ] Remove all unnecessary identifier prefixes on static types
+- [ ] Write a tree view helper (Maybe generic?)
+- [ ] Start a diagnostics module
+- [ ] Maybe add explicit parenthesis to ALL macro args no matter what
+- [ ] Change the file names for dyn_arr, maybe dynarr
+
+**Complete**
+- [x] Hook up procceses in pipelines before execing
+
+### Notes
+
+Pipelines now work. Realizing I'm going to need a logging module now that
+forking is on the table. Might look into debugging multi process programs.
+pics/milestone2.png shows a pipeline exec.
+
+Should forked shells return -1 on failure if they fail before exec?
+
+How can we have diagnostics for forked shells that have already set their fd's
+in a pipeline? In other words they don't have access to the terminals stdout
+anymore.
+
+Why doesn't ./seashell cat receive C-d?
+
+---------------------------------------------------------------------------------
+
+## 2026-06-26
+
+### Next
+
 - [ ] Hook up procceses in pipelines before execing
 
 ### Tasks
@@ -40,7 +94,7 @@
 MILESTONE! All the layers are created and we can officially go from a shell
 command to an execed program! The executor is just running commands and not
 doing any pipeline hookups, andor logic, or redirections but its nice to
-see the core flow working. See pics/milestone1 for a test run.
+see the core flow working. See pics/milestone1.png for a test run.
 
 Expander should parse redirects and just apply the fd dup rule naively so
 later redirects are the one you end up with if multiple are provided.

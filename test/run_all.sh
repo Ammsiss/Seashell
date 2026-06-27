@@ -6,6 +6,7 @@ PASS="$(printf '\033[32m✓\033[0m')"
 
 VALGRIND_CMD=(
   valgrind
+  --vgdb=no
   --quiet
   --leak-check=full
   --errors-for-leak-kinds=all
