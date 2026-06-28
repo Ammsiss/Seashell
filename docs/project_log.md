@@ -1,5 +1,71 @@
 ---------------------------------------------------------------------------------
 
+## 2026-06-27
+
+### Next
+
+- [ ] Change the file names for dyn_arr, maybe dynarr
+- [ ] Maybe add explicit parenthesis to ALL macro args no matter what
+- [ ] Remove all unnecessary identifier prefixes on static types
+- [ ] Replace the log_info/err etc functions cause macros do their job
+- [ ] Add log_exit style functions as a convenience
+- [ ] Add test file for regression tests
+
+### Tasks
+
+**Logging**
+- [ ] wrap system calls to add trace level log messages automatically
+- [ ] system call wrappers can have define checks for toggling tracing
+
+**Diagnostics**
+- [ ] Lexer/Parser diagnostics for known failure paths at least
+- [ ] Executor diagnostic module for interacting with the shell
+
+**Executor**
+- [ ] Add redirection handling
+- [ ] Job control
+
+**Expander**
+- [ ] Add switch case to the loop based on quote level
+- [ ] Expand unquoted ~ with $HOME
+
+**Misc**
+
+**Complete**
+- [x] Record exit status of each pipeline for andor logic
+- [x] Implement && and || handling
+- [x] run_pipeline reimplemented iteratively
+- [x] Simple logging module
+- [x] Use tail -F plus a sym link to the latest session log
+- [x] The log_msg function should call write once so its atomic
+- [ ] (Removed) Investigate very bad clangd performance on test_parser.c
+- [ ] (Removed) Use --error-markers option to color valgrind output
+- [ ] (Removed) Rewrite the run_all.sh script to use a shell function
+- [ ] (Removed) Parse out "PASS" lines from the run_all.sh script
+- [ ] (Removed) Block valgrind output if any tests fail
+- [ ] (Removed) Write a visualizer for lexer and parser
+- [ ] (Removed) Start a diagnostics module
+- [ ] (Removed) Parse for $ and expand any relevant env variables
+- [ ] (Removed) Replace \n with a real newline in arg
+
+### Notes
+
+Things are picking up! The data structures I toiled over seem to be proving
+their worth. && and || was pretty trivial and redirecitons shouldn't be too
+bad.
+
+Moving into a repl style debugging work flow now. Hand crafted tests are too
+slow (Will still write regression tests tho). The feed back is much faster with
+interactive shell sessions + real time logs.
+
+See pics/first_repl.png for an example repl session at this stage.
+
+The (Removed) items in the task list just means that they either weren't
+relevant enough for the current state of the project and they were just adding
+noise to the task list or were solved inadvertently and made a non issue.
+
+---------------------------------------------------------------------------------
+
 ## 2026-06-26
 
 ### Next
@@ -11,9 +77,18 @@
 **Logging**
 - [ ] The log_msg function should call write once so its atomic
 - [ ] Use tail -F plus a sym link to the latest session log
+- [ ] Add log_exit equivalents
+- [ ] Replace the log_info/err etc functions cause macros do their job
+- [ ] investiage why C-d to command 'cat' causes no waitpid logs
+- [ ] wrap system calls to add trace level log messages automatically
+- [ ] system call wrappers can have define checks for toggling tracing
+
+**Diagnostics**
+- [ ] Lexer/Parser diagnostics for known failure paths at least
 
 **Executor**
 - [ ] Set up any relevant redirections
+- [ ] Add test file for regression tests
 - [ ] Record exit status of each pipeline for andor logic
 
 **Expander**
@@ -86,8 +161,8 @@ Why doesn't ./seashell cat receive C-d?
 
 **Complete**
 - [x] Replace integer boolean with the actual boolean type
-- [x] (Removed) Fill out the rough skeleton of the mod/parser.md contract
 - [x] In spec.md write out how redirects should work
+- [ ] (Removed) Fill out the rough skeleton of the mod/parser.md contract
 
 ### Notes
 

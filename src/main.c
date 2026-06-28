@@ -1,71 +1,76 @@
 #define _GNU_SOURCE
 
-#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
 #include <unistd.h>
 #include <wait.h>
-#include <signal.h>
 
+#include "log.h"
 #include "lexer.h"
 #include "parser.h"
 #include "expander.h"
 #include "executor.h"
 
-void reap_children(int sig) {
-    (void) sig;
+void run_cmd(const char *line, da_tok *tokens, ps_job *job) {
+    if (lx_tokenize(line, tokens) == -1) {
+        fprintf(stderr, "Lexer error\n");
+        exit(EXIT_FAILURE);
+    }
 
-    int saved_errno = errno;
+    if (ps_parse(tokens, job) == -1) {
+        fprintf(stderr, "Parser error\n");
+        exit(EXIT_FAILURE);
+    }
 
-    /* TODO: add diagnostic on waitpid() failure */
-    while (waitpid(0, NULL, WNOHANG) > 0)
-        continue;
+    if (ex_expand(job) == -1) {
+        fprintf(stderr, "Expansion error\n");
+        exit(EXIT_FAILURE);
+    }
 
-    errno = saved_errno;
+    if (sh_run(job) == -1) {
+        fprintf(stderr, "Executor error\n");
+        exit(EXIT_FAILURE);
+    }
+
+    lx_free(tokens);
+    ps_free(job);
 }
 
-int main(int argc, char **argv) {
+int main(void) {
+    if (log_init() == -1)
+        return -1;
+
     printf("seashell PID(%d)\n", getpid());
 
-    struct sigaction sa;
-    sa.sa_flags = 0;
-    sa.sa_handler = reap_children;
-    sigemptyset(&sa.sa_mask);
-
-    if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-        fprintf(stderr, "Error: sigaction (%s)\n", strerror(errno));
-        return EXIT_FAILURE;
-    }
-
-    if (argc != 2 || strcmp(argv[1], "--help") == 0) {
-        fprintf(stderr, "Usage error\n");
-        return EXIT_FAILURE;
-    }
-
     da_tok tokens = {0};
-    if (lx_tokenize(argv[1], &tokens) == -1) {
-        fprintf(stderr, "Lexer error\n");
-        return EXIT_FAILURE;
-    }
-
     ps_job job = {0};
-    if (ps_parse(&tokens, &job) == -1) {
-        fprintf(stderr, "Parser error\n");
-        return EXIT_FAILURE;
-    }
 
-    if (ex_expand(&job) == -1) {
-        fprintf(stderr, "Expansion error\n");
-        return EXIT_FAILURE;
-    }
+    while (true) {
+        printf("> ");
+        fflush(stdout);
 
-    if (sh_run(&job) == -1) {
-        fprintf(stderr, "Executor error\n");
-        return EXIT_FAILURE;
-    }
+        char *line = NULL;
+        size_t len;
 
+        int num_read = getline(&line, &len, stdin);
+        if (num_read == -1) {
+            free(line);
+            if (feof(stdin))
+                break;
+            return EXIT_FAILURE;
+        }
+
+        if (line[num_read - 1] == '\n')
+            line[num_read - 1] = '\0';
+
+        if (strlen(line) != 0)
+            run_cmd(line, &tokens, &job);
+
+        free(line);
+    }
 
     lx_free(&tokens);
     ps_free(&job);
+    printf("Bye!\n");
 }

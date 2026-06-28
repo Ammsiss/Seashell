@@ -8,3 +8,4 @@ test_*
 !test_*.c
 !test_*.old
 shell-debug
+log*

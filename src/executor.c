@@ -1,6 +1,8 @@
-#include <stdarg.h>
 #define _GNU_SOURCE
 
+#include <assert.h>
+#include <sys/mman.h>
+#include <stdarg.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -11,27 +13,28 @@
 
 #include "executor.h"
 #include "parser.h" // IWYU pragma: keep - See 2026-06-25 Notes
+#include "log.h"
 
-int log_fd;
+static int wait_all() {
+    int wstat;
+    while (true) {
+        pid_t pid = waitpid(0, &wstat, 0);
+        if (pid == -1) {
+            if (errno == ECHILD)
+                break;
+            else {
+                LOG_ERR("waitpid (%s)", strerror(errno));
+                return -1;
+            }
+        }
 
-#define PFFORMAT(x, y) __attribute__ ((format(printf, (x), (y))))
+        LOG_INFO("waited for PID(%d)", pid);
+    }
 
-// TODO: error reporting
-PFFORMAT(1, 2) void log_msg(const char *fmt, ...) {
-    va_list va;
-    char msg[256];
-
-    va_start(va, fmt);
-    vsnprintf(msg, 256, fmt, va);
-    va_end(va);
-
-    const char *header = "info: ";
-    write(log_fd, header, strlen(header));
-    write(log_fd, msg, strlen(msg));
-    write(log_fd, "\n", 1);
+    return 0;
 }
 
-char **create_argv(const ps_cmd *cmd) {
+static char **create_argv(const ps_cmd *cmd) {
     size_t argc = cmd->words.size + 1;
 
     char **argv = calloc(argc, sizeof(char *));
@@ -46,129 +49,148 @@ char **create_argv(const ps_cmd *cmd) {
     return argv;
 }
 
-/* Assumes fork already happend */
-int exec_cmd(const ps_cmd *cmd) {
+static int exec_cmd(const ps_cmd *cmd) {
     char **argv = create_argv(cmd);
     if (!argv)
         return -1;
 
-    log_msg("PID(%d) execing %s", getpid(), cmd->words.data[0].arg);
+    LOG_INFO("execing %s", cmd->words.data[0].arg);
 
     execvp(argv[0], argv);
-    _exit(EXIT_FAILURE);;
+
+    LOG_ERR("failed to exec %s", cmd->words.data[0].arg);
+    _exit(EXIT_FAILURE);
 }
 
-int pipe_fork(void) {
+static int run_pipeline(const ps_pipeline *pipeline) {
+    LOG_INFO("execing %ld cmd pipeline", pipeline->cmds.size);
 
-    int pfd[2];
-    if (pipe(pfd) == -1)
-        return -1;
-
-    log_msg("PID(%d) pipe forking", getpid());
-
+    pid_t final_pid;
     pid_t child_pid;
-    switch (child_pid = fork()) {
-    case -1:
-        return -1;
 
-    case 0: /* child */
-        if (close(pfd[1]) == -1)
+    if (pipeline->cmds.size == 1) {
+
+        LOG_INFO("forking");
+
+        switch (final_pid = fork()) {
+        case -1:
+            LOG_ERR("fork (%s)", strerror(errno));
             return -1;
-        if (dup2(pfd[0], STDIN_FILENO) == -1)
-            return -1;
-        if (STDIN_FILENO != pfd[0])
-            if (close(pfd[0]) == -1)
+
+        case 0:
+            exec_cmd(&pipeline->cmds.data[0]);
+            LOG_ERR("exec_cmd returned");
+            _exit(EXIT_FAILURE);
+
+        default:
+            break;
+        }
+    } else {
+        int pfd[2];
+        int read_fd;
+
+        for (size_t i = 0; i < pipeline->cmds.size; ++i) {
+
+            if (pipe(pfd) == -1) {
+                LOG_ERR("pipe (%s)", strerror(errno));
+                return -1;
+            }
+
+            LOG_INFO("forking");
+
+            switch (child_pid = fork()) {
+            case -1:
+                LOG_ERR("fork (%s)", strerror(errno));
                 return -1;
 
-        return 0;
+            case 0:
+                close(pfd[0]);
 
-    default: /* parent */
-        if (close(pfd[0]) == -1)
-            return -1;
-        if (dup2(pfd[1], STDOUT_FILENO) == -1)
-            return -1;
-        if (STDOUT_FILENO != pfd[1])
-            if (close(pfd[1]) == -1)
-                return -1;
+                if (i != 0) {
+                    dup2(read_fd, STDIN_FILENO);
+                    if (read_fd != STDIN_FILENO)
+                        close(read_fd);
+                }
 
-        return child_pid;
+                if (i != pipeline->cmds.size - 1)
+                    dup2(pfd[1], STDOUT_FILENO);
+                if (pfd[1] != STDOUT_FILENO)
+                    close(pfd[1]);
+
+                exec_cmd(&pipeline->cmds.data[i]);
+
+                LOG_ERR("exec_cmd returned");
+                _exit(EXIT_FAILURE);
+
+            default:
+                close(pfd[1]);
+                if (i != 0)
+                    close(read_fd);
+                read_fd = pfd[0];
+
+                if (i == pipeline->cmds.size - 1)
+                    final_pid = child_pid;
+                break;
+            }
+        }
+
+        close(pfd[0]);
     }
-}
 
-int run_pipeline(const ps_pipeline *pipeline, size_t i) {
-    if (i == pipeline->cmds.size - 1) {
-        exec_cmd(&pipeline->cmds.data[i]);
+    int rv;
+    int wstat;
+    if (waitpid(final_pid, &wstat, 0) == -1) {
+        LOG_ERR("waitpid (%s)", strerror(errno));
         return -1;
     }
+    rv = (WIFEXITED(wstat) && WEXITSTATUS(wstat) != 1) ? SUCCESS : FAILURE;
 
-    switch (pipe_fork()) {
-    case -1:
+    LOG_INFO("waited for last cmd PID(%d) and exit status %d", final_pid, rv);
+
+    if (wait_all() == -1)
         return -1;
 
-    case 0: /* child */
-        log_msg("PID(%d) PPID(%d) started", getpid(), getppid());
-
-        if (run_pipeline(pipeline, ++i) == -1)
-            return -1;
-    default: /* parent */
-        exec_cmd(&pipeline->cmds.data[i]);
-        return -1;
-    }
+    return rv;
 }
 
 int sh_run(const ps_job *job) {
-    char template[] = "log.XXXXXX";
-    log_fd = mkstemp(template);
+    LOG_INFO("running job");
 
-    if (log_fd == -1) {
-        fprintf(stderr, "waitpid (%s)", strerror(errno));
-        return -1;
-    }
-
-    log_msg("PID(%d) running job", getpid());
+    int exit_stat = 0;
 
     for (size_t i = 0; i < job->andors.size; ++i) {
         const ps_andor *andor = &job->andors.data[i];
 
-        log_msg("PID(%d) forking", getpid());
-
         switch (andor->op) {
         case PS_NO_IF:
-            switch (fork()) {
-            case -1:
+            exit_stat = run_pipeline(&andor->pipeline);
+            if (exit_stat == -1)
                 return -1;
-            case 0:
-                log_msg("PID(%d) running %ld cmd pipeline", getpid(),
-                        andor->pipeline.cmds.size);
-                run_pipeline(&andor->pipeline, 0);
-                return -1; /* No child process should return here */
-            default:
-                break;
-        }
+            break;
 
         case PS_OR_IF:
-        case PS_AND_IF:
-        }
-    }
-
-    log_msg("PID(%d) waiting...", getpid());
-
-    int wstat;
-    while (true) {
-        pid_t pid = waitpid(0, &wstat, 0);
-        if (pid == -1) {
-            if (errno == ECHILD)
+            if (exit_stat == SUCCESS) {
+                LOG_INFO("|| and last cmd passed; exiting early");
                 break;
-            else {
-                fprintf(stderr, "waitpid (%s)", strerror(errno));
-                return -1;
             }
-        }
+            exit_stat = run_pipeline(&andor->pipeline);
+            if (exit_stat == -1)
+                return -1;
+            break;
 
-        log_msg("PID(%d) waited for PID(%d)", getpid(), pid);
+        case PS_AND_IF:
+            if (exit_stat == FAILURE) {
+                LOG_INFO("&& and last cmd failed; exiting early");
+                break;
+            }
+            exit_stat = run_pipeline(&andor->pipeline);
+            if (exit_stat == -1)
+                return -1;
+            break;
+        }
     }
 
-    log_msg("PID(%d) finished waiting", getpid());
+    LOG_INFO("job completed");
 
     return 0;
 }
