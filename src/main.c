@@ -28,10 +28,10 @@ void run_cmd(const char *line, da_tok *tokens, ps_job *job) {
         exit(EXIT_FAILURE);
     }
 
-    if (sh_run(job) == -1) {
-        fprintf(stderr, "Executor error\n");
-        exit(EXIT_FAILURE);
-    }
+    sh_result result = sh_run(job);
+
+    if (result.exit_code == SH_FAIL)
+        fprintf(stderr, "seashell: %s\n", result.msg);
 
     lx_free(tokens);
     ps_free(job);
@@ -72,5 +72,4 @@ int main(void) {
 
     lx_free(&tokens);
     ps_free(&job);
-    printf("Bye!\n");
 }

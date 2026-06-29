@@ -1,12 +1,68 @@
 ---------------------------------------------------------------------------------
 
+## 2026-06-28
+
+### Next
+
+- [ ] Apply the commented improvements above log_msg to it
+- [ ] Remove the LOG_EXIT style functions in favor of explicit _exit calls
+
+### Tasks
+
+**Diagnostics**
+- [ ] Lexer/Parser diagnostics for known failure paths at least
+- [ ] Executor diagnostic module for interacting with the shell
+
+**Executor**
+- [ ] Add redirection handling
+- [ ] Job control
+
+**Expander**
+- [ ] Add switch case to the loop based on quote level
+- [ ] Expand unquoted ~ with $HOME
+
+**Complete**
+- [x] Remove all unnecessary identifier prefixes on static types
+- [x] Replace the log_info/err etc functions cause macros do their job
+- [x] Add log_exit style functions as a convenience
+- [x] (Started) wrap system calls to add trace level log messages automatically
+- [ ] (Removed) system call wrappers can have define checks for toggling tracing
+
+### Notes
+
+Good day today, made some good progress with logging/diagnostics. A big
+takeaway for the day would be that after a fork the shell basically treats the
+sub shell as any other command in a pipeline. Theres a little pre exec
+procedure but regardless of if it fails before the exec, on the exec, or after,
+the shell treats it the same.
+
+Failed before the exec? The subshell just prints to stderr (like any other
+program) then terminates. The parent shell doesn't care.
+
+Exec failed? The subshell just prints to stderr and exits with 127, again the
+parent shell doesn't need to know the details of how you failed just if you did
+or not.
+
+Initially I was overcomplicating it becuase I was thinking that if you had a
+"shell" error like the subshell exec call failing I thought there would have to
+be some special clean up or the shell would need to cancel the rest of the
+pipeline or something. But no, even if it does fail before the exec it works
+out fine. The next program that tries to read stdin would just see EOF because
+the subshell doesn't write anything to the pipe and then closes immediately.
+
+Besides there is no way to differentiate the subshell exiting before the exec
+and retruning 127 and the exec suceeding where the execced program returns 127
+anyways.
+
+So the subshell basically just becomes another program in the pipeline,
+printing to stderr if it encounters any issues.
+
+---------------------------------------------------------------------------------
+
 ## 2026-06-27
 
 ### Next
 
-- [ ] Change the file names for dyn_arr, maybe dynarr
-- [ ] Maybe add explicit parenthesis to ALL macro args no matter what
-- [ ] Remove all unnecessary identifier prefixes on static types
 - [ ] Replace the log_info/err etc functions cause macros do their job
 - [ ] Add log_exit style functions as a convenience
 - [ ] Add test file for regression tests
@@ -29,8 +85,6 @@
 - [ ] Add switch case to the loop based on quote level
 - [ ] Expand unquoted ~ with $HOME
 
-**Misc**
-
 **Complete**
 - [x] Record exit status of each pipeline for andor logic
 - [x] Implement && and || handling
@@ -38,6 +92,7 @@
 - [x] Simple logging module
 - [x] Use tail -F plus a sym link to the latest session log
 - [x] The log_msg function should call write once so its atomic
+- [x] Remove all unnecessary identifier prefixes on static types
 - [ ] (Removed) Investigate very bad clangd performance on test_parser.c
 - [ ] (Removed) Use --error-markers option to color valgrind output
 - [ ] (Removed) Rewrite the run_all.sh script to use a shell function
@@ -47,6 +102,8 @@
 - [ ] (Removed) Start a diagnostics module
 - [ ] (Removed) Parse for $ and expand any relevant env variables
 - [ ] (Removed) Replace \n with a real newline in arg
+- [ ] (Removed) Change the file names for dyn_arr, maybe dynarr
+- [ ] (Removed) Maybe add explicit parenthesis to ALL macro args no matter what
 
 ### Notes
 

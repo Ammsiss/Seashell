@@ -24,4 +24,3 @@ typedef struct lx_part lx_part;
 typedef struct lx_tok lx_tok;
 
 #endif
-

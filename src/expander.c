@@ -3,7 +3,7 @@
 #include "expander.h"
 #include "parser.h" // IWYU pragma: keep - See 2026-06-25 Notes
 
-static int ex_expand_word(ps_word *word) {
+static int expand_word(ps_word *word) {
     char *expanded_word = malloc(1);
     if (!expanded_word)
         return -1;
@@ -38,7 +38,7 @@ int ex_expand(ps_job *job) {
 
             for (size_t k = 0; k < cmd->words.size; ++k) {
                 ps_word *word = &cmd->words.data[k];
-                if (ex_expand_word(word) == -1)
+                if (expand_word(word) == -1)
                     return -1;
             }
         }
