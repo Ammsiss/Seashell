@@ -12,7 +12,7 @@
 #include "expander.h"
 #include "executor.h"
 
-void run_cmd(const char *line, da_tok *tokens, ps_job *job) {
+sh_result run_cmd(const char *line, da_tok *tokens, ps_job *job) {
     if (lx_tokenize(line, tokens) == -1) {
         fprintf(stderr, "Lexer error\n");
         exit(EXIT_FAILURE);
@@ -30,11 +30,10 @@ void run_cmd(const char *line, da_tok *tokens, ps_job *job) {
 
     sh_result result = sh_run(job);
 
-    if (result.exit_code == SH_FAIL)
-        fprintf(stderr, "seashell: %s\n", result.msg);
-
     lx_free(tokens);
     ps_free(job);
+
+    return result;
 }
 
 int main(void) {
@@ -43,6 +42,7 @@ int main(void) {
 
     printf("seashell PID(%d)\n", getpid());
 
+    char *line;
     da_tok tokens = {0};
     ps_job job = {0};
 
@@ -50,7 +50,7 @@ int main(void) {
         printf("> ");
         fflush(stdout);
 
-        char *line = NULL;
+        line = NULL;
         size_t len;
 
         int num_read = getline(&line, &len, stdin);
@@ -64,12 +64,19 @@ int main(void) {
         if (line[num_read - 1] == '\n')
             line[num_read - 1] = '\0';
 
-        if (strlen(line) != 0)
-            run_cmd(line, &tokens, &job);
+        if (strlen(line) != 0) {
+            sh_result result = run_cmd(line, &tokens, &job);
+            if (result.exit_code == SH_FAIL) {
+                fprintf(stderr, "seashell: %s\n", result.msg);
+            } else if (result.exit_code == SH_EXIT) {
+                printf("exit\n");
+                free(line);
+                break;
+            }
+        }
 
         free(line);
     }
 
-    lx_free(&tokens);
-    ps_free(&job);
+    return EXIT_SUCCESS;
 }

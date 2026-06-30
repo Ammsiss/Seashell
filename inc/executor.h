@@ -8,6 +8,7 @@
 
 #define SH_OK 0
 #define SH_FAIL 1
+#define SH_EXIT 2
 
 struct sh_result {
     sh_errcode err_code;

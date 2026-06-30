@@ -1,16 +1,16 @@
 #define _GNU_SOURCE
 
+#include <limits.h>
 #include <sys/wait.h>
 #include <errno.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
 
 #include "log.h"
 
-int stored_fd;
+int log_output_fd;
 
 int log_init() {
     time_t t = time(NULL);
@@ -27,8 +27,8 @@ int log_init() {
     strcpy(fullpath, "./logs/");
     strcat(fullpath, filename);
 
-    stored_fd = open(fullpath, O_CREAT | O_RDWR, 0600);
-    if (stored_fd == -1) {
+    log_output_fd = open(fullpath, O_CREAT | O_RDWR, 0600);
+    if (log_output_fd == -1) {
         fprintf(stderr, "failed to create log file %s\n", filename);
         return -1;
     }
@@ -45,100 +45,49 @@ int log_init() {
 }
 
 /*
-1. Split building the message with delivering the message
-2. Use a data structure as the base for a log module to represent log messages
-3. Define a "max log" size so len does not have to be dynamically created
-4. Provide macros for source context like file number, function...
-5. Color should be logically associated with log level not encoded into the header
-*/
+  Best effort; drops message on any failure
 
-/* Best effort; drops message on any failure */
-void log_msg(const char *header, exit_type how_exit, bool print_errno, \
-        const char *fmt, ...) {
+  level: file:line:func:pid msg[: errstr]
+*/
+void log_msg(log_level level, const char *errstr, const char *file, int line, \
+        const char *func, const char *fmt, ...) {
+
     int saved_errno = errno;
 
-    int mlen = 0;
-    char *out_msg = NULL;
+    char level_str[BUF_SIZE] = "";
+    char file_str[PATH_MAX] = "";
+    char func_str[BUF_SIZE] = "";
+    char msg[BUF_SIZE] = "";
 
-    /* header */
+    if (level == L_INFO)
+        strcpy(level_str, CGREEN "info" CCL);
+    else if (level == L_ERR)
+        strcpy(level_str, CRED "error" CCL);
+    else
+        strcpy(level_str, "???");
 
-    int hlen = strlen(header);
-    mlen += hlen;
-
-    /* pid */
-
-    pid_t pid = getpid();
-    int pid_len = snprintf(NULL, 0, "pid=%d ", pid);
-    mlen += pid_len;
-
-    /* variadic message */
+    strncpy(file_str, file, PATH_MAX);
+    strncpy(func_str, func, BUF_SIZE);
 
     va_list va;
     va_start(va, fmt);
-    va_list vlen;
-    va_copy(vlen, va);
+    vsnprintf(msg, BUF_SIZE, fmt, va);
+    va_end(va);
 
-    mlen += vsnprintf(NULL, 0, fmt, vlen);
-    if (mlen < 0)
-        goto fail;
+    char output_str[OUTPUT_SIZE] = "";
 
-    /* optional strerror */
-
-    errno = 0;
-    const char *err_msg = strerror(saved_errno);
-    if (errno != 0)
-        goto fail;
-
-    if (print_errno)
-        mlen += /*: */2 + strlen(err_msg);
-
-    /* final newline */
-
-    mlen += 1;
-
-    /* construct message */
-
-    out_msg = malloc(mlen + /*\0*/1);
-    if (!out_msg)
-        goto fail;
-
-    strcpy(out_msg, header);
-
-    snprintf(out_msg + hlen, pid_len + 1, "pid=%d ", pid);
-
-    if (vsprintf(out_msg + hlen + pid_len, fmt, va) <= 0)
-        goto fail;
-
-    if (print_errno) {
-        strcat(out_msg, ": ");
-        strcat(out_msg, err_msg);
+    if (errstr) {
+        snprintf(output_str, OUTPUT_SIZE, \
+            "%s: " CDIM "%s:%d:%s:%d " CCL "%s: %s\n", \
+            level_str, basename(file_str), line, func_str, getpid(), msg, errstr);
+    } else {
+        snprintf(output_str, OUTPUT_SIZE, \
+            "%s: " CDIM "%s:%d:%s:%d " CCL "%s\n", \
+            level_str, basename(file_str), line, func_str, getpid(), msg);
     }
 
-    strcat(out_msg, "\n");
+    write(log_output_fd, output_str, strlen(output_str));
 
-    if (write(stored_fd, out_msg, mlen) != mlen)
-        goto fail;
-
-    va_end(vlen);
-    va_end(va);
-    free(out_msg);
-    errno = saved_errno;
-
-    switch (how_exit) {
-    case EXIT_U:
-        _exit(EXIT_FAILURE);
-    case EXIT:
-        exit(EXIT_FAILURE);
-    case NO_EXIT:
-        break;
-    }
-
-    return;
-
-fail:
-    va_end(vlen);
-    va_end(va);
-    free(out_msg);
     errno = saved_errno;
 }
 
@@ -186,12 +135,24 @@ void xexecvp(const char *file, char *const argv[]) {
 }
 
 pid_t xwaitpid(pid_t pid, int *wstatus, int options) {
-    pid_t child_pid = waitpid(pid, wstatus, options);
+    int wstat;
+
+    pid_t child_pid = waitpid(pid, &wstat, options);
     if (child_pid == -1) {
-        if (errno != ECHILD)
-            LOG_ERRNO("waitpid");
-        return -1;
+        if (errno != ECHILD) {
+            LOG_ERRNO("waitpid(%d)", pid);
+        } else {
+            return -1;
+        }
     }
+
+    if (wstatus)
+        *wstatus = wstat;
+
+    if (WIFEXITED(wstat))
+        LOG_INFO("waited for pid=%d (status %d)", child_pid, WEXITSTATUS(wstat));
+    else
+        LOG_INFO("waited for pid=%d (bad exit)", child_pid);
 
     return child_pid;
 }

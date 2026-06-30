@@ -1,10 +1,58 @@
 ---------------------------------------------------------------------------------
 
-## 2026-06-28
+## 2026-06-30
 
 ### Next
 
-- [ ] Apply the commented improvements above log_msg to it
+- [ ] In run_pipeline only create a pipe if there is a next command
+- [ ] Rename read_fd and pfd to make more sense semantically
+- [ ] Create helper functions for the pipeline wiring logic
+- [ ] Look into refactoring the pipeline->cmds.size == 1 path from the multi
+  command pipeline path.
+- [ ] Make a function that returns a builtin code from a string (Perhaps it can
+  be lazy such as builtin_then_run())
+
+Think about what it means logically for the size == 1 case to be handled
+generically. It just means its a pipe with no input or output fds.
+
+LOL after looking at it again im pretty it ALREADY handles size == 1 Well this
+task should be easy then.
+
+### Tasks
+
+**Diagnostics**
+- [ ] Lexer/Parser diagnostics for known failure paths at least
+- [ ] Executor diagnostic module for interacting with the shell
+
+**Executor**
+- [ ] Builtin exit should take a numeric argument for the exit code
+- [ ] Add redirection handling
+- [ ] Job control
+
+**Expander**
+- [ ] Add switch case to the loop based on quote level
+- [ ] Expand unquoted ~ with $HOME
+
+**Complete**
+- [x] Remove the LOG_EXIT style functions in favor of explicit _exit calls
+- [x] Simplify the log_msg function; just use static storage
+- [x] exit builtin "proof of concept"
+
+### Notes
+
+log_msg function way simpler. Just using static storage for the fields
+is much more sane.
+
+Starting to sus out the needed structure for builtins. A query function that
+can check argv(0) and return some sort of code is going to be my first play.
+
+---------------------------------------------------------------------------------
+
+## 2026-06-29
+
+### Next
+
+- [ ] Simplify the log_msg function; just use static storage
 - [ ] Remove the LOG_EXIT style functions in favor of explicit _exit calls
 
 ### Tasks
@@ -59,7 +107,7 @@ printing to stderr if it encounters any issues.
 
 ---------------------------------------------------------------------------------
 
-## 2026-06-27
+## 2026-06-28
 
 ### Next
 
@@ -123,7 +171,7 @@ noise to the task list or were solved inadvertently and made a non issue.
 
 ---------------------------------------------------------------------------------
 
-## 2026-06-26
+## 2026-06-27
 
 ### Next
 

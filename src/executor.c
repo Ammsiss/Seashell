@@ -16,7 +16,7 @@
 #include "parser.h" // IWYU pragma: keep - See 2026-06-25 Notes
 #include "log.h"
 
-static sh_result result = {0};
+static sh_result result = { SH_OK, 0, "" };
 
 PFFORMAT(3, 4)
 static void set_sh_result(int exit_code, int err_code, \
@@ -28,7 +28,7 @@ static void set_sh_result(int exit_code, int err_code, \
         .msg = ""
     };
 
-    if (exit_code == SH_OK)
+    if (exit_code == SH_OK || exit_code == SH_EXIT)
         return;
 
     va_list va;
@@ -63,20 +63,15 @@ void err_exit(int exit_code, const char *fmt, ...) {
 }
 
 /* TODO: include more info from wstat in log */
-static int wait_all() {
-    int wstat;
+static int wait_for_all() {
     while (true) {
-        pid_t pid = xwaitpid(0, &wstat, 0);
-        if (pid == -1) {
+        if (xwaitpid(0, NULL, 0) == -1) {
             if (errno == ECHILD) {
                 break;
             } else {
-                set_sh_result(SH_FAIL, SH_ERRSYS, "waitpid");
                 return -1;
             }
         }
-
-        LOG_INFO("waited for pid=%d", pid);
     }
 
     return 0;
@@ -108,13 +103,20 @@ static void exec_cmd_or_exit(const ps_cmd *cmd) {
     err_exit(127, "seashell: command not found: %s\n", argv[0]);
 }
 
-static int run_pipeline(const ps_pipeline *pipeline) {
+static bool run_pipeline(const ps_pipeline *pipeline) {
     LOG_INFO("running %ld cmd pipeline", pipeline->cmds.size);
 
     pid_t final_pid;
     pid_t child_pid;
 
     if (pipeline->cmds.size == 1) {
+
+        /* check if builtin; run if it is */
+        if (strcmp("exit", pipeline->cmds.data[0].words.data[0].arg) == 0) {
+            LOG_INFO("running builtin exit");
+            set_sh_result(SH_EXIT, 0, NULL);
+            return true;
+        }
 
         LOG_INFO("forking");
 
@@ -147,6 +149,14 @@ static int run_pipeline(const ps_pipeline *pipeline) {
                 return -1;
 
             case 0:
+
+                /* check if builtin; run it if it is */
+                if (strcmp("exit", pipeline->cmds.data[i].words.data[0].arg) == 0) {
+                    LOG_INFO("running builtin exit");
+                    _exit(EXIT_SUCCESS);
+                }
+
+
                 if (xclose(pfd[0]) == -1)
                     err_exit(EXIT_FAILURE, "close %s\n", strerror(errno));
                 if (i != 0) {
@@ -188,56 +198,47 @@ static int run_pipeline(const ps_pipeline *pipeline) {
         return -1;
     }
 
-    if (!WIFEXITED(wstat))
-        LOG_INFO("waited for pid=%d: exited abnormally", final_pid);
-    else
-        LOG_INFO("waited for pid=%d: exit code %d", final_pid, WEXITSTATUS(wstat));
-
-    if (wait_all() == -1)
+    if (wait_for_all() == -1)
         return -1;
 
-    return WEXITSTATUS(wstat) ? FAILURE : SUCCESS;
+    return WEXITSTATUS(wstat) ? false : true;
 }
 
 sh_result sh_run(const ps_job *job) {
-    int exit_stat = 0;
+    int pipeline_succeeded = 0;
 
     for (size_t i = 0; i < job->andors.size; ++i) {
         const ps_andor *andor = &job->andors.data[i];
 
         switch (andor->op) {
         case PS_NO_IF:
-            exit_stat = run_pipeline(&andor->pipeline);
-            if (exit_stat == -1)
-                goto fail;
+            pipeline_succeeded = run_pipeline(&andor->pipeline);
+            if (!pipeline_succeeded)
+                goto done;
             break;
 
         case PS_OR_IF:
-            if (exit_stat == SUCCESS) {
+            if (pipeline_succeeded) {
                 LOG_INFO("|| and last cmd passed; finishing early");
                 goto done;
             }
-            exit_stat = run_pipeline(&andor->pipeline);
-            if (exit_stat == -1)
-                goto fail;
+            pipeline_succeeded = run_pipeline(&andor->pipeline);
+            if (!pipeline_succeeded)
+                goto done;
             break;
 
         case PS_AND_IF:
-            if (exit_stat == FAILURE) {
+            if (!pipeline_succeeded) {
                 LOG_INFO("&& and last cmd failed; finishing early");
                 goto done;
             }
-            exit_stat = run_pipeline(&andor->pipeline);
-            if (exit_stat == -1)
-                goto fail;
+            pipeline_succeeded = run_pipeline(&andor->pipeline);
+            if (!pipeline_succeeded)
+                goto done;
             break;
         }
     }
 
 done:
-    set_sh_result(SH_OK, 0, NULL);
-    return result;
-
-fail:
     return result;
 }
