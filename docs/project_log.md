@@ -1,5 +1,41 @@
 ---------------------------------------------------------------------------------
 
+## 2026-07-1
+
+### Next
+- [ ] Move argv creation responsibility from executor to expander
+- [ ] Add -c mode so you can capture shell output for regression tests
+
+### Tasks
+
+**Diagnostics**
+- [ ] Lexer/Parser diagnostics for known failure paths at least
+- [ ] Executor diagnostic module for interacting with the shell
+
+**Executor**
+- [ ] Builtin exit should take a numeric argument for the exit code
+- [ ] Add redirection handling
+- [ ] Job control
+
+**Expander**
+- [ ] Add switch case to the loop based on quote level
+- [ ] Expand unquoted ~ with $HOME
+
+**Complete**
+- [x] Create helper functions for the pipeline wiring logic
+- [x] In run_pipeline only create a pipe if there is a next command
+- [x] Rename read_fd and pfd to make more sense semantically
+- [x] Refactor the pipeline->cmds.size == 1 path
+
+### Notes
+
+Good day today. Simplified the run_pipeline structure a lot. I'm going to start
+a discrete math text after geometry. While working with the pipeline algo I was
+recommended to use a truth table and after writing it out I saw the use pretty
+clearly. Formalizing this type of logic is probably pretty good for efficiency.
+
+---------------------------------------------------------------------------------
+
 ## 2026-06-30
 
 ### Next
@@ -7,10 +43,7 @@
 - [ ] In run_pipeline only create a pipe if there is a next command
 - [ ] Rename read_fd and pfd to make more sense semantically
 - [ ] Create helper functions for the pipeline wiring logic
-- [ ] Look into refactoring the pipeline->cmds.size == 1 path from the multi
-  command pipeline path.
-- [ ] Make a function that returns a builtin code from a string (Perhaps it can
-  be lazy such as builtin_then_run())
+- [ ] Refactor the pipeline->cmds.size == 1 path
 
 Think about what it means logically for the size == 1 case to be handled
 generically. It just means its a pipe with no input or output fds.

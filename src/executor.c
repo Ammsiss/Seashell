@@ -94,11 +94,35 @@ static char **create_argv_or_exit(const ps_cmd *cmd) {
     return argv;
 }
 
+void run_exit_builtin(char **argv, sh_builtin_data *data) {
+    (void) argv; /* no args for now */
+    (void) data;
+    LOG_INFO("running builtin exit");
+    _exit(EXIT_SUCCESS);
+}
+
+static sh_builtin builtins[BUILTIN_COUNT] = {
+    { .name = "exit", .func = run_exit_builtin }
+};
+
+sh_builtin *get_builtin(const ps_cmd *cmd) {
+    const char *name = cmd->words.data[0].arg;
+
+    for (size_t i = 0; i < BUILTIN_COUNT; ++i)
+        if (strcmp(builtins[i].name, name) == 0)
+            return &builtins[i];
+
+    return NULL;
+}
+
 static void exec_or_exit(const ps_cmd *cmd) {
     char **argv = create_argv_or_exit(cmd);
 
-    LOG_INFO("execing %s", argv[0]);
+    sh_builtin *builtin = get_builtin(cmd);
+    if (builtin)/* builtins shouldn't return */
+        builtin->func(argv, &(sh_builtin_data){ .from_parent = false });
 
+    LOG_INFO("execing %s", argv[0]);
     xexecvp(argv[0], argv);
     err_exit(127, "seashell: command not found: %s\n", argv[0]);
 }
@@ -114,14 +138,6 @@ static void dup_fd_or_exit(int fd1, int fd2) {
         _exit(EXIT_FAILURE);
 }
 
-// /* Builtin */
-// if (cmd_cnt == 1 && strcmp("exit", \
-//         pipeline->cmds.data[i].words.data[0].arg) == 0) {
-//     LOG_INFO("running builtin exit");
-//     set_sh_result(SH_EXIT, 0, NULL);
-//     return true;
-// }
-//
 static bool run_pipeline(const ps_pipeline *pipeline) {
     LOG_INFO("running %ld cmd pipeline", pipeline->cmds.size);
 
@@ -132,6 +148,13 @@ static bool run_pipeline(const ps_pipeline *pipeline) {
     int prev_read_fd;
 
     size_t cmd_cnt = pipeline->cmds.size;
+
+    // if (cmd_cnt == 1) {
+    //     sh_builtin *builtin = get_builtin(&pipeline->cmds.data[0]);
+    //     if (builtin) {
+    //         builtin->func(
+    //     }
+    // }
 
     for (size_t i = 0; i < cmd_cnt; ++i) {
 
