@@ -94,13 +94,24 @@ static char **create_argv_or_exit(const ps_cmd *cmd) {
     return argv;
 }
 
-static void exec_cmd_or_exit(const ps_cmd *cmd) {
+static void exec_or_exit(const ps_cmd *cmd) {
     char **argv = create_argv_or_exit(cmd);
 
     LOG_INFO("execing %s", argv[0]);
 
     xexecvp(argv[0], argv);
     err_exit(127, "seashell: command not found: %s\n", argv[0]);
+}
+
+static void dup_fd_or_exit(int fd1, int fd2) {
+    if (xdup2(fd1, fd2) == -1)
+        _exit(EXIT_FAILURE);
+
+    if (fd1 == fd2)
+        return;
+
+    if (xclose(fd1) == -1)
+        _exit(EXIT_FAILURE);
 }
 
 // /* Builtin */
@@ -142,42 +153,32 @@ static bool run_pipeline(const ps_pipeline *pipeline) {
             set_sh_result(SH_FAIL, SH_ERRSYS, "fork");
             return -1;
 
-        case 0: /* reorder null checks */
-            if (!last)
-                if (xclose(next_pipe[0]) == -1)
-                    err_exit(EXIT_FAILURE, "close %s\n", strerror(errno));
-
-            if (!first) {
-                if (xdup2(prev_read_fd, STDIN_FILENO) == -1)
-                    err_exit(EXIT_FAILURE, "dup2 %s\n", strerror(errno));
-                if (prev_read_fd != STDIN_FILENO)
-                    if (xclose(prev_read_fd) == -1)
-                        err_exit(EXIT_FAILURE, "close %s\n", strerror(errno));
-            }
+        case 0:
+            if (!first)
+                dup_fd_or_exit(prev_read_fd, STDIN_FILENO);
 
             if (!last) {
-                if (xdup2(next_pipe[1], STDOUT_FILENO) == -1)
-                    err_exit(EXIT_FAILURE, "dup2 %s\n", strerror(errno));
-                if (next_pipe[1] != STDOUT_FILENO)
-                    if (xclose(next_pipe[1]) == -1)
-                        err_exit(EXIT_FAILURE, "close %s\n", strerror(errno));
+                dup_fd_or_exit(next_pipe[1], STDOUT_FILENO);
+
+                if (xclose(next_pipe[0]) == -1)
+                    err_exit(EXIT_FAILURE, "close %s\n", strerror(errno));
             }
 
-            exec_cmd_or_exit(&pipeline->cmds.data[i]);
+            exec_or_exit(&pipeline->cmds.data[i]);
 
         default:
-            if (!last)
-                if (xclose(next_pipe[1]) == -1)
-                    set_sh_result(SH_FAIL, SH_ERRSYS, "close");
-
             if (!first)
                 if (xclose(prev_read_fd) == -1)
                     set_sh_result(SH_FAIL, SH_ERRSYS, "close");
 
-            if (!last)
+            if (!last) {
                 prev_read_fd = next_pipe[0];
 
-            if (last)
+                if (xclose(next_pipe[1]) == -1)
+                    set_sh_result(SH_FAIL, SH_ERRSYS, "close");
+            }
+
+            if (last) /* final child determines pipe exit status */
                 final_pid = child_pid;
 
             break;
