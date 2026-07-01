@@ -24,8 +24,11 @@ PS_MODS   := $(UOBJ) $(BLD_DIR)/test_parser.o $(BLD_DIR)/parser.o \
 DA_MODS   := $(UOBJ) $(BLD_DIR)/test_dyn_arr.o $(BLD_DIR)/dyn_arr.o
 EX_MODS   := $(UOBJ) $(BLD_DIR)/test_expander.o $(BLD_DIR)/dyn_arr.o \
 			 $(BLD_DIR)/parser.o $(BLD_DIR)/lexer.o $(BLD_DIR)/expander.o
+SH_MODS   := $(UOBJ) $(BLD_DIR)/test_executor.o $(BLD_DIR)/executor.o \
+			 $(BLD_DIR)/dyn_arr.o $(BLD_DIR)/parser.o $(BLD_DIR)/lexer.o \
+			 $(BLD_DIR)/expander.o $(BLD_DIR)/log.o
 
-TEST_BINS := test_lexer test_dyn_arr test_parser test_expander
+TEST_BINS := test_lexer test_dyn_arr test_parser test_expander test_executor
 
 .PHONY: all
 all: $(TEST_BINS)
@@ -40,6 +43,9 @@ test_dyn_arr: $(DA_MODS)
 	$(CC) $(CFLAGS) $^ -o $@
 
 test_expander: $(EX_MODS)
+	$(CC) $(CFLAGS) $^ -o $@
+
+test_executor: $(SH_MODS)
 	$(CC) $(CFLAGS) $^ -o $@
 
 # Test module

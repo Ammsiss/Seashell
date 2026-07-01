@@ -103,6 +103,14 @@ static void exec_cmd_or_exit(const ps_cmd *cmd) {
     err_exit(127, "seashell: command not found: %s\n", argv[0]);
 }
 
+// /* Builtin */
+// if (cmd_cnt == 1 && strcmp("exit", \
+//         pipeline->cmds.data[i].words.data[0].arg) == 0) {
+//     LOG_INFO("running builtin exit");
+//     set_sh_result(SH_EXIT, 0, NULL);
+//     return true;
+// }
+//
 static bool run_pipeline(const ps_pipeline *pipeline) {
     LOG_INFO("running %ld cmd pipeline", pipeline->cmds.size);
 
@@ -116,17 +124,15 @@ static bool run_pipeline(const ps_pipeline *pipeline) {
 
     for (size_t i = 0; i < cmd_cnt; ++i) {
 
-        /* Builtin */
-        if (cmd_cnt == 1 && strcmp("exit", \
-                pipeline->cmds.data[i].words.data[0].arg) == 0) {
-            LOG_INFO("running builtin exit");
-            set_sh_result(SH_EXIT, 0, NULL);
-            return true;
-        }
+        bool first = (i == 0);
+        bool last = (i == cmd_cnt - 1);
 
-        if (xpipe2(next_pipe, O_CLOEXEC) == -1) {
-            set_sh_result(SH_FAIL, SH_ERRSYS, "pipe");
-            return -1;
+        if (!last) {
+            LOG_INFO("calling pipe2");
+            if (xpipe2(next_pipe, O_CLOEXEC) == -1) {
+                set_sh_result(SH_FAIL, SH_ERRSYS, "pipe");
+                return -1;
+            }
         }
 
         LOG_INFO("forking");
@@ -136,50 +142,47 @@ static bool run_pipeline(const ps_pipeline *pipeline) {
             set_sh_result(SH_FAIL, SH_ERRSYS, "fork");
             return -1;
 
-        case 0:
-            if (xclose(next_pipe[0]) == -1)
-                err_exit(EXIT_FAILURE, "close %s\n", strerror(errno));
+        case 0: /* reorder null checks */
+            if (!last)
+                if (xclose(next_pipe[0]) == -1)
+                    err_exit(EXIT_FAILURE, "close %s\n", strerror(errno));
 
-            if (i != 0) {
+            if (!first) {
                 if (xdup2(prev_read_fd, STDIN_FILENO) == -1)
                     err_exit(EXIT_FAILURE, "dup2 %s\n", strerror(errno));
-                /* This is conditionalized because prev_read_fd is not
-                    * initialized on the first iteration */
                 if (prev_read_fd != STDIN_FILENO)
                     if (xclose(prev_read_fd) == -1)
                         err_exit(EXIT_FAILURE, "close %s\n", strerror(errno));
             }
 
-            if (i != cmd_cnt - 1)
+            if (!last) {
                 if (xdup2(next_pipe[1], STDOUT_FILENO) == -1)
                     err_exit(EXIT_FAILURE, "dup2 %s\n", strerror(errno));
-            if (next_pipe[1] != STDOUT_FILENO)
-                if (xclose(next_pipe[1]) == -1)
-                    err_exit(EXIT_FAILURE, "close %s\n", strerror(errno));
+                if (next_pipe[1] != STDOUT_FILENO)
+                    if (xclose(next_pipe[1]) == -1)
+                        err_exit(EXIT_FAILURE, "close %s\n", strerror(errno));
+            }
 
             exec_cmd_or_exit(&pipeline->cmds.data[i]);
 
         default:
-            if (xclose(next_pipe[1]) == -1)
-                set_sh_result(SH_FAIL, SH_ERRSYS, "close");
+            if (!last)
+                if (xclose(next_pipe[1]) == -1)
+                    set_sh_result(SH_FAIL, SH_ERRSYS, "close");
 
-            if (i != 0)
+            if (!first)
                 if (xclose(prev_read_fd) == -1)
                     set_sh_result(SH_FAIL, SH_ERRSYS, "close");
 
-            prev_read_fd = next_pipe[0];
+            if (!last)
+                prev_read_fd = next_pipe[0];
 
-            if (i == cmd_cnt - 1)
+            if (last)
                 final_pid = child_pid;
 
             break;
         }
     }
-
-    /* close this after loop because during the loop it's closed
-        * through the prev_read_fd variable */
-    if (xclose(next_pipe[0]) == -1)
-        set_sh_result(SH_FAIL, SH_ERRSYS, "close");
 
     int wstat;
     if (xwaitpid(final_pid, &wstat, 0) == -1) {
