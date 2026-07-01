@@ -109,88 +109,77 @@ static bool run_pipeline(const ps_pipeline *pipeline) {
     pid_t final_pid;
     pid_t child_pid;
 
-    if (pipeline->cmds.size == 1) {
+    int next_pipe[2];
+    int prev_read_fd;
 
-        /* check if builtin; run if it is */
-        if (strcmp("exit", pipeline->cmds.data[0].words.data[0].arg) == 0) {
+    size_t cmd_cnt = pipeline->cmds.size;
+
+    for (size_t i = 0; i < cmd_cnt; ++i) {
+
+        /* Builtin */
+        if (cmd_cnt == 1 && strcmp("exit", \
+                pipeline->cmds.data[i].words.data[0].arg) == 0) {
             LOG_INFO("running builtin exit");
             set_sh_result(SH_EXIT, 0, NULL);
             return true;
         }
 
+        if (xpipe2(next_pipe, O_CLOEXEC) == -1) {
+            set_sh_result(SH_FAIL, SH_ERRSYS, "pipe");
+            return -1;
+        }
+
         LOG_INFO("forking");
 
-        switch (final_pid = xfork()) {
+        switch (child_pid = xfork()) {
         case -1:
             set_sh_result(SH_FAIL, SH_ERRSYS, "fork");
             return -1;
 
         case 0:
-            exec_cmd_or_exit(&pipeline->cmds.data[0]);
+            if (xclose(next_pipe[0]) == -1)
+                err_exit(EXIT_FAILURE, "close %s\n", strerror(errno));
+
+            if (i != 0) {
+                if (xdup2(prev_read_fd, STDIN_FILENO) == -1)
+                    err_exit(EXIT_FAILURE, "dup2 %s\n", strerror(errno));
+                /* This is conditionalized because prev_read_fd is not
+                    * initialized on the first iteration */
+                if (prev_read_fd != STDIN_FILENO)
+                    if (xclose(prev_read_fd) == -1)
+                        err_exit(EXIT_FAILURE, "close %s\n", strerror(errno));
+            }
+
+            if (i != cmd_cnt - 1)
+                if (xdup2(next_pipe[1], STDOUT_FILENO) == -1)
+                    err_exit(EXIT_FAILURE, "dup2 %s\n", strerror(errno));
+            if (next_pipe[1] != STDOUT_FILENO)
+                if (xclose(next_pipe[1]) == -1)
+                    err_exit(EXIT_FAILURE, "close %s\n", strerror(errno));
+
+            exec_cmd_or_exit(&pipeline->cmds.data[i]);
 
         default:
+            if (xclose(next_pipe[1]) == -1)
+                set_sh_result(SH_FAIL, SH_ERRSYS, "close");
+
+            if (i != 0)
+                if (xclose(prev_read_fd) == -1)
+                    set_sh_result(SH_FAIL, SH_ERRSYS, "close");
+
+            prev_read_fd = next_pipe[0];
+
+            if (i == cmd_cnt - 1)
+                final_pid = child_pid;
+
             break;
         }
-    } else {
-        int pfd[2];
-        int read_fd;
-
-        for (size_t i = 0; i < pipeline->cmds.size; ++i) {
-            if (xpipe(pfd) == -1) {
-                set_sh_result(SH_FAIL, SH_ERRSYS, "pipe");
-                return -1;
-            }
-
-            LOG_INFO("forking");
-
-            switch (child_pid = xfork()) {
-            case -1:
-                set_sh_result(SH_FAIL, SH_ERRSYS, "fork");
-                return -1;
-
-            case 0:
-
-                /* check if builtin; run it if it is */
-                if (strcmp("exit", pipeline->cmds.data[i].words.data[0].arg) == 0) {
-                    LOG_INFO("running builtin exit");
-                    _exit(EXIT_SUCCESS);
-                }
-
-
-                if (xclose(pfd[0]) == -1)
-                    err_exit(EXIT_FAILURE, "close %s\n", strerror(errno));
-                if (i != 0) {
-                    if (xdup2(read_fd, STDIN_FILENO) == -1)
-                        err_exit(EXIT_FAILURE, "dup2 %s\n", strerror(errno));
-                    if (read_fd != STDIN_FILENO)
-                        if (xclose(read_fd) == -1)
-                            err_exit(EXIT_FAILURE, "close %s\n", strerror(errno));
-                }
-                if (i != pipeline->cmds.size - 1)
-                    if (xdup2(pfd[1], STDOUT_FILENO) == -1)
-                        err_exit(EXIT_FAILURE, "dup2 %s\n", strerror(errno));
-                if (pfd[1] != STDOUT_FILENO)
-                    if (xclose(pfd[1]) == -1)
-                        err_exit(EXIT_FAILURE, "close %s\n", strerror(errno));
-
-                exec_cmd_or_exit(&pipeline->cmds.data[i]);
-
-            default:
-                if (xclose(pfd[1]) == -1)
-                    set_sh_result(SH_FAIL, SH_ERRSYS, "close");
-                if (i != 0)
-                    if (xclose(read_fd) == -1)
-                        set_sh_result(SH_FAIL, SH_ERRSYS, "close");
-                read_fd = pfd[0];
-                if (i == pipeline->cmds.size - 1)
-                    final_pid = child_pid;
-                break;
-            }
-        }
-
-        if (xclose(pfd[0]) == -1)
-            set_sh_result(SH_FAIL, SH_ERRSYS, "close");
     }
+
+    /* close this after loop because during the loop it's closed
+        * through the prev_read_fd variable */
+    if (xclose(next_pipe[0]) == -1)
+        set_sh_result(SH_FAIL, SH_ERRSYS, "close");
 
     int wstat;
     if (xwaitpid(final_pid, &wstat, 0) == -1) {

@@ -91,9 +91,9 @@ void log_msg(log_level level, const char *errstr, const char *file, int line, \
     errno = saved_errno;
 }
 
-int xpipe(int pipefd[2]) {
-    if (pipe(pipefd) == -1) {
-        LOG_ERRNO("pipe");
+int xpipe2(int pipefd[2], int flags) {
+    if (pipe2(pipefd, flags) == -1) {
+        LOG_ERRNO("pipe2");
         return -1;
     }
     return 0;
