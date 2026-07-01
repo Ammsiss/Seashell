@@ -148,12 +148,12 @@ static bool run_pipeline(const ps_pipeline *pipeline) {
 
         LOG_INFO("forking");
 
-        switch (child_pid = xfork()) {
-        case -1:
+        if ((child_pid = xfork()) == -1) {
             set_sh_result(SH_FAIL, SH_ERRSYS, "fork");
             return -1;
+        }
 
-        case 0:
+        if (child_pid == 0) {
             if (!first)
                 dup_fd_or_exit(prev_read_fd, STDIN_FILENO);
 
@@ -165,24 +165,21 @@ static bool run_pipeline(const ps_pipeline *pipeline) {
             }
 
             exec_or_exit(&pipeline->cmds.data[i]);
-
-        default:
-            if (!first)
-                if (xclose(prev_read_fd) == -1)
-                    set_sh_result(SH_FAIL, SH_ERRSYS, "close");
-
-            if (!last) {
-                prev_read_fd = next_pipe[0];
-
-                if (xclose(next_pipe[1]) == -1)
-                    set_sh_result(SH_FAIL, SH_ERRSYS, "close");
-            }
-
-            if (last) /* final child determines pipe exit status */
-                final_pid = child_pid;
-
-            break;
         }
+
+        if (!first)
+            if (xclose(prev_read_fd) == -1)
+                set_sh_result(SH_FAIL, SH_ERRSYS, "close");
+
+        if (!last) {
+            prev_read_fd = next_pipe[0];
+
+            if (xclose(next_pipe[1]) == -1)
+                set_sh_result(SH_FAIL, SH_ERRSYS, "close");
+        }
+
+        if (last) /* final child determines pipe exit status */
+            final_pid = child_pid;
     }
 
     int wstat;
