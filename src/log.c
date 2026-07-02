@@ -54,10 +54,10 @@ void log_msg(log_level level, const char *errstr, const char *file, int line, \
 
     int saved_errno = errno;
 
-    char level_str[BUF_SIZE] = "";
+    char level_str[LOG_BUF_SIZE] = "";
     char file_str[PATH_MAX] = "";
-    char func_str[BUF_SIZE] = "";
-    char msg[BUF_SIZE] = "";
+    char func_str[LOG_BUF_SIZE] = "";
+    char msg[LOG_BUF_SIZE] = "";
 
     if (level == L_INFO)
         strcpy(level_str, CGREEN "info" CCL);
@@ -67,11 +67,11 @@ void log_msg(log_level level, const char *errstr, const char *file, int line, \
         strcpy(level_str, "???");
 
     strncpy(file_str, file, PATH_MAX);
-    strncpy(func_str, func, BUF_SIZE);
+    strncpy(func_str, func, LOG_BUF_SIZE);
 
     va_list va;
     va_start(va, fmt);
-    vsnprintf(msg, BUF_SIZE, fmt, va);
+    vsnprintf(msg, LOG_BUF_SIZE, fmt, va);
     va_end(va);
 
     char output_str[OUTPUT_SIZE] = "";

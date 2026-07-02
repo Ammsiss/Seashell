@@ -29,9 +29,9 @@
 #define PFFORMAT(x, y) __attribute__ ((format(printf, (x), (y))))
 
 /* +100 for format chars, pid, and line number */
-#define OUTPUT_SIZE (BUF_SIZE * 3 + PATH_MAX + ERRSTR_SIZE + 100)
+#define OUTPUT_SIZE (LOG_BUF_SIZE * 3 + PATH_MAX + ERRSTR_SIZE + 100)
 #define ERRSTR_SIZE 1024
-#define BUF_SIZE 128
+#define LOG_BUF_SIZE 128
 
 #define CGREEN "\033[2;36m"
 #define CRED "\033[91m"

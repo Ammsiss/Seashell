@@ -75,11 +75,23 @@ void test_andors(void) {
     validate_shell_output(argv, output, strlen(output));
 }
 
+void test_andors2(void) {
+    char *argv[] = {
+        "../seashell", "-c",
+        "false && true && true && true || echo -n hello, && echo world",
+        (char *) NULL
+    };
+
+    const char *output = "hello,world\n";
+    validate_shell_output(argv, output, strlen(output));
+}
+
 int main(void) {
     UNITY_BEGIN();
 
     RUN_TEST(test_three_pipeline_cmd);
     RUN_TEST(test_andors);
+    RUN_TEST(test_andors2);
 
     return UNITY_END();
 }

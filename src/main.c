@@ -12,31 +12,24 @@
 #include "expander.h"
 #include "executor.h"
 
-sh_result run_cmd(const char *line) {
+void run_cmd(const char *line) {
     da_tok toks;
     ps_job job;
 
     if (lx_tokenize(line, &toks) == -1) {
-        fprintf(stderr, "Lexer error\n");
+        fprintf(stderr, "seashell: lexer error\n");
         exit(EXIT_FAILURE);
     }
 
-    if (ps_parse(&toks, &job) == -1) {
-        fprintf(stderr, "Parser error\n");
+    if (!(ps_parse(&toks, &job) == 0 && ex_expand(&job) == 0)) {
+        fprintf(stderr, "seashell: syntax error\n");
         exit(EXIT_FAILURE);
     }
 
-    if (ex_expand(&job) == -1) {
-        fprintf(stderr, "Expansion error\n");
-        exit(EXIT_FAILURE);
-    }
-
-    sh_result result = sh_run(&job);
+    sh_run(&job);
 
     lx_free(&toks);
     ps_free(&job);
-
-    return result;
 }
 
 PFFORMAT(1, 2) void usage_err(const char *fmt, ...) {
@@ -77,9 +70,7 @@ int main(int argc, char **argv) {
     }
 
     if (cmd_mode) {
-        sh_result result = run_cmd(opt_cmd);
-        if (result.exit_code == SH_FAIL)
-            fprintf(stderr, "seashell: %s\n", result.msg);
+        run_cmd(opt_cmd);
         exit(EXIT_SUCCESS);
     }
 
@@ -103,16 +94,8 @@ int main(int argc, char **argv) {
         if (line[num_read - 1] == '\n')
             line[num_read - 1] = '\0';
 
-        if (strlen(line) != 0) {
-            sh_result result = run_cmd(line);
-            if (result.exit_code == SH_FAIL) {
-                fprintf(stderr, "seashell: %s\n", result.msg);
-            } else if (result.exit_code == SH_EXIT) {
-                printf("exit\n");
-                free(line);
-                break;
-            }
-        }
+        if (strlen(line) != 0)
+            run_cmd(line);
 
         free(line);
     }

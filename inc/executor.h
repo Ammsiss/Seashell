@@ -12,14 +12,10 @@
 
 #define BUILTIN_COUNT 1
 
-struct sh_result {
-    sh_errcode err_code;
-    int exit_code;
-    char msg[256];
-};
+#define BUF_SIZE 1024
 
-struct sh_builtin_data {
-    bool from_parent;
+struct sh_env {
+    bool subshell;
 };
 
 struct sh_builtin {
@@ -27,6 +23,6 @@ struct sh_builtin {
     builtin_func func;
 };
 
-sh_result sh_run(const ps_job *job);
+int sh_run(const ps_job *job);
 
 #endif
