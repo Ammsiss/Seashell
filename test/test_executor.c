@@ -1,78 +1,85 @@
 #define _GNU_SOURCE
 
+#include <string.h>
+#include <stdlib.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <unistd.h>
 
 #include "unity.h"
-#include "executor.h"
-#include "expander.h"
-#include "parser.h"
-#include "lexer.h"
 
-static da_tok tokens = {0};
-static ps_job job = {0};
+#define OUTPUT_BUF_SIZE 1024
 
-void setUp(void) {
-    tokens = (da_tok){0};
-    job = (ps_job){0};
-}
+void setUp(void) {}
+void tearDown(void) {}
 
-void tearDown(void) {
-    lx_free(&tokens);
-    ps_free(&job);
-}
+void validate_shell_output(char **argv, const char *exp_output, \
+        size_t exp_msg_size) {
 
-sh_result get_result(const char *shell_cmd) {
-    /* Should print 6 */
+    int pfd[2];
+    TEST_ASSERT_EQUAL_INT(0, pipe(pfd));
 
-    if (lx_tokenize(shell_cmd, &tokens) == -1) {
-        fprintf(stderr, "Lexer error\n");
-        exit(EXIT_FAILURE);
+    pid_t child_pid;
+    child_pid = fork();
+    TEST_ASSERT_NOT_EQUAL_INT(-1, child_pid);
+
+    if (child_pid == 0) {
+        if (close(pfd[0]) == -1)
+            _exit(EXIT_FAILURE);
+        if (dup2(pfd[1], STDOUT_FILENO) == -1)
+            _exit(EXIT_FAILURE);
+        if (pfd[1] != STDOUT_FILENO)
+            if (close(pfd[1]) == -1)
+                _exit(EXIT_FAILURE);
+
+        execvp(argv[0], argv);
+        _exit(EXIT_FAILURE);
     }
 
-    if (ps_parse(&tokens, &job) == -1) {
-        fprintf(stderr, "Parser error\n");
-        exit(EXIT_FAILURE);
-    }
+    TEST_ASSERT_EQUAL_INT(0, close(pfd[1]));
 
-    if (ex_expand(&job) == -1) {
-        fprintf(stderr, "Expansion error\n");
-        exit(EXIT_FAILURE);
-    }
+    if (waitpid(child_pid, NULL, 0) == -1)
+        _exit(EXIT_FAILURE);
 
-    sh_result result = sh_run(&job);
-    return result;
+    char c;
+    char output[OUTPUT_BUF_SIZE];
+
+    int num_read = read(pfd[0], output, exp_msg_size);
+    output[num_read] = '\0';
+
+    TEST_ASSERT_EQUAL_size_t(exp_msg_size, num_read);
+    TEST_ASSERT_EQUAL_INT(0, read(pfd[0], &c, 1)); /* pipe should be empty */
+    TEST_ASSERT_EQUAL_STRING(exp_output, output);
+
+    close(pfd[0]);
 }
 
 void test_three_pipeline_cmd(void) {
-    int pfd[2];
-    TEST_ASSERT_EQUAL_INT(0, pipe2(pfd, O_CLOEXEC));
-    TEST_ASSERT_EQUAL_INT(0, dup2(pfd[1], STDOUT_FILENO));
-    if (pfd[1] != STDOUT_FILENO)
-        TEST_ASSERT_EQUAL_INT(0, close(pfd[1]));
+    char *argv[] = {
+        "../seashell", "-c", "echo hello | wc -c | grep 6", (char *) NULL
+    };
 
-    sh_result result = get_result("echo hello | wc -c | grep 6");
-    TEST_ASSERT_EQUAL_INT(SH_OK, result.exit_code);
+    const char *output = "6\n";
+    validate_shell_output(argv, output, strlen(output));
+}
 
-    /* expected output '6' */
-    char output[2];
-    char c;
+void test_andors(void) {
+    char *argv[] = {
+        "../seashell", "-c",
+        "echo hello | wc -c && true && echo 'coolio' || echo 'nope'",
+        (char *) NULL
+    };
 
-    TEST_ASSERT_EQUAL_INT(1, read(pfd[0], output, 1));
-    /* shell execed program should close write end after exiting
-     * so we should get 0 (EOF) if we read again */
-    TEST_ASSERT_EQUAL_INT(0, read(pfd[0], &c, 1));
-
-    output[1] = '\0';
-
-    TEST_ASSERT_EQUAL_STRING("6", output);
+    const char *output = "6\ncoolio\n";
+    validate_shell_output(argv, output, strlen(output));
 }
 
 int main(void) {
     UNITY_BEGIN();
 
     RUN_TEST(test_three_pipeline_cmd);
+    RUN_TEST(test_andors);
 
     return UNITY_END();
 }

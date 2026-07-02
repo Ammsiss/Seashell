@@ -28,4 +28,14 @@ VALGRIND_CMD=(
     echo "test_dyn_arr $PASS" || \
     cat /tmp/unity_output
 
+"${VALGRIND_CMD[@]}" \
+    ./test_expander >/tmp/unity_output 2>&1 && \
+    echo "test_expander $PASS" || \
+    cat /tmp/unity_output
+
+"${VALGRIND_CMD[@]}" \
+    ./test_executor >/tmp/unity_output 2>&1 && \
+    echo "test_executor $PASS" || \
+    cat /tmp/unity_output
+
 rm /tmp/unity_output
