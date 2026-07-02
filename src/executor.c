@@ -77,23 +77,6 @@ static int wait_for_all() {
     return 0;
 }
 
-static char **create_argv_or_exit(const ps_cmd *cmd) {
-    size_t argc = cmd->words.size + 1;
-
-    char **argv = calloc(argc, sizeof(char *));
-    if (!argv) {
-        LOG_ERRNO("failed to create argv: calloc");
-        _exit(EXIT_FAILURE);
-    }
-
-    for (size_t i = 0; i < cmd->words.size; ++i)
-        argv[i] = cmd->words.data[i].arg;
-
-    argv[argc - 1] = NULL;
-
-    return argv;
-}
-
 void run_exit_builtin(char **argv, sh_builtin_data *data) {
     (void) argv; /* no args for now */
     (void) data;
@@ -116,15 +99,13 @@ sh_builtin *get_builtin(const ps_cmd *cmd) {
 }
 
 static void exec_or_exit(const ps_cmd *cmd) {
-    char **argv = create_argv_or_exit(cmd);
-
     sh_builtin *builtin = get_builtin(cmd);
     if (builtin)/* builtins shouldn't return */
-        builtin->func(argv, &(sh_builtin_data){ .from_parent = false });
+        builtin->func(cmd->argv, &(sh_builtin_data){ .from_parent = false });
 
-    LOG_INFO("execing %s", argv[0]);
-    xexecvp(argv[0], argv);
-    err_exit(127, "seashell: command not found: %s\n", argv[0]);
+    LOG_INFO("execing %s", cmd->argv[0]);
+    xexecvp(cmd->argv[0], cmd->argv);
+    err_exit(127, "seashell: command not found: %s\n", cmd->argv[0]);
 }
 
 static void dup_fd_or_exit(int fd1, int fd2) {
@@ -148,13 +129,6 @@ static bool run_pipeline(const ps_pipeline *pipeline) {
     int prev_read_fd;
 
     size_t cmd_cnt = pipeline->cmds.size;
-
-    // if (cmd_cnt == 1) {
-    //     sh_builtin *builtin = get_builtin(&pipeline->cmds.data[0]);
-    //     if (builtin) {
-    //         builtin->func(
-    //     }
-    // }
 
     for (size_t i = 0; i < cmd_cnt; ++i) {
 

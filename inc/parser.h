@@ -25,6 +25,7 @@ struct ps_redir {
 struct ps_cmd {
     da_word words;
     da_redir redirs;
+    char **argv;
 };
 
 struct ps_pipeline {

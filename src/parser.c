@@ -75,6 +75,8 @@ static void free_cmd(ps_cmd *cmd) {
     if (!cmd)
         return;
 
+    free(cmd->argv);
+
     for (size_t i = 0; i < cmd->words.size; ++i)
         free_word(&cmd->words.data[i]);
     for (size_t i = 0; i < cmd->redirs.size; ++i)

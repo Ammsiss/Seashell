@@ -29,18 +29,39 @@ static int expand_word(ps_word *word) {
     return 0;
 }
 
+static int create_argv(ps_cmd *cmd) {
+    size_t argc = cmd->words.size;
+
+    char **argv = calloc(argc + 1, sizeof(char *));
+    if (!argv)
+        return -1;
+
+    for (size_t i = 0; i < argc; ++i)
+        argv[i] = cmd->words.data[i].arg;
+
+    argv[argc] = NULL;
+
+    cmd->argv = argv;
+
+    return 0;
+}
+
 int ex_expand(ps_job *job) {
     for (size_t i = 0; i < job->andors.size; ++i) {
         ps_andor *andor = &job->andors.data[i];
+        ps_pipeline *pipeline = &andor->pipeline;
 
-        for (size_t j = 0; j < andor->pipeline.cmds.size; ++j) {
-            ps_cmd *cmd = &andor->pipeline.cmds.data[j];
+        for (size_t j = 0; j < pipeline->cmds.size; ++j) {
+            ps_cmd *cmd = &pipeline->cmds.data[j];
 
             for (size_t k = 0; k < cmd->words.size; ++k) {
                 ps_word *word = &cmd->words.data[k];
                 if (expand_word(word) == -1)
                     return -1;
             }
+
+            if (create_argv(cmd) == -1)
+                return -1;
         }
     }
 
