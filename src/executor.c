@@ -16,7 +16,7 @@
 #include "parser.h" // IWYU pragma: keep - See 2026-06-25 Notes
 #include "log.h"
 
-static sh_env shell_env = { .subshell = true };
+static sh_env shell_env = { .subshell = false };
 
 void output_err(const char *fmt, va_list *va, bool print_err) {
     fflush(stdout);
@@ -79,7 +79,6 @@ static int wait_for_all() {
 
 int run_exit_builtin(char **argv, sh_env *shell_env) {
     (void) argv; /* no args for now */
-    (void) shell_env;
 
     LOG_INFO("running builtin exit");
 
@@ -90,7 +89,7 @@ int run_exit_builtin(char **argv, sh_env *shell_env) {
         exit(EXIT_SUCCESS);
     }
 
-    return 0;
+    return EXIT_FAILURE;
 }
 
 static sh_builtin builtins[BUILTIN_COUNT] = {
@@ -107,12 +106,14 @@ sh_builtin *get_builtin(const ps_cmd *cmd) {
     return NULL;
 }
 
-int try_run_builtin(const ps_cmd *cmd) {
+static bool try_run_builtin(const ps_cmd *cmd, int *status) {
     sh_builtin *builtin = get_builtin(cmd);
-    if (builtin)
-        return builtin->func(cmd->argv, &shell_env);
+    if (builtin) {
+        *status = builtin->func(cmd->argv, &shell_env);
+        return true;
+    }
 
-    return -1;
+    return false;
 }
 
 static void dup_fd_or_exit(int fd1, int fd2) {
@@ -168,8 +169,9 @@ static pid_t exec_pipeline(const ps_pipeline *pipeline) {
                     err_exit(EXIT_FAILURE, true, "close");
             }
 
-            if (try_run_builtin(&pipeline->cmds.data[i]) != -1)
-                _exit(EXIT_SUCCESS); /* child always exits after builtin */
+            int status;
+            if (try_run_builtin(&pipeline->cmds.data[i], &status))
+                _exit(status); /* child always exits after builtin */
 
             LOG_INFO("execing %s", cmd->argv[0]);
             xexecvp(cmd->argv[0], cmd->argv);
@@ -218,9 +220,10 @@ static int run_pipeline(const ps_pipeline *pipeline) {
     ps_cmd *cmd = &pipeline->cmds.data[0];
 
     if (pipeline->cmds.size == 1) {
-        int builtin_status = try_run_builtin(cmd);
-        if (builtin_status != -1)
-            return builtin_status;
+
+        int bltin_status;
+        if (try_run_builtin(cmd, &bltin_status))
+            return bltin_status;
     }
 
     return exec_pipeline(pipeline);

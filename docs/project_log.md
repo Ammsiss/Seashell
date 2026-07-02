@@ -1,5 +1,49 @@
 ---------------------------------------------------------------------------------
 
+## 2026-07-2
+
+### Next
+
+- [ ] In the fork loop, store and track pids you create and wait specifically
+- [ ] Create utils.c/h files for the err(x) funcs and common macros
+- [ ] Lexer/Parser calls the err_msg function before returning -1
+
+### Tasks
+
+- [ ] Add an API func sh_run so valgrind can see memory issues during tests
+- [ ] Add redirection handling
+- [ ] Start expander variable parsing
+- [ ] Expand unquoted ~ with $HOME
+- [ ] Add generic io num tokens so redirects can apply to any fd num
+
+**Complete**
+- [x] Move argv creation responsibility from executor to expander
+- [x] Add -c mode so you can capture shell output for regression tests
+- [x] Add andor and pipeline regression tests
+- [x] Builtin paths implemented for parent and sub shells
+- [x] Refactor sh_run from switch to if statements
+- [ ] (Removed) Executor diagnostic module for interacting with the shell
+- [ ] (Removed - obvious) Job control
+- [ ] (Removed - obvious) Add switch case to the loop based on quote level
+
+### Notes
+
+Some good simplifications today. Don't need the convoluted sh_return structure,
+I just return the exit status of the last pipe or on parent shell failure I
+print a errmsg and return -1.
+
+Also after seeing that sh also just nukes the process image and gets lots of
+"still reachable" leaks in valgrind I very quickly adopted that method as well.
+Much simpler then trying to set up weird exit handlers or pass variables around
+just to free something thats going to be nuked anyways.
+
+Last but not least, I think I'm done with switch statements except for very
+obvious uses like maps or enum resolution. Everytime I use them for more
+logical stuff It ends up being less readable and better implemented with if
+statements.
+
+---------------------------------------------------------------------------------
+
 ## 2026-07-1
 
 ### Next
@@ -13,7 +57,6 @@
 - [ ] Executor diagnostic module for interacting with the shell
 
 **Executor**
-- [ ] Builtin exit should take a numeric argument for the exit code
 - [ ] Add redirection handling
 - [ ] Job control
 
@@ -58,7 +101,6 @@ task should be easy then.
 - [ ] Executor diagnostic module for interacting with the shell
 
 **Executor**
-- [ ] Builtin exit should take a numeric argument for the exit code
 - [ ] Add redirection handling
 - [ ] Job control
 
