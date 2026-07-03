@@ -23,6 +23,6 @@ struct sh_builtin {
     builtin_func func;
 };
 
-int sh_run(const ps_job *job);
+void sh_run(const ps_job *job);
 
 #endif

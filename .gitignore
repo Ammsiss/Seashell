@@ -9,3 +9,5 @@ test_*
 !test_*.old
 shell-debug
 log*
+!log.h
+!log.c

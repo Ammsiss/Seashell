@@ -155,8 +155,8 @@ static int wait_for_pids(da_pid *pids) {
                 last_status = WEXITSTATUS(wstat);
             } else if (WIFSIGNALED(wstat)) {
                 int signum = WTERMSIG(wstat);
-
-                printf("%s", strsignal(signum));
+                fprintf(stderr, "terminated by signal %d (%s)",
+                        signum, strsignal(signum));
 #ifdef WCOREDUMP
                 if (WCOREDUMP(wstat))
                     printf(" (core dumped)");
@@ -164,10 +164,6 @@ static int wait_for_pids(da_pid *pids) {
                 printf("\n");
 
                 last_status = 128 + signum;
-            /*} else if (WIFSTOPPED(wstat)) {
-#ifdef WIFCONTINUED
-            } else if (WIFCONTINUED(wstat)) {
-#endif*/
             } else
                 goto fail;
         }
@@ -278,7 +274,7 @@ fail:
     return false;
 }
 
-static int run_pipeline(const ps_pipeline *pipeline) {
+static bool run_pipeline(const ps_pipeline *pipeline) {
     LOG_INFO("running %ld cmd pipeline", pipeline->cmds.size);
 
     ps_cmd *cmd = &pipeline->cmds.data[0];
@@ -287,34 +283,31 @@ static int run_pipeline(const ps_pipeline *pipeline) {
 
         int bltin_status;
         if (try_run_builtin(cmd, &bltin_status))
-            return bltin_status;
+            return bltin_status == EXIT_SUCCESS;
     }
 
     da_pid pids;
-    if (exec_pipeline(pipeline, &pids))
-        if (wait_for_pids(&pids) == -1)
+    if (exec_pipeline(pipeline, &pids)) {
+        int last_status = wait_for_pids(&pids);
+        if (last_status == -1)
             fatal("fatal: bad job control state");
-
-    return false;
+        return last_status == EXIT_SUCCESS;
+    } else
+        return false;
 }
 
-int sh_run(const ps_job *job) {
-    int pipeline_status = EXIT_SUCCESS;
+void sh_run(const ps_job *job) {
+    bool pipeline_success = true;
 
     for (size_t i = 0; i < job->andors.size; ++i) {
         const ps_andor *andor = &job->andors.data[i];
 
-        if (andor->op == PS_OR_IF && pipeline_status == EXIT_SUCCESS)
+        if (andor->op == PS_OR_IF && pipeline_success)
             continue;
 
-        if (andor->op == PS_AND_IF && pipeline_status != EXIT_SUCCESS)
+        if (andor->op == PS_AND_IF && !pipeline_success)
             continue;
 
-        pipeline_status = run_pipeline(&andor->pipeline);
-        if (pipeline_status == -1)
-            goto done;
+        pipeline_success = run_pipeline(&andor->pipeline);
     }
-
-done:
-    return pipeline_status;
 }

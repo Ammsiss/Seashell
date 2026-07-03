@@ -149,11 +149,19 @@ pid_t xwaitpid(pid_t pid, int *wstatus, int options) {
     if (wstatus)
         *wstatus = wstat;
 
-    if (WIFEXITED(wstat))
-        LOG_INFO("waited for pid=%d (status %d)", child_pid, WEXITSTATUS(wstat));
-    else
-        LOG_INFO("waited for pid=%d (bad exit)", child_pid);
+    int status;
+    if (WIFEXITED(wstat)) {
+        status = WEXITSTATUS(wstat);
+        LOG_INFO("waited for pid=%d (status %d)", child_pid, status);
+    } else if (WIFSIGNALED(wstat)) {
+        int signum = WTERMSIG(wstat);
+        status = 128 + signum;
+        LOG_INFO("waited for pid=%d (status %d)", child_pid, status);
+    /*} else if (WIFSTOPPED(wstat)) {
+#ifdef WIFCONTINUED
+    } else if (WIFCONTINUED(wstat)) {
+#endif*/
+    }
 
     return child_pid;
 }
-

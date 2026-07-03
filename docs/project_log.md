@@ -1,5 +1,31 @@
 ---------------------------------------------------------------------------------
 
+## 2026-07-3
+
+### Next
+- [ ] Create utils.c/h files for the err(x) funcs and common macros
+- [ ] Lexer/Parser calls the err_msg function before returning -1
+
+### Tasks
+
+- [ ] Add an API func sh_run so valgrind can see memory issues during tests
+- [ ] Add redirection handling
+- [ ] Start expander variable parsing
+- [ ] Expand unquoted ~ with $HOME
+- [ ] Add generic io num tokens so redirects can apply to any fd num
+- [ ] Use X macros to centralize da_array registration
+
+**Complete**
+- [x] In the fork loop, store and track pids you create and wait specifically
+- [x] Factor out wait loop and wait only for the pids you create
+
+### Notes
+
+Good day today, had those curtains installed so kind of distracted. They
+are pretty nice tho.
+
+---------------------------------------------------------------------------------
+
 ## 2026-07-2
 
 ### Next
@@ -15,7 +41,6 @@
 - [ ] Start expander variable parsing
 - [ ] Expand unquoted ~ with $HOME
 - [ ] Add generic io num tokens so redirects can apply to any fd num
-- [ ] Add pwd builtin
 
 **Complete**
 - [x] Move argv creation responsibility from executor to expander
