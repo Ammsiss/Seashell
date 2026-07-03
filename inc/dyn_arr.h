@@ -2,6 +2,7 @@
 #define DYN_ARR_H
 
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "lexer_types.h"
 #include "parser_types.h"
@@ -20,6 +21,9 @@
 /* for tests */
 DECLARE_DYN_ARR(da_int, int)
 
+/* for executor */
+DECLARE_DYN_ARR(da_pid, pid_t)
+
 /* lexer */
 DECLARE_DYN_ARR(da_part, lx_part)
 DECLARE_DYN_ARR(da_tok, lx_tok)
@@ -34,6 +38,7 @@ DECLARE_DYN_ARR(da_andor, ps_andor)
 #define get_da_init(arr) \
     _Generic(*(arr), \
         da_int: da_int_init, \
+        da_pid: da_pid_init, \
         da_part: da_part_init, \
         da_tok: da_tok_init, \
         da_segment: da_segment_init, \
@@ -49,6 +54,7 @@ DECLARE_DYN_ARR(da_andor, ps_andor)
 #define get_da_free(arr) \
     _Generic(*(arr), \
         da_int: da_int_free, \
+        da_pid: da_pid_free, \
         da_part: da_part_free, \
         da_tok: da_tok_free, \
         da_segment: da_segment_free, \
@@ -64,6 +70,7 @@ DECLARE_DYN_ARR(da_andor, ps_andor)
 #define get_da_reserve(arr) \
     _Generic(*(arr), \
         da_int: da_int_reserve, \
+        da_pid: da_pid_reserve, \
         da_part: da_part_reserve, \
         da_tok: da_tok_reserve, \
         da_segment: da_segment_reserve, \
@@ -79,6 +86,7 @@ DECLARE_DYN_ARR(da_andor, ps_andor)
 #define get_da_push(arr) \
     _Generic(*(arr), \
         da_int: da_int_push, \
+        da_pid: da_pid_push, \
         da_part: da_part_push, \
         da_tok: da_tok_push, \
         da_segment: da_segment_push, \

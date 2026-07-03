@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <string.h>
+#include <sys/types.h>
 
 #include "dyn_arr.h"
 #include "lexer.h" // IWYU pragma: keep - See 2026-06-25 Notes
@@ -66,6 +67,9 @@
 
 /* for tests */
 DEFINE_DYN_ARR(da_int, int)
+
+/* executor */
+DEFINE_DYN_ARR(da_pid, pid_t)
 
 /* lexer */
 DEFINE_DYN_ARR(da_part, lx_part)

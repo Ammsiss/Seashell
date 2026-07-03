@@ -33,10 +33,20 @@ void output_err(const char *fmt, va_list *va, bool print_err) {
         fprintf(stderr, "seashell: %s\n", user_msg);
 }
 
+PFFORMAT(1, 2)
+void fatal(const char *fmt, ...) {
+    va_list va;
+    va_start(va, fmt);
+    output_err(fmt, &va, false);
+    va_end(va);
+
+    exit(EXIT_FAILURE);
+}
+
 PFFORMAT(3, 4)
 void errExit(int exit_code, bool print_err, const char *fmt, ...) {
     va_list va;
-    va_start(va);
+    va_start(va, fmt);
     output_err(fmt, &va, print_err);
     va_end(va);
 
@@ -46,7 +56,7 @@ void errExit(int exit_code, bool print_err, const char *fmt, ...) {
 PFFORMAT(3, 4)
 void err_exit(int exit_code, bool print_err, const char *fmt, ...) {
     va_list va;
-    va_start(va);
+    va_start(va, fmt);
     output_err(fmt, &va, print_err);
     va_end(va);
 
@@ -56,25 +66,9 @@ void err_exit(int exit_code, bool print_err, const char *fmt, ...) {
 PFFORMAT(2, 3)
 void err_msg(bool print_err, const char *fmt, ...) {
     va_list va;
-    va_start(va);
+    va_start(va, fmt);
     output_err(fmt, &va, print_err);
     va_end(va);
-}
-
-/* TODO: include more info from wstat in log */
-static int wait_for_all() {
-    while (true) {
-        if (xwaitpid(0, NULL, 0) == -1) {
-            if (errno == ECHILD) {
-                break;
-            } else {
-                err_msg(true, "waitpid");
-                return -1;
-            }
-        }
-    }
-
-    return 0;
 }
 
 int run_exit_builtin(char **argv, sh_env *shell_env) {
@@ -144,6 +138,49 @@ static bool try_run_builtin(const ps_cmd *cmd, int *status) {
     return false;
 }
 
+static int wait_for_pids(da_pid *pids) {
+    int wstat;
+    int last_status;
+
+    for (size_t i = 0; i < pids->size; ++i) {
+        pid_t pid = pids->data[i];
+
+        if (xwaitpid(pid, &wstat, 0) == -1) {
+            err_msg(true, "waitpid");
+            goto fail;
+        }
+
+        if (i == pids->size - 1) {
+            if (WIFEXITED(wstat)) {
+                last_status = WEXITSTATUS(wstat);
+            } else if (WIFSIGNALED(wstat)) {
+                int signum = WTERMSIG(wstat);
+
+                printf("%s", strsignal(signum));
+#ifdef WCOREDUMP
+                if (WCOREDUMP(wstat))
+                    printf(" (core dumped)");
+#endif
+                printf("\n");
+
+                last_status = 128 + signum;
+            /*} else if (WIFSTOPPED(wstat)) {
+#ifdef WIFCONTINUED
+            } else if (WIFCONTINUED(wstat)) {
+#endif*/
+            } else
+                goto fail;
+        }
+    }
+
+    da_free(pids);
+    return last_status;
+
+fail:
+    da_free(pids);
+    return -1;
+}
+
 static void dup_fd_or_exit(int fd1, int fd2) {
     if (xdup2(fd1, fd2) == -1)
         err_exit(EXIT_FAILURE, true, "dup2");
@@ -155,9 +192,10 @@ static void dup_fd_or_exit(int fd1, int fd2) {
         err_exit(EXIT_FAILURE, true, "close");
 }
 
-static pid_t exec_pipeline(const ps_pipeline *pipeline) {
+static bool exec_pipeline(const ps_pipeline *pipeline, da_pid *pids) {
+    da_init(pids);
+
     pid_t child_pid;
-    pid_t final_pid;
 
     int next_pipe[2];
     int prev_read_fd;
@@ -171,6 +209,7 @@ static pid_t exec_pipeline(const ps_pipeline *pipeline) {
 
         if (!last) {
             LOG_INFO("calling pipe2");
+
             if (xpipe2(next_pipe, O_CLOEXEC) == -1) {
                 err_msg(true, "pipe2");
                 goto fail;
@@ -179,10 +218,19 @@ static pid_t exec_pipeline(const ps_pipeline *pipeline) {
 
         LOG_INFO("forking");
 
-        if ((child_pid = xfork()) == -1) {
+        child_pid = xfork();
+        if (child_pid == -1) {
             err_msg(true, "fork");
             goto fail;
         }
+
+        pid_t *pid = da_push(pids);
+        if (!pid) {
+            err_msg(false, "da_push");
+            LOG_ERR("da_push");
+            goto fail;
+        } else
+            *pid = child_pid;
 
         if (child_pid == 0) {
             shell_env.subshell = true;
@@ -202,6 +250,7 @@ static pid_t exec_pipeline(const ps_pipeline *pipeline) {
                 _exit(status); /* child always exits after builtin */
 
             LOG_INFO("execing %s", cmd->argv[0]);
+
             xexecvp(cmd->argv[0], cmd->argv);
             err_exit(127, false, "command not found: %s", cmd->argv[0]);
         }
@@ -220,26 +269,13 @@ static pid_t exec_pipeline(const ps_pipeline *pipeline) {
                 goto fail;
             }
         }
-
-        if (last) /* final child determines pipe exit status */
-            final_pid = child_pid;
     }
 
-    int wstat;
-    if (xwaitpid(final_pid, &wstat, 0) == -1) {
-        err_msg(true, "waitpid");
-        goto fail;
-    }
-
-    if (wait_for_all() == -1)
-        return -1;
-
-    if (WIFEXITED(wstat))
-        return WEXITSTATUS(wstat);
+    return true;
 
 fail:
-    wait_for_all();
-    return -1;
+    da_free(pids);
+    return false;
 }
 
 static int run_pipeline(const ps_pipeline *pipeline) {
@@ -254,7 +290,12 @@ static int run_pipeline(const ps_pipeline *pipeline) {
             return bltin_status;
     }
 
-    return exec_pipeline(pipeline);
+    da_pid pids;
+    if (exec_pipeline(pipeline, &pids))
+        if (wait_for_pids(&pids) == -1)
+            fatal("fatal: bad job control state");
+
+    return false;
 }
 
 int sh_run(const ps_job *job) {
