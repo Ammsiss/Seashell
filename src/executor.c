@@ -92,8 +92,36 @@ int run_exit_builtin(char **argv, sh_env *shell_env) {
     return EXIT_FAILURE;
 }
 
+int run_cd_builtin(char **argv, sh_env *shell_env) {
+    (void) shell_env;
+
+    if (!argv || !argv[0]) {
+        LOG_ERR("builtin cd received invalid argv structure");
+        err_msg(false, "internal error check logs");
+        return EXIT_FAILURE;
+    }
+
+    if (!argv[1]) {
+        err_msg(false, "cd: path required");
+        return EXIT_FAILURE;
+    }
+
+    if (argv[2]) {
+        err_msg(false, "cd: too many arguments");
+        return EXIT_FAILURE;
+    }
+
+    if (chdir(argv[1]) == -1) {
+        err_msg(true, "cd");
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}
+
 static sh_builtin builtins[BUILTIN_COUNT] = {
-    { .name = "exit", .func = run_exit_builtin }
+    { .name = "exit", .func = run_exit_builtin },
+    { .name = "cd", .func = run_cd_builtin }
 };
 
 sh_builtin *get_builtin(const ps_cmd *cmd) {
@@ -170,7 +198,7 @@ static pid_t exec_pipeline(const ps_pipeline *pipeline) {
             }
 
             int status;
-            if (try_run_builtin(&pipeline->cmds.data[i], &status))
+            if (try_run_builtin(cmd, &status))
                 _exit(status); /* child always exits after builtin */
 
             LOG_INFO("execing %s", cmd->argv[0]);

@@ -77,7 +77,10 @@ int main(int argc, char **argv) {
     char *line;
 
     while (true) {
-        printf("> ");
+        char *cwd = getcwd(NULL, 0);
+        char *cwd_base = basename(cwd);
+
+        printf(CBLUE "%s" CCL " " CMAGENTA ">" CCL " ", cwd_base);
         fflush(stdout);
 
         line = NULL;
@@ -86,6 +89,7 @@ int main(int argc, char **argv) {
         int num_read = getline(&line, &len, stdin);
         if (num_read == -1) {
             free(line);
+            free(cwd);
             if (feof(stdin))
                 break;
             return EXIT_FAILURE;
@@ -98,6 +102,7 @@ int main(int argc, char **argv) {
             run_cmd(line);
 
         free(line);
+        free(cwd);
     }
 
     return EXIT_SUCCESS;

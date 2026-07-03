@@ -33,10 +33,30 @@
 #define ERRSTR_SIZE 1024
 #define LOG_BUF_SIZE 128
 
-#define CGREEN "\033[2;36m"
-#define CRED "\033[91m"
-#define CDIM "\033[90m"
-#define CCL "\033[m"
+#define CGREEN   "\033[2;36m"
+#define CRED     "\033[91m"
+#define CBLACK   "\033[30m"
+#define CYELLOW  "\033[33m"
+#define CBLUE    "\033[34m"
+#define CMAGENTA "\033[35m"
+#define CCYAN    "\033[36m"
+#define CWHITE   "\033[37m"
+
+#define CBRIGHTBLACK   "\033[90m"
+#define CBRIGHTRED     "\033[91m"
+#define CBRIGHTGREEN   "\033[92m"
+#define CBRIGHTYELLOW  "\033[93m"
+#define CBRIGHTBLUE    "\033[94m"
+#define CBRIGHTMAGENTA "\033[95m"
+#define CBRIGHTCYAN    "\033[96m"
+#define CBRIGHTWHITE   "\033[97m"
+
+#define CDIM    "\033[90m"
+#define CBOLD   "\033[1m"
+#define CUNDER  "\033[4m"
+#define CREV    "\033[7m"
+
+#define CCL     "\033[m"
 
 typedef enum {
     L_INFO,

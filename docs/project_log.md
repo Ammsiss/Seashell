@@ -15,6 +15,7 @@
 - [ ] Start expander variable parsing
 - [ ] Expand unquoted ~ with $HOME
 - [ ] Add generic io num tokens so redirects can apply to any fd num
+- [ ] Add pwd builtin
 
 **Complete**
 - [x] Move argv creation responsibility from executor to expander
