@@ -15,6 +15,7 @@
 #include "executor_types.h"
 #include "parser.h" // IWYU pragma: keep - See 2026-06-25 Notes
 #include "log.h"
+#include "shell_state.h"
 
 static sh_env shell_env = { .subshell = false };
 
@@ -38,7 +39,7 @@ int run_cd_builtin(char **argv, sh_env *shell_env) {
 
     if (!argv || !argv[0]) {
         LOG_ERR("builtin cd received invalid argv structure");
-        err_msg(false, "internal error check logs");
+        err_msg(false, "cd: internal error check logs");
         return EXIT_FAILURE;
     }
 
@@ -60,9 +61,40 @@ int run_cd_builtin(char **argv, sh_env *shell_env) {
     return EXIT_SUCCESS;
 }
 
+int run_set_builtin(char **argv, sh_env *shell_env) {
+    (void) shell_env;
+
+    if (!argv || !argv[0]) {
+        LOG_ERR("builtin set received invalid argv structure");
+        err_msg(false, "set: internal error check logs");
+        return EXIT_FAILURE;
+    }
+
+    if (!argv[1] || !argv[2]) {
+        err_msg(false, "set: not enough arguments");
+        return EXIT_FAILURE;
+    }
+
+    if (argv[3]) {
+        err_msg(false, "set: too many arguments");
+        return EXIT_FAILURE;
+    }
+
+    var_pair var = {0};
+    strcpy(var.key, argv[1]);
+    strcpy(var.value, argv[2]);
+
+    LOG_INFO("saved variable %s=%s", var.key, var.value);
+
+    st_add_var(var);
+
+    return 0;
+}
+
 static sh_builtin builtins[BUILTIN_COUNT] = {
     { .name = "exit", .func = run_exit_builtin },
-    { .name = "cd", .func = run_cd_builtin }
+    { .name = "cd", .func = run_cd_builtin },
+    { .name = "set", .func = run_set_builtin }
 };
 
 sh_builtin *get_builtin(const ps_cmd *cmd) {

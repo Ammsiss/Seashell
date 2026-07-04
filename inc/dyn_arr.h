@@ -6,6 +6,7 @@
 
 #include "lexer_types.h"
 #include "parser_types.h"
+#include "shell_types.h"
 
 #define DECLARE_DYN_ARR(name, type) \
     typedef struct { \
@@ -21,8 +22,8 @@
 /* for tests */
 DECLARE_DYN_ARR(da_int, int)
 
-/* for executor */
 DECLARE_DYN_ARR(da_pid, pid_t)
+DECLARE_DYN_ARR(da_vars, var_pair)
 
 /* lexer */
 DECLARE_DYN_ARR(da_part, lx_part)
@@ -55,6 +56,7 @@ DECLARE_DYN_ARR(da_andor, ps_andor)
     _Generic(*(arr), \
         da_int: da_int_free, \
         da_pid: da_pid_free, \
+        da_vars: da_vars_free, \
         da_part: da_part_free, \
         da_tok: da_tok_free, \
         da_segment: da_segment_free, \
@@ -71,6 +73,7 @@ DECLARE_DYN_ARR(da_andor, ps_andor)
     _Generic(*(arr), \
         da_int: da_int_reserve, \
         da_pid: da_pid_reserve, \
+        da_vars: da_vars_reserve, \
         da_part: da_part_reserve, \
         da_tok: da_tok_reserve, \
         da_segment: da_segment_reserve, \
@@ -87,6 +90,7 @@ DECLARE_DYN_ARR(da_andor, ps_andor)
     _Generic(*(arr), \
         da_int: da_int_push, \
         da_pid: da_pid_push, \
+        da_vars: da_vars_push, \
         da_part: da_part_push, \
         da_tok: da_tok_push, \
         da_segment: da_segment_push, \

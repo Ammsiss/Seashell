@@ -8,7 +8,7 @@
 #define SH_FAIL 1
 #define SH_EXIT 2
 
-#define BUILTIN_COUNT 2
+#define BUILTIN_COUNT 3
 
 #define BUF_SIZE 1024
 

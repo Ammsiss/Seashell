@@ -5,6 +5,7 @@
 #include "dyn_arr.h"
 #include "lexer.h" // IWYU pragma: keep - See 2026-06-25 Notes
 #include "parser.h" // IWYU pragma: keep - See 2026-06-25 Notes
+#include "shell_state.h" // IWYU pragma: keep - See 2026-06-25 Notes
 
 #define DEFINE_DYN_ARR(name, type) \
     int name##_init(name *arr) { \
@@ -68,8 +69,8 @@
 /* for tests */
 DEFINE_DYN_ARR(da_int, int)
 
-/* executor */
 DEFINE_DYN_ARR(da_pid, pid_t)
+DEFINE_DYN_ARR(da_vars, var_pair)
 
 /* lexer */
 DEFINE_DYN_ARR(da_part, lx_part)
