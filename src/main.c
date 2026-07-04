@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
         char *cwd = getcwd(NULL, 0);
         char *cwd_base = basename(cwd);
 
-        printf(CBLUE "%s" CCL " " CMAGENTA ">" CCL " ", cwd_base);
+        printf(CMAGENTA "%s" CCL " " CMAGENTA ">" CCL " ", cwd_base);
         fflush(stdout);
 
         line = NULL;

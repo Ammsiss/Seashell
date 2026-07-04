@@ -22,7 +22,7 @@ void assert_tokens(
     TEST_ASSERT_EQUAL(exp_rv, lx_tokenize(cmd, &tokens));
     TEST_ASSERT_EQUAL_size_t(exp_size, tokens.size);
 
-    if (exp_size == 0 || exp_rv == -1) {
+    if (exp_size == 0 || exp_rv != 0) {
         lx_free(&tokens);
         return;
     }
@@ -217,7 +217,7 @@ void test_word_after_space(void) {
 /* Backslashes */
 
 void test_backslash_only(void) {
-    assert_tokens("\\", NULL, NULL, NULL, 0, -1);
+    assert_tokens("\\", NULL, NULL, NULL, 0, LX_ERREMPTYESC);
 }
 
 void test_backslash_after_backslash(void) {
@@ -235,7 +235,7 @@ void test_backslash_before_operator(void) {
 }
 
 void test_backslash_after_operator(void) {
-    assert_tokens("|\\", NULL, NULL, NULL, 0, -1);
+    assert_tokens("|\\", NULL, NULL, NULL, 0, LX_ERREMPTYESC);
 }
 
 void test_backslash_before_whitespace(void) {
@@ -246,7 +246,7 @@ void test_backslash_before_whitespace(void) {
 }
 
 void test_backslash_after_whitespace(void) {
-    assert_tokens(" \\", NULL, NULL, NULL, 0, -1);
+    assert_tokens(" \\", NULL, NULL, NULL, 0, LX_ERREMPTYESC);
 }
 
 void test_backslash_before_word(void) {
@@ -257,7 +257,7 @@ void test_backslash_before_word(void) {
 }
 
 void test_backslash_after_word(void) {
-    assert_tokens("a\\", NULL, NULL, NULL, 0, -1);
+    assert_tokens("a\\", NULL, NULL, NULL, 0, LX_ERREMPTYESC);
 }
 
 /* Double quotes */
@@ -298,7 +298,7 @@ void test_double_quote_escaped_quote(void) {
 }
 
 void test_double_quote_no_end_quote(void) {
-    assert_tokens("\"", NULL, NULL, NULL, 0, -1);
+    assert_tokens("\"", NULL, NULL, NULL, 0, LX_ERRNOENDQUOTE);
 }
 
 /* Single quotes */
@@ -339,7 +339,7 @@ void test_single_quote_backslash(void) {
 }
 
 void test_single_quote_no_end_quote(void) {
-    assert_tokens("'", NULL, NULL, NULL, 0, -1);
+    assert_tokens("'", NULL, NULL, NULL, 0, LX_ERRNOENDQUOTE);
 }
 
 /* Parts */

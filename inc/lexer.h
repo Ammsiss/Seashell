@@ -7,6 +7,19 @@
 #include "dyn_arr.h"
 
 typedef enum {
+    LX_OK,
+    LX_ERRMEM,
+    LX_ERRINPUT,
+    LX_ERRNOENDQUOTE,
+    LX_ERREMPTYESC
+} lx_status;
+
+struct lx_errinfo {
+    int line;
+    char *msg;
+};
+
+typedef enum {
     LX_M_NORMAL,
     LX_M_DOUBLEQ,
     LX_M_SINGLEQ,

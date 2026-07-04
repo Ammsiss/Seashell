@@ -6,6 +6,8 @@
 #include "lexer.h"
 #include "dyn_arr.h"
 
+static lx_status status = LX_OK;
+
 typedef struct {
     lx_mode mode;
     lx_mode prev_mode;
@@ -31,8 +33,10 @@ static int init_tok(lx_tok *tok) {
     assert(tok);
 
     *tok = (lx_tok){0};
-    if (da_init(&tok->parts) == -1)
+    if (da_init(&tok->parts) == -1) {
+        status = LX_ERRMEM;
         return -1;
+    }
 
     return 0;
 }
@@ -101,8 +105,10 @@ static int add_tok(da_tok *tokens, lx_kind kind, lx_scanner *scanner) {
     assert(!scanner->cur_tok);
 
     lx_tok *tok = da_push_init(tokens, init_tok);
-    if (!tok)
+    if (!tok) {
+        status = LX_ERRMEM;
         return -1;
+    }
 
     tok->kind = kind;
 
@@ -128,8 +134,10 @@ static int add_part(lx_scanner *scanner, lx_quote quote) {
     assert(!scanner->part_start);
 
     lx_part *part = da_push_init(&scanner->cur_tok->parts, init_part);
-    if (!part)
+    if (!part) {
+        status = LX_ERRMEM;
         return -1;
+    }
 
     part->quote = quote;
 
@@ -158,8 +166,10 @@ static int end_part(lx_scanner *scanner) {
         ++len;
 
     part->raw = malloc(len + 1);
-    if (!part->raw)
+    if (!part->raw) {
+        status = LX_ERRMEM;
         return -1;
+    }
 
     memcpy(part->raw, scanner->part_start, len);
     part->raw[len] = '\0';
@@ -180,8 +190,10 @@ static int clear_empty_part(lx_scanner *scanner) {
     lx_part *part = &parts->data[parts->size - 1];
 
     part->raw = malloc(1);
-    if (!part->raw)
+    if (!part->raw) {
+        status = LX_ERRMEM;
         return -1;
+    }
     part->raw[0] = '\0';
 
     scanner->part_start = NULL;
@@ -210,8 +222,10 @@ static int handle_double_quote(lx_scanner *scanner) {
 
 static int handle_normal(da_tok *tokens, lx_scanner *scanner) {
     if (*scanner->cur_char == '"') {
-        if (scanner->cur_char[1] == '\0')
+        if (scanner->cur_char[1] == '\0') {
+            status = LX_ERRNOENDQUOTE;
             return -1;
+        }
 
         clear_part(scanner);
         ++scanner->cur_char;
@@ -224,16 +238,21 @@ static int handle_normal(da_tok *tokens, lx_scanner *scanner) {
         if (*scanner->cur_char == '"') {
             clear_empty_part(scanner);
         } else {
-            if (*scanner->cur_char == '\\')
-                if (*++scanner->cur_char == '\0')
+            if (*scanner->cur_char == '\\') {
+                if (*++scanner->cur_char == '\0') {
+                    status = LX_ERREMPTYESC;
                     return -1;
+                }
+            }
             scanner->mode = LX_M_DOUBLEQ;
         }
     }
 
     else if (*scanner->cur_char == '\'') {
-        if (scanner->cur_char[1] == '\0')
+        if (scanner->cur_char[1] == '\0') {
+            status = LX_ERRNOENDQUOTE;
             return -1;
+        }
 
         clear_part(scanner);
         ++scanner->cur_char;
@@ -275,9 +294,12 @@ static int handle_normal(da_tok *tokens, lx_scanner *scanner) {
                 return -1;
             if (ensure_part(scanner, LX_Q_NONE) == -1)
                 return -1;
-            if (*scanner->cur_char == '\\')
-                if (*++scanner->cur_char == '\0')
+            if (*scanner->cur_char == '\\') {
+                if (*++scanner->cur_char == '\0') {
+                    status = LX_ERREMPTYESC;
                     return -1;
+                }
+            }
         }
     }
 
@@ -293,15 +315,17 @@ void lx_free(da_tok *tokens) {
 }
 
 int lx_tokenize(const char *cmd, da_tok *tokens) {
+    status = LX_OK;
+
     if (!cmd || !tokens)
-        return -1;
+        return LX_ERRINPUT;
 
     size_t cmd_len = strlen(cmd);
     if (cmd_len <= 0)
-        return -1;
+        return LX_ERRINPUT;
 
     if (da_init(tokens) == -1)
-        return -1;
+        return LX_ERRMEM;
 
     lx_scanner scanner = { LX_M_NORMAL, LX_M_NORMAL, NULL, NULL, cmd };
 
@@ -322,8 +346,10 @@ int lx_tokenize(const char *cmd, da_tok *tokens) {
         }
     }
 
-    if (scanner.mode == LX_M_DOUBLEQ || scanner.mode == LX_M_SINGLEQ)
+    if (scanner.mode == LX_M_DOUBLEQ || scanner.mode == LX_M_SINGLEQ) {
+        status = LX_ERRNOENDQUOTE;
         goto fail;
+    }
 
     if (tokens->size == 0)
         da_free(tokens);
@@ -332,9 +358,9 @@ int lx_tokenize(const char *cmd, da_tok *tokens) {
         goto fail;
     end_tok(&scanner);
 
-    return 0;
+    return status;
 
 fail:
     lx_free(tokens);
-    return -1;
+    return status;
 }
