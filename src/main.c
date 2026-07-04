@@ -17,9 +17,26 @@ void run_cmd(const char *line) {
     da_tok toks;
     ps_job job;
 
-    if (lx_tokenize(line, &toks) == -1) {
-        fprintf(stderr, "seashell: lexer error\n");
-        exit(EXIT_FAILURE);
+    lx_status lexer_status = lx_tokenize(line, &toks);
+    if (lexer_status != 0) {
+        switch (lexer_status) {
+        case LX_ERRMEM:
+            fprintf(stderr, "seashell: lexer: malloc failure\n");
+            exit(EXIT_FAILURE);
+        case LX_ERRNOENDQUOTE:
+            fprintf(stderr, "seashell: lexer: unterminated quote\n");
+            exit(EXIT_FAILURE);
+        case LX_ERREMPTYESC:
+            fprintf(stderr, "seashell: lexer: empty escape\n");
+            exit(EXIT_FAILURE);
+        case LX_ERRINPUT:
+            LOG_ERR("bad input to lexer");
+            fprintf(stderr, "seashell: internal error. check logs\n");
+            exit(EXIT_FAILURE);
+        default:
+            LOG_ERR("unknown lx_status case");
+            exit(EXIT_FAILURE);
+        }
     }
 
     if (!(ps_parse(&toks, &job) == 0 && ex_expand(&job) == 0)) {
