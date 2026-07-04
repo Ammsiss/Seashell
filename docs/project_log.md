@@ -1,23 +1,49 @@
 ---------------------------------------------------------------------------------
 
-## 2026-07-3
+## 2026-07-4
 
 ### Next
+- [ ] Create a dynamic string module. s->data\[s->len\] == '\0' invariant
+- [ ] set builtin should fail if argv(1) has any whitespace
 
 ### Tasks
 
+**Expander**
+- [ ] Expander removes double quotes based on quote mode
+- [ ] Expander builds arg value for ps_redir
+
+**Misc**
+- [ ] Write a map data structure. Perhaps using binary tree already wrote
 - [ ] Add an API func sh_run so valgrind can see memory issues during tests
-- [ ] Add redirection handling
-- [ ] Start expander variable parsing
 - [ ] Expand unquoted ~ with $HOME
 - [ ] Add generic io num tokens so redirects can apply to any fd num
 - [ ] Use X macros to centralize da_array registration
+- [ ] Consider recreating the xda_arr log helpers but for shell modules
 
 **Complete**
 - [x] Create utils.c/h files for the err(x) funcs and common macros
-- [ ] Lexer/Parser calls the err_msg function before returning -1
+- [x] Start basic lexer error status return value
+- [x] Add shell variable support with set builtin. just storage no usage yet
+- [x] Start expander variable parsing
+- [ ] (Removed - bad coupling) Lexer/Parser calls err_msg function
+- [ ] (Removed - more specific todo added) Add redirection handling
 
 ### Notes
+
+Decided to not add logs to the lexer and parser modules. Seemed like annoying
+coupling especially because the api is just 2 functions each and called at only
+1 place. I think better to remove the dependency and just return a status code
+and have 1 more func to return a static struct with more error information if
+needed.
+
+Realized I definitely need a dynamic string module in order to not go crazy
+writing the expander. The expander has variable length segments, words, args,
+expansions that can result in longer, shorter, equal length strings, it has to
+do concats, insertions, deletions.. you get the picture.
+
+I also am going to need a map data structure for shell variables. At least the
+set builtin was dead simple to implement becuase the parser already handles
+what counts as a word for the 
 
 ---------------------------------------------------------------------------------
 
@@ -25,7 +51,7 @@
 
 ### Next
 - [ ] Create utils.c/h files for the err(x) funcs and common macros
-- [ ] Lexer/Parser calls the err_msg function before returning -1
+- [ ] Lexer/Parser calls the err_msg function
 
 ### Tasks
 
@@ -53,7 +79,7 @@ are pretty nice tho.
 
 - [ ] In the fork loop, store and track pids you create and wait specifically
 - [ ] Create utils.c/h files for the err(x) funcs and common macros
-- [ ] Lexer/Parser calls the err_msg function before returning -1
+- [ ] Lexer/Parser calls the err_msg function
 
 ### Tasks
 
