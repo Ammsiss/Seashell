@@ -6,6 +6,14 @@
 #include "lexer.h"
 #include "dyn_arr.h"
 
+typedef struct {
+    lx_mode mode;
+    lx_mode prev_mode;
+    lx_tok *cur_tok;
+    const char *part_start;
+    const char *cur_char;
+} lx_scanner;
+
 static int init_part(lx_part *part) {
     assert(part);
 

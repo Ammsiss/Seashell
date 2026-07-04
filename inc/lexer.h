@@ -22,14 +22,6 @@ struct lx_tok {
     da_part parts;
 };
 
-typedef struct {
-    lx_mode mode;
-    lx_mode prev_mode;
-    lx_tok *cur_tok;
-    const char *part_start;
-    const char *cur_char;
-} lx_scanner;
-
 void lx_free(da_tok *tokens);
 int lx_tokenize(const char *cmd, da_tok *tokens);
 

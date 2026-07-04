@@ -3,7 +3,6 @@
 #include <assert.h>
 #include <sys/mman.h>
 #include <stdarg.h>
-#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -11,65 +10,13 @@
 #include <wait.h>
 #include <stdlib.h>
 
+#include "utils.h"
 #include "executor.h"
 #include "executor_types.h"
 #include "parser.h" // IWYU pragma: keep - See 2026-06-25 Notes
 #include "log.h"
 
 static sh_env shell_env = { .subshell = false };
-
-void output_err(const char *fmt, va_list *va, bool print_err) {
-    fflush(stdout);
-
-    char user_msg[BUF_SIZE] = "";
-    char err_str[BUF_SIZE] = "";
-
-    vsnprintf(user_msg, BUF_SIZE, fmt, *va);
-
-    if (print_err) {
-        strncat(err_str, strerror(errno), BUF_SIZE);
-        fprintf(stderr, "seashell: %s: %s\n", user_msg, err_str);
-    } else
-        fprintf(stderr, "seashell: %s\n", user_msg);
-}
-
-PFFORMAT(1, 2)
-void fatal(const char *fmt, ...) {
-    va_list va;
-    va_start(va, fmt);
-    output_err(fmt, &va, false);
-    va_end(va);
-
-    exit(EXIT_FAILURE);
-}
-
-PFFORMAT(3, 4)
-void errExit(int exit_code, bool print_err, const char *fmt, ...) {
-    va_list va;
-    va_start(va, fmt);
-    output_err(fmt, &va, print_err);
-    va_end(va);
-
-    exit(exit_code);
-}
-
-PFFORMAT(3, 4)
-void err_exit(int exit_code, bool print_err, const char *fmt, ...) {
-    va_list va;
-    va_start(va, fmt);
-    output_err(fmt, &va, print_err);
-    va_end(va);
-
-    _exit(exit_code);
-}
-
-PFFORMAT(2, 3)
-void err_msg(bool print_err, const char *fmt, ...) {
-    va_list va;
-    va_start(va, fmt);
-    output_err(fmt, &va, print_err);
-    va_end(va);
-}
 
 int run_exit_builtin(char **argv, sh_env *shell_env) {
     (void) argv; /* no args for now */

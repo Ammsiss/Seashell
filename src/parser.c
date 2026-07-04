@@ -6,6 +6,14 @@
 #include "lexer.h" // IWYU pragma: keep - See 2026-06-25 Notes
 #include "dyn_arr.h"
 
+typedef struct {
+    ps_pipeline *cur_pipeline;
+    ps_cmd *cur_cmd;
+    lx_tok *cur_tok;
+    ps_redir *queued_redir;
+    ps_andor_op cur_andor_op;
+} ps_scanner;
+
 static int init_ps_segment(ps_segment *segment) {
     assert(segment);
 

@@ -42,14 +42,6 @@ struct ps_job {
     int bg;
 };
 
-typedef struct {
-    ps_pipeline *cur_pipeline;
-    ps_cmd *cur_cmd;
-    lx_tok *cur_tok;
-    ps_redir *queued_redir;
-    ps_andor_op cur_andor_op;
-} ps_scanner;
-
 void ps_free(ps_job *job);
 int ps_parse(da_tok *tokens, ps_job *job);
 

@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <wait.h>
 
+#include "utils.h"
 #include "log.h"
 #include "lexer.h"
 #include "parser.h"
@@ -32,22 +33,9 @@ void run_cmd(const char *line) {
     ps_free(&job);
 }
 
-PFFORMAT(1, 2) void usage_err(const char *fmt, ...) {
-    fflush(stdout);
-    fprintf(stderr, "Usage: ");
-
-    va_list va;
-    va_start(va, fmt);
-    vfprintf(stderr, fmt, va);
-    va_end(va);
-
-    fprintf(stderr, "\n");
-    exit(EXIT_FAILURE);
-}
-
 int main(int argc, char **argv) {
     if (log_init() == -1)
-        return -1;
+        return EXIT_FAILURE;
 
     LOG_INFO("seashell PID(%d)", getpid());
 

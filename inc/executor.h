@@ -4,8 +4,6 @@
 #include "executor_types.h"
 #include "parser_types.h"
 
-#define PFFORMAT(x, y) __attribute__ ((format(printf, (x), (y))))
-
 #define SH_OK 0
 #define SH_FAIL 1
 #define SH_EXIT 2
