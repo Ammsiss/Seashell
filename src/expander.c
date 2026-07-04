@@ -3,31 +3,47 @@
 #include "expander.h"
 #include "parser.h" // IWYU pragma: keep - See 2026-06-25 Notes
 
-static int expand_word(ps_word *word) {
-    char *expanded_word = malloc(1);
-    if (!expanded_word)
-        return -1;
-    expanded_word[0] = '\0';
+static char *expand_segment_none(ps_segment *segment) {
+    return segment->raw;
+}
 
-    size_t expanded_len = 1;
+static char *expand_segment_double(ps_segment *segment) {
+    return segment->raw;
+}
 
+static char *expand_segment(ps_segment *segment) {
+    switch (segment->quote) {
+    case LX_Q_NONE:
+        return expand_segment_none(segment);
+    case LX_Q_DOUBLE:
+        return expand_segment_double(segment);
+    case LX_Q_SINGLE:
+        return segment->raw;
+    }
+}
+
+static int create_arg(ps_word *word) {
+    size_t arg_len = 0;
     for (size_t i = 0; i < word->segments.size; ++i) {
-        const ps_segment *segment = &word->segments.data[i];
-
-        expanded_len += strlen(segment->raw);
-
-        char *tmp = realloc(expanded_word, expanded_len);
-        if (!tmp)
-            return -1;
-        expanded_word = tmp;
-
-        strcat(expanded_word, segment->raw);
+        char *segment = expand_segment(&word->segments.data[i]);
+        arg_len += strlen(segment);
     }
 
-    word->arg = expanded_word;
+    char *arg = malloc(arg_len + 1);
+    if (!arg)
+        return -1;
+    arg[0] = '\0';
+
+    for (size_t i = 0; i < word->segments.size; ++i)
+        strcat(arg, word->segments.data[i].raw);
+
+    word->arg = arg;
 
     return 0;
 }
+
+// static int expand_redir(ps_redir *redir) {
+// }
 
 static int create_argv(ps_cmd *cmd) {
     size_t argc = cmd->words.size;
@@ -56,7 +72,7 @@ int ex_expand(ps_job *job) {
 
             for (size_t k = 0; k < cmd->words.size; ++k) {
                 ps_word *word = &cmd->words.data[k];
-                if (expand_word(word) == -1)
+                if (create_arg(word) == -1)
                     return -1;
             }
 
