@@ -29,8 +29,10 @@ SH_MODS   := $(UOBJ) $(BLD_DIR)/test_executor.o $(BLD_DIR)/executor.o \
 			 $(BLD_DIR)/dyn_arr.o $(BLD_DIR)/parser.o $(BLD_DIR)/lexer.o \
 			 $(BLD_DIR)/expander.o $(BLD_DIR)/log.o $(BLD_DIR)/utils.o \
 			 $(BLD_DIR)/shell_state.o
+DS_MODS   := $(UOBJ) $(BLD_DIR)/test_dyn_str.o $(BLD_DIR)/dyn_str.o
 
-TEST_BINS := test_lexer test_dyn_arr test_parser test_expander test_executor
+TEST_BINS := test_lexer test_dyn_arr test_parser test_expander test_executor \
+			 test_dyn_str
 
 .PHONY: all
 all: $(TEST_BINS)
@@ -42,6 +44,9 @@ test_parser: $(PS_MODS)
 	$(CC) $(CLFAGS) $^ -o $@
 
 test_dyn_arr: $(DA_MODS)
+	$(CC) $(CFLAGS) $^ -o $@
+
+test_dyn_str: $(DS_MODS)
 	$(CC) $(CFLAGS) $^ -o $@
 
 test_expander: $(EX_MODS)
