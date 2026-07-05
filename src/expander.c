@@ -1,46 +1,102 @@
+#include <stdio.h>
 #include <string.h>
 
+#include "shell_state.h"
 #include "expander.h"
 #include "parser.h" // IWYU pragma: keep - See 2026-06-25 Notes
 #include "dyn_str.h"
 
+static char *get_key(char **c) {
+    d_str var_key;
+    if (d_str_init(&var_key) == -1)
+        return NULL;
 
-/*
+    for (; **c != '\0'; ++*c) {
+        if (**c == ' ' || **c == '\\')
+            break;
 
-for each character:
-    if character is $ then
-        Store character pointer to char after $
+        if (d_str_push(&var_key, **c) == -1) {
+            d_str_free(&var_key);
+            return NULL;
+        }
+    }
 
-        for each character:
-            if character is whitespace or \0
-                store pointer to previous char; end variable
+    return var_key.c_str;
+}
 
-        expand variable and append result to d_str
+static char *expand_variable(char **c) {
+    char *key = get_key(c);
+    if (!key) {
+        free(key);
+        return NULL;
+    }
 
-*/
+    char *value = st_lookup_var(key);
+
+    free(key);
+    return value;
+}
 
 static char *expand_segment_none(ps_segment *segment) {
     d_str big_seg;
-    d_str_init(&big_seg);
-    d_strcat(&big_seg, segment->raw);
+    if (d_str_init(&big_seg) == -1)
+        return NULL;
+
+    for (char *c = &segment->raw[0]; *c != '\0'; ++c) {
+        if (*c == '\\')
+            continue;
+
+        if (*c == '$') {
+            ++c;
+            char *value = expand_variable(&c);
+            if (value)
+                if (d_strcat(&big_seg, value) == -1)
+                    goto fail;
+            continue;
+        }
+
+        if (d_str_push(&big_seg, *c) == -1)
+            goto fail;
+    }
 
     return big_seg.c_str;
+
+fail:
+    d_str_free(&big_seg);
+    return NULL;
 }
 
 static char *expand_segment_double(ps_segment *segment) {
     d_str big_seg;
-    d_str_init(&big_seg);
-    d_strcat(&big_seg, segment->raw);
+    if (d_str_init(&big_seg) == -1)
+        return NULL;
+
+    for (size_t i = 0; i < strlen(segment->raw); ++i) {
+        char c = segment->raw[i];
+
+        if (d_str_push(&big_seg, c) == -1)
+            goto fail;
+    }
 
     return big_seg.c_str;
+
+fail:
+    d_str_free(&big_seg);
+    return NULL;
 }
 
 static char *expand_segment_single(ps_segment *segment) {
     d_str big_seg;
-    d_str_init(&big_seg);
-    d_strcat(&big_seg, segment->raw);
+    if (d_str_init(&big_seg) == -1)
+        return NULL;
+    if (d_strcat(&big_seg, segment->raw) == -1)
+        goto fail;
 
     return big_seg.c_str;
+
+fail:
+    d_str_free(&big_seg);
+    return NULL;
 }
 
 static char *expand_segment(ps_segment *segment) {

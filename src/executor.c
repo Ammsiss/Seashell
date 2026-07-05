@@ -81,12 +81,19 @@ int run_set_builtin(char **argv, sh_env *shell_env) {
     }
 
     var_pair var = {0};
+
+    if (strlen(argv[1]) >= SHELL_VAR_MAX)
+        err_msg(false, "set: key too long: %s", argv[1]);
+
+    if (strlen(argv[2]) >= SHELL_VAR_MAX)
+        err_msg(false, "set: value too long: %s", argv[2]);
+
     strcpy(var.key, argv[1]);
     strcpy(var.value, argv[2]);
 
     LOG_INFO("saved variable %s=%s", var.key, var.value);
 
-    st_add_var(var);
+    st_add_var(&var);
 
     return 0;
 }

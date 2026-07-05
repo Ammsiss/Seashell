@@ -12,6 +12,7 @@ struct var_pair {
     char value[SHELL_VAR_MAX];
 };
 
-void st_add_var(var_pair var);
+char *st_lookup_var(char *key);
+void st_add_var(var_pair *var);
 
 #endif
