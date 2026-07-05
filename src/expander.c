@@ -43,8 +43,16 @@ static char *expand_segment_none(ps_segment *segment) {
         return NULL;
 
     for (char *c = &segment->raw[0]; *c != '\0'; ++c) {
-        if (*c == '\\')
+        if (*c == '\\') {
+            ++c;
+            if (*c == '\0')
+                break;
+
+            if (d_str_push(&big_seg, *c) == -1)
+                goto fail;
+
             continue;
+        }
 
         if (*c == '$') {
             ++c;
@@ -52,6 +60,10 @@ static char *expand_segment_none(ps_segment *segment) {
             if (value)
                 if (d_strcat(&big_seg, value) == -1)
                     goto fail;
+
+            if (*c == '\0')
+                break;
+
             continue;
         }
 

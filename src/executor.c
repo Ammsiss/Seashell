@@ -95,7 +95,7 @@ int run_set_builtin(char **argv, sh_env *shell_env) {
 
     st_add_var(&var);
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 static sh_builtin builtins[BUILTIN_COUNT] = {
@@ -163,7 +163,7 @@ fail:
     return -1;
 }
 
-static void dup_fd_or_exit(int fd1, int fd2) {
+static void move_fd_or_exit(int fd1, int fd2) {
     if (xdup2(fd1, fd2) == -1)
         err_exit(EXIT_FAILURE, true, "dup2");
 
@@ -189,39 +189,27 @@ static bool exec_pipeline(const ps_pipeline *pipeline, da_pid *pids) {
         bool first = (i == 0);
         bool last = (i == cmd_cnt - 1);
 
-        if (!last) {
-            LOG_INFO("calling pipe2");
-
-            if (xpipe2(next_pipe, O_CLOEXEC) == -1) {
-                err_msg(true, "pipe2");
+        if (!last)
+            if (xpipe2(next_pipe, O_CLOEXEC) == -1)
                 goto fail;
-            }
-        }
-
-        LOG_INFO("forking");
 
         child_pid = xfork();
-        if (child_pid == -1) {
-            err_msg(true, "fork");
+        if (child_pid == -1)
             goto fail;
-        }
 
         pid_t *pid = da_push(pids);
-        if (!pid) {
-            err_msg(false, "da_push");
-            LOG_ERR("da_push");
+        if (!pid)
             goto fail;
-        } else
-            *pid = child_pid;
+        *pid = child_pid;
 
         if (child_pid == 0) {
             shell_env.subshell = true;
 
             if (!first)
-                dup_fd_or_exit(prev_read_fd, STDIN_FILENO);
+                move_fd_or_exit(prev_read_fd, STDIN_FILENO);
 
             if (!last) {
-                dup_fd_or_exit(next_pipe[1], STDOUT_FILENO);
+                move_fd_or_exit(next_pipe[1], STDOUT_FILENO);
 
                 if (xclose(next_pipe[0]) == -1)
                     err_exit(EXIT_FAILURE, true, "close");
@@ -231,31 +219,26 @@ static bool exec_pipeline(const ps_pipeline *pipeline, da_pid *pids) {
             if (try_run_builtin(cmd, &status))
                 _exit(status); /* child always exits after builtin */
 
-            LOG_INFO("execing %s", cmd->argv[0]);
-
             xexecvp(cmd->argv[0], cmd->argv);
             err_exit(127, false, "command not found: %s", cmd->argv[0]);
         }
 
         if (!first)
-            if (xclose(prev_read_fd) == -1) {
-                err_msg(true, "close");
+            if (xclose(prev_read_fd) == -1)
                 goto fail;
-            }
 
         if (!last) {
             prev_read_fd = next_pipe[0];
 
-            if (xclose(next_pipe[1]) == -1) {
-                err_msg(true, "close");
+            if (xclose(next_pipe[1]) == -1)
                 goto fail;
-            }
         }
     }
 
     return true;
 
 fail:
+    err_msg(false, "internal error check logs");
     da_free(pids);
     return false;
 }

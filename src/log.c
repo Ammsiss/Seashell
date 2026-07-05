@@ -101,6 +101,7 @@ int xpipe2(int pipefd[2], int flags) {
 
 int xfork(void) {
     pid_t child_pid = fork();
+    LOG_INFO("forked with child pid = %d", child_pid);
 
     switch (child_pid) {
     case -1:
@@ -130,6 +131,7 @@ int xclose(int fd) {
 }
 
 void xexecvp(const char *file, char *const argv[]) {
+    LOG_INFO("execing %s", argv[0]);
     execvp(file, argv);
     LOG_ERRNO("execvp");
 }

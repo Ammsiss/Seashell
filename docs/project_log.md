@@ -1,16 +1,75 @@
 ---------------------------------------------------------------------------------
 
-## 2026-07-4
+## 2026-07-5
 
 ### Next
-- [ ] Create a dynamic string module. s->data\[s->len\] == '\0' invariant
-- [ ] set builtin should fail if argv(1) has any whitespace
+- [ ] Add an API func sh_run so valgrind can see memory issues during tests
+- [ ] Write regression tests for variable logic.
+    - [ ] $FOO -> 'bar'
+    - [ ] \$FOO -> '$FOO'
+    - [ ] $FOOword -> '' (assuming FOOword is not a real key)
+    - [ ] $FOO zoo -> 'bar zoo'
+    - [ ] bee$FOO -> 'beebar'
+    - [ ] $FOO\bee -> 'barbee'
+    - [ ] $FOO$FOO -> 'barbar' (doesn't work)
+    - [ ] $FOO\$FOO -> 'bar$FOO' (doesn't work)
 
 ### Tasks
 
 **Expander**
 - [ ] Expander removes double quotes based on quote mode
 - [ ] Expander builds arg value for ps_redir
+- [ ] set builtin should not allow key to have ' '
+- [ ] set builtin should not allow key to have any symbols besides _ or -
+- [ ] set builtin should not allow duplicate key entries
+
+**Misc**
+- [ ] Write a map data structure. Perhaps using binary tree already wrote
+- [ ] Expand unquoted ~ with $HOME
+- [ ] Add generic io num tokens so redirects can apply to any fd num
+- [ ] Use X macros to centralize da_array registration
+- [ ] Consider recreating the xda_arr log helpers but for shell modules
+
+**Complete**
+- [x] Create a dynamic string module. s->data\[s->len\] == '\0' invariant
+
+### Notes
+
+Expansion started. Looking real important to have the executor regression tests
+run under valgrind. A whole new suite of funcs which depend pretty heavily on
+valgrind (variable expansion tests) are now needed and basically every feature
+from here on out will be tested through the executor. So thats the next thing
+im doing.
+
+The dynamic string mod was much simpler then I thought. I decided to just
+literally figure out exactly what was needed in the expander and just implement
+that. It ended up being a dedicated strcat function, and a character push
+function. The rest is basically just a copy from the dynamic array module. Of
+course it gets more useful if you can do insertions, deletions, appends, and
+you can do them with both char * and 2 dynamic strings. Also certain algorithms
+as nice to have's like str.reverse(), str.compare(), etc.
+
+One thing I'm unsure of is the "detach behaviour". The c_str is allways
+malloc'd and a lot of the time its nice to be able to just return the c_str
+from a function but it feels a bit weird to call d_str_init() and not
+d_str_free(). It's fine but it might point to needing a dedicated detach
+function (which I opted against for now becuase it felt like a whole bunch of
+ceramony for no real gain) or just using the dynamic string everywhere. (or
+just more places).
+
+---------------------------------------------------------------------------------
+
+## 2026-07-4
+
+### Next
+- [ ] Create a dynamic string module. s->data\[s->len\] == '\0' invariant
+
+### Tasks
+
+**Expander**
+- [ ] Expander removes double quotes based on quote mode
+- [ ] Expander builds arg value for ps_redir
+- [ ] set builtin should fail if argv(1) has any whitespace
 
 **Misc**
 - [ ] Write a map data structure. Perhaps using binary tree already wrote
@@ -145,10 +204,11 @@ statements.
 
 ### Notes
 
-Good day today. Simplified the run_pipeline structure a lot. I'm going to start
-a discrete math text after geometry. While working with the pipeline algo I was
-recommended to use a truth table and after writing it out I saw the use pretty
-clearly. Formalizing this type of logic is probably pretty good for efficiency.
+Good day today. Simplified the run_pipeline structure a lot. While working with
+the pipeline algo I was recommended to use a truth table and after writing it
+out I saw the use pretty clearly. Formalizing this type of logic is probably
+pretty good for efficiency so I'm going to start a discrete math text after
+geometry!
 
 ---------------------------------------------------------------------------------
 
