@@ -24,6 +24,7 @@ DECLARE_DYN_ARR(da_int, int)
 
 DECLARE_DYN_ARR(da_pid, pid_t)
 DECLARE_DYN_ARR(da_vars, var_pair)
+DECLARE_DYN_ARR(da_charp, char *)
 
 /* lexer */
 DECLARE_DYN_ARR(da_part, lx_part)
@@ -40,6 +41,8 @@ DECLARE_DYN_ARR(da_andor, ps_andor)
     _Generic(*(arr), \
         da_int: da_int_init, \
         da_pid: da_pid_init, \
+        da_vars: da_vars_init, \
+        da_charp: da_charp_init, \
         da_part: da_part_init, \
         da_tok: da_tok_init, \
         da_segment: da_segment_init, \
@@ -57,6 +60,7 @@ DECLARE_DYN_ARR(da_andor, ps_andor)
         da_int: da_int_free, \
         da_pid: da_pid_free, \
         da_vars: da_vars_free, \
+        da_charp: da_charp_free, \
         da_part: da_part_free, \
         da_tok: da_tok_free, \
         da_segment: da_segment_free, \
@@ -74,6 +78,7 @@ DECLARE_DYN_ARR(da_andor, ps_andor)
         da_int: da_int_reserve, \
         da_pid: da_pid_reserve, \
         da_vars: da_vars_reserve, \
+        da_charp: da_charp_reserve, \
         da_part: da_part_reserve, \
         da_tok: da_tok_reserve, \
         da_segment: da_segment_reserve, \
@@ -91,6 +96,7 @@ DECLARE_DYN_ARR(da_andor, ps_andor)
         da_int: da_int_push, \
         da_pid: da_pid_push, \
         da_vars: da_vars_push, \
+        da_charp: da_charp_push, \
         da_part: da_part_push, \
         da_tok: da_tok_push, \
         da_segment: da_segment_push, \

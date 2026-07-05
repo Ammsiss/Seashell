@@ -71,6 +71,7 @@ DEFINE_DYN_ARR(da_int, int)
 
 DEFINE_DYN_ARR(da_pid, pid_t)
 DEFINE_DYN_ARR(da_vars, var_pair)
+DEFINE_DYN_ARR(da_charp, char *)
 
 /* lexer */
 DEFINE_DYN_ARR(da_part, lx_part)
