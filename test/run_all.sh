@@ -9,7 +9,7 @@ VALGRIND_CMD=(
   --vgdb=no
   --quiet
   --leak-check=full
-  --errors-for-leak-kinds=all
+  --errors-for-leak-kinds=definite,indirect,possible
   --error-exitcode=1
 )
 

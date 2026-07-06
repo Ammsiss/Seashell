@@ -12,8 +12,10 @@ static char *get_key(char **c) {
         return NULL;
 
     for (; **c != '\0'; ++*c) {
-        if (**c == ' ' || **c == '\\')
+        if (**c == ' ' || **c == '\\' || **c == '$') {
+            --*c;
             break;
+        }
 
         if (d_str_push(&var_key, **c) == -1) {
             d_str_free(&var_key);

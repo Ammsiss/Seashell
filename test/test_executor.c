@@ -1,3 +1,4 @@
+#include "unity_internals.h"
 #define _GNU_SOURCE
 
 #include <string.h>
@@ -16,6 +17,11 @@
 #include "unity.h"
 
 #define OUTPUT_BUF_SIZE 1024
+
+#define SET_FOO_BAR \
+    const char *shell_cmd1 = "set FOO bar"; \
+    const char *output1 = ""; \
+    validate_shell_output(shell_cmd1, output1, strlen(output1));
 
 void setUp(void) {}
 void tearDown(void) {}
@@ -71,6 +77,72 @@ void test_andors2(void) {
     validate_shell_output(shell_cmd, output, strlen(output));
 }
 
+void test_simple_variable_expansion(void) {
+    const char *shell_cmd1 = "set FOO bar";
+    const char *output1 = "";
+    validate_shell_output(shell_cmd1, output1, strlen(output1));
+
+    const char *shell_cmd2 = "echo $FOO";
+    const char *output2 = "bar\n";
+    validate_shell_output(shell_cmd2, output2, strlen(output2));
+}
+
+void test_escaped_variable_should_not_expand(void) {
+    SET_FOO_BAR
+
+    const char *shell_cmd2 = "echo \\$FOO";
+    const char *output2 = "$FOO\n";
+    validate_shell_output(shell_cmd2, output2, strlen(output2));
+}
+
+void test_variable_expansion_should_be_greedy(void) {
+    SET_FOO_BAR
+
+    const char *shell_cmd2 = "echo $FOOzoo";
+    const char *output2 = "\n";
+    validate_shell_output(shell_cmd2, output2, strlen(output2));
+}
+
+void test_variable_expansion_then_word(void) {
+    SET_FOO_BAR
+
+    const char *shell_cmd2 = "echo $FOO zoo";
+    const char *output2 = "bar zoo\n";
+    validate_shell_output(shell_cmd2, output2, strlen(output2));
+}
+
+void test_word_directly_before_variable_expansion(void) {
+    SET_FOO_BAR
+
+    const char *shell_cmd2 = "echo zoo$FOO";
+    const char *output2 = "zoobar\n";
+    validate_shell_output(shell_cmd2, output2, strlen(output2));
+}
+
+void test_backslash_should_end_variable(void) {
+    SET_FOO_BAR
+
+    const char *shell_cmd2 = "echo $FOO\\zoo";
+    const char *output2 = "barzoo\n";
+    validate_shell_output(shell_cmd2, output2, strlen(output2));
+}
+
+void test_back_to_back_variables_should_both_expand(void) {
+    SET_FOO_BAR
+
+    const char *shell_cmd2 = "echo $FOO$FOO";
+    const char *output2 = "barbar\n";
+    validate_shell_output(shell_cmd2, output2, strlen(output2));
+}
+
+void test_variable_ended_with_backslash_then_variable(void) {
+    SET_FOO_BAR
+
+    const char *shell_cmd2 = "echo $FOO\\$FOO";
+    const char *output2 = "bar$FOO\n";
+    validate_shell_output(shell_cmd2, output2, strlen(output2));
+}
+
 int main(void) {
     log_init();
 
@@ -79,6 +151,14 @@ int main(void) {
     RUN_TEST(test_three_pipeline_cmd);
     RUN_TEST(test_andors);
     RUN_TEST(test_andors2);
+    RUN_TEST(test_simple_variable_expansion);
+    RUN_TEST(test_escaped_variable_should_not_expand);
+    RUN_TEST(test_variable_expansion_should_be_greedy);
+    RUN_TEST(test_variable_expansion_then_word);
+    RUN_TEST(test_word_directly_before_variable_expansion);
+    RUN_TEST(test_backslash_should_end_variable);
+    RUN_TEST(test_back_to_back_variables_should_both_expand);
+    RUN_TEST(test_variable_ended_with_backslash_then_variable);
 
     return UNITY_END();
 }
