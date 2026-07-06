@@ -1,5 +1,53 @@
 ---------------------------------------------------------------------------------
 
+## 2026-07-6
+
+### Next
+- [ ] Remove all xsyscall macros. logs aren't meant to be hidden
+- [ ] Write expand redir function
+
+### Tasks
+
+**Expander**
+- [ ] set builtin should not allow key to have ' '
+- [ ] set builtin should not allow key to have any symbols besides _ or -
+- [ ] set builtin should not allow duplicate key entries
+
+**Misc**
+- [ ] Expand unquoted ~ with $HOME
+- [ ] Use X macros to centralize da_array registration
+- [ ] Consider recreating the xda_arr log helpers but for shell modules
+
+**Complete**
+- [x] Add an API func sh_run so valgrind can see memory issues during tests
+- [x] Write regression tests for variable logic.
+    - [x] $FOO -> 'bar'
+    - [x] \$FOO -> '$FOO'
+    - [x] $FOOword -> '' (assuming FOOword is not a real key)
+    - [x] $FOO zoo -> 'bar zoo'
+    - [x] bee$FOO -> 'beebar'
+    - [x] $FOO\bee -> 'barbee'
+    - [x] $FOO$FOO -> 'barbar' (doesn't work)
+    - [x] $FOO\$FOO -> 'bar$FOO' (doesn't work)
+- [x] (Done a while ago) Expander removes double quotes based on quote mode
+- [x] (Done a while ago) Expander builds arg value for ps_redir
+- [ ] (Removed) Write a map data structure.
+- [ ] (Removed - scope) Add generic io num tokens
+
+### Notes
+
+Wen't down a pretty unproductive rabbit hole trying to refactor and simplify
+exec_pipeline. Had a whole state structure tracking the saved pfd and
+everything but I ended up scrapping it after like 2 hours. Oh well. At least I
+understand what doesn't work better.
+
+Made some last minute progress when I actually just stuck to the task list! You
+can now specify the input and output fd's for sh_run so valgrind can see them
+during tests and we got all the new regression tests for the expander
+implemented and passing + no valgrind errors.
+
+---------------------------------------------------------------------------------
+
 ## 2026-07-5
 
 ### Next
@@ -24,6 +72,7 @@
 - [ ] set builtin should not allow duplicate key entries
 
 **Misc**
+- [ ] Logs don't make line number sense. calling LOG in xclose is bad
 - [ ] Write a map data structure. Perhaps using binary tree already wrote
 - [ ] Expand unquoted ~ with $HOME
 - [ ] Add generic io num tokens so redirects can apply to any fd num

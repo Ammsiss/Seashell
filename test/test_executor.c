@@ -78,9 +78,7 @@ void test_andors2(void) {
 }
 
 void test_simple_variable_expansion(void) {
-    const char *shell_cmd1 = "set FOO bar";
-    const char *output1 = "";
-    validate_shell_output(shell_cmd1, output1, strlen(output1));
+    SET_FOO_BAR
 
     const char *shell_cmd2 = "echo $FOO";
     const char *output2 = "bar\n";

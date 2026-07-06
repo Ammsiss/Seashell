@@ -39,7 +39,7 @@ static char *expand_variable(char **c) {
     return value;
 }
 
-static char *expand_segment_none(ps_segment *segment) {
+static char *expand_segment_expansion(ps_segment *segment) {
     d_str big_seg;
     if (d_str_init(&big_seg) == -1)
         return NULL;
@@ -80,26 +80,7 @@ fail:
     return NULL;
 }
 
-static char *expand_segment_double(ps_segment *segment) {
-    d_str big_seg;
-    if (d_str_init(&big_seg) == -1)
-        return NULL;
-
-    for (size_t i = 0; i < strlen(segment->raw); ++i) {
-        char c = segment->raw[i];
-
-        if (d_str_push(&big_seg, c) == -1)
-            goto fail;
-    }
-
-    return big_seg.c_str;
-
-fail:
-    d_str_free(&big_seg);
-    return NULL;
-}
-
-static char *expand_segment_single(ps_segment *segment) {
+static char *expand_segment_plain(ps_segment *segment) {
     d_str big_seg;
     if (d_str_init(&big_seg) == -1)
         return NULL;
@@ -116,11 +97,10 @@ fail:
 static char *expand_segment(ps_segment *segment) {
     switch (segment->quote) {
     case LX_Q_NONE:
-        return expand_segment_none(segment);
     case LX_Q_DOUBLE:
-        return expand_segment_double(segment);
+        return expand_segment_expansion(segment);
     case LX_Q_SINGLE:
-        return expand_segment_single(segment);
+        return expand_segment_plain(segment);
     }
 }
 

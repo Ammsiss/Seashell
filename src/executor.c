@@ -214,17 +214,17 @@ static int exec_pipeline(const ps_pipeline *pipeline, da_pid *pids, \
 
             if (first) {
                 if (move_fd(inputfd, STDIN_FILENO) == -1)
-                    exit(EXIT_FAILURE);
+                    _exit(EXIT_FAILURE);
             } else if (!first)
                 if (move_fd(prev_read_fd, STDIN_FILENO) == -1)
-                    exit(EXIT_FAILURE);
+                    _exit(EXIT_FAILURE);
 
             if (last) {
                 if (move_fd(outputfd, STDOUT_FILENO) == -1)
-                    exit(EXIT_FAILURE);
+                    _exit(EXIT_FAILURE);
             } else if (!last) {
                 if (move_fd(next_pipe[1], STDOUT_FILENO) == -1)
-                    exit(EXIT_FAILURE);
+                    _exit(EXIT_FAILURE);
 
                 if (xclose(next_pipe[0]) == -1)
                     err_exit(EXIT_FAILURE, true, "close");

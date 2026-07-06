@@ -21,18 +21,13 @@ void run_cmd(const char *line) {
     if (lexer_status != 0) {
         switch (lexer_status) {
         case LX_ERRMEM:
-            fprintf(stderr, "seashell: lexer: malloc failure\n");
-            exit(EXIT_FAILURE);
+            errExit(EXIT_FAILURE, false, "seashell: lexer: malloc failure\n");
         case LX_ERRNOENDQUOTE:
-            fprintf(stderr, "seashell: lexer: unterminated quote\n");
-            exit(EXIT_FAILURE);
+            errExit(EXIT_FAILURE, false, "seashell: lexer: unterminated quote\n");
         case LX_ERREMPTYESC:
-            fprintf(stderr, "seashell: lexer: empty escape\n");
-            exit(EXIT_FAILURE);
+            errExit(EXIT_FAILURE, false, "seashell: lexer: empty escape\n");
         case LX_ERRINPUT:
-            LOG_ERR("bad input to lexer");
-            fprintf(stderr, "seashell: internal error. check logs\n");
-            exit(EXIT_FAILURE);
+            errExit(EXIT_FAILURE, false, "seashell: bad input\n");
         default:
             LOG_ERR("unknown lx_status case");
             exit(EXIT_FAILURE);
