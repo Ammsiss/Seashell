@@ -163,15 +163,21 @@ fail:
     return -1;
 }
 
-static void move_fd_or_exit(int fd1, int fd2) {
-    if (xdup2(fd1, fd2) == -1)
-        err_exit(EXIT_FAILURE, true, "dup2");
-
+static int move_fd(int fd1, int fd2) {
     if (fd1 == fd2)
-        return;
+        return 0;
 
-    if (xclose(fd1) == -1)
-        err_exit(EXIT_FAILURE, true, "close");
+    if (xdup2(fd1, fd2) == -1) {
+        err_msg(true, "dup2");
+        return -1;
+    }
+
+    if (xclose(fd1) == -1) {
+        err_msg(true, "close");
+        return -1;
+    }
+
+    return 0;
 }
 
 static bool exec_pipeline(const ps_pipeline *pipeline, da_pid *pids) {
@@ -206,10 +212,12 @@ static bool exec_pipeline(const ps_pipeline *pipeline, da_pid *pids) {
             shell_env.subshell = true;
 
             if (!first)
-                move_fd_or_exit(prev_read_fd, STDIN_FILENO);
+                if (move_fd(prev_read_fd, STDIN_FILENO) == -1)
+                    exit(EXIT_FAILURE);
 
             if (!last) {
-                move_fd_or_exit(next_pipe[1], STDOUT_FILENO);
+                if (move_fd(next_pipe[1], STDOUT_FILENO) == -1)
+                    exit(EXIT_FAILURE);
 
                 if (xclose(next_pipe[0]) == -1)
                     err_exit(EXIT_FAILURE, true, "close");
@@ -217,7 +225,7 @@ static bool exec_pipeline(const ps_pipeline *pipeline, da_pid *pids) {
 
             int status;
             if (try_run_builtin(cmd, &status))
-                _exit(status); /* child always exits after builtin */
+                _exit(status);
 
             xexecvp(cmd->argv[0], cmd->argv);
             err_exit(127, false, "command not found: %s", cmd->argv[0]);

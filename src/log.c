@@ -96,12 +96,13 @@ int xpipe2(int pipefd[2], int flags) {
         LOG_ERRNO("pipe2");
         return -1;
     }
+
+    LOG_INFO("piped");
     return 0;
 }
 
 int xfork(void) {
     pid_t child_pid = fork();
-    LOG_INFO("forked with child pid = %d", child_pid);
 
     switch (child_pid) {
     case -1:
@@ -110,6 +111,7 @@ int xfork(void) {
     case 0:
         return 0;
     default:
+        LOG_INFO("forked with child pid = %d", child_pid);
         return child_pid;
     }
 }
