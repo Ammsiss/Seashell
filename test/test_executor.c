@@ -7,6 +7,12 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "log.h"
+#include "dyn_arr.h"
+#include "executor.h"
+#include "lexer.h"
+#include "parser.h"
+#include "expander.h"
 #include "unity.h"
 
 #define OUTPUT_BUF_SIZE 1024
@@ -14,33 +20,21 @@
 void setUp(void) {}
 void tearDown(void) {}
 
-void validate_shell_output(char **argv, const char *exp_output, \
+void validate_shell_output(const char *shell_cmd, const char *exp_output, \
         size_t exp_msg_size) {
+    da_tok tokens = {0};
+    ps_job job = {0};
+
+    TEST_ASSERT_EQUAL_INT(0, lx_tokenize(shell_cmd, &tokens));
+    TEST_ASSERT_EQUAL_INT(0, ps_parse(&tokens, &job));
+    TEST_ASSERT_EQUAL_INT(0, ex_expand(&job));
 
     int pfd[2];
     TEST_ASSERT_EQUAL_INT(0, pipe(pfd));
 
-    pid_t child_pid;
-    child_pid = fork();
-    TEST_ASSERT_NOT_EQUAL_INT(-1, child_pid);
-
-    if (child_pid == 0) {
-        if (close(pfd[0]) == -1)
-            _exit(EXIT_FAILURE);
-        if (dup2(pfd[1], STDOUT_FILENO) == -1)
-            _exit(EXIT_FAILURE);
-        if (pfd[1] != STDOUT_FILENO)
-            if (close(pfd[1]) == -1)
-                _exit(EXIT_FAILURE);
-
-        execvp(argv[0], argv);
-        _exit(EXIT_FAILURE);
-    }
+    sh_run(&job, STDIN_FILENO, pfd[1]);
 
     TEST_ASSERT_EQUAL_INT(0, close(pfd[1]));
-
-    if (waitpid(child_pid, NULL, 0) == -1)
-        _exit(EXIT_FAILURE);
 
     char c;
     char output[OUTPUT_BUF_SIZE];
@@ -53,40 +47,33 @@ void validate_shell_output(char **argv, const char *exp_output, \
     TEST_ASSERT_EQUAL_STRING(exp_output, output);
 
     close(pfd[0]);
+    lx_free(&tokens);
+    ps_free(&job);
 }
 
 void test_three_pipeline_cmd(void) {
-    char *argv[] = {
-        "../seashell", "-c", "echo hello | wc -c | grep 6", (char *) NULL
-    };
-
+    const char *shell_cmd = "echo hello | wc -c | grep 6";
     const char *output = "6\n";
-    validate_shell_output(argv, output, strlen(output));
+    validate_shell_output(shell_cmd, output, strlen(output));
 }
 
 void test_andors(void) {
-    char *argv[] = {
-        "../seashell", "-c",
-        "echo hello | wc -c && true && echo 'coolio' || echo 'nope'",
-        (char *) NULL
-    };
-
+    const char *shell_cmd = \
+        "echo hello | wc -c && true && echo 'coolio' || echo 'nope'";
     const char *output = "6\ncoolio\n";
-    validate_shell_output(argv, output, strlen(output));
+    validate_shell_output(shell_cmd, output, strlen(output));
 }
 
 void test_andors2(void) {
-    char *argv[] = {
-        "../seashell", "-c",
-        "false && true && true && true || echo -n hello, && echo world",
-        (char *) NULL
-    };
-
+    const char *shell_cmd = \
+        "false && true && true && true || echo -n hello, && echo world";
     const char *output = "hello,world\n";
-    validate_shell_output(argv, output, strlen(output));
+    validate_shell_output(shell_cmd, output, strlen(output));
 }
 
 int main(void) {
+    log_init();
+
     UNITY_BEGIN();
 
     RUN_TEST(test_three_pipeline_cmd);
