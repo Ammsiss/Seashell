@@ -180,7 +180,7 @@ static int move_fd(int fd1, int fd2) {
     return 0;
 }
 
-static bool exec_pipeline(const ps_pipeline *pipeline, da_pid *pids) {
+static int exec_pipeline(const ps_pipeline *pipeline, da_pid *pids) {
     da_init(pids);
 
     pid_t child_pid;
@@ -243,12 +243,12 @@ static bool exec_pipeline(const ps_pipeline *pipeline, da_pid *pids) {
         }
     }
 
-    return true;
+    return 0;
 
 fail:
     err_msg(false, "internal error check logs");
     da_free(pids);
-    return false;
+    return -1;
 }
 
 static bool run_pipeline(const ps_pipeline *pipeline) {
@@ -264,13 +264,14 @@ static bool run_pipeline(const ps_pipeline *pipeline) {
     }
 
     da_pid pids;
-    if (exec_pipeline(pipeline, &pids)) {
-        int last_status = wait_for_pids(&pids);
-        if (last_status == -1)
-            fatal("fatal: bad job control state");
-        return last_status == EXIT_SUCCESS;
-    } else
+    if (exec_pipeline(pipeline, &pids) == -1)
         return false;
+
+    int last_status = wait_for_pids(&pids);
+    if (last_status == -1)
+        fatal("fatal: bad job control state");
+
+    return last_status == EXIT_SUCCESS;
 }
 
 void sh_run(const ps_job *job) {
