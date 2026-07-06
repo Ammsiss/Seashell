@@ -258,7 +258,7 @@ fail:
     return -1;
 }
 
-static bool run_pipeline(const ps_pipeline *pipeline) {
+static bool run_pipeline(const ps_pipeline *pipeline, int inputfd, int outputfd) {
     LOG_INFO("running %ld cmd pipeline", pipeline->cmds.size);
 
     ps_cmd *cmd = &pipeline->cmds.data[0];
@@ -271,7 +271,7 @@ static bool run_pipeline(const ps_pipeline *pipeline) {
     }
 
     da_pid pids;
-    if (exec_pipeline(pipeline, &pids, STDIN_FILENO, STDOUT_FILENO) == -1)
+    if (exec_pipeline(pipeline, &pids, inputfd, outputfd) == -1)
         return false;
 
     int last_status = wait_for_pids(&pids);
@@ -281,7 +281,7 @@ static bool run_pipeline(const ps_pipeline *pipeline) {
     return last_status == EXIT_SUCCESS;
 }
 
-void sh_run(const ps_job *job) {
+void sh_run(const ps_job *job, int inputfd, int outputfd) {
     bool pipeline_success = true;
 
     for (size_t i = 0; i < job->andors.size; ++i) {
@@ -293,6 +293,6 @@ void sh_run(const ps_job *job) {
         if (andor->op == PS_AND_IF && !pipeline_success)
             continue;
 
-        pipeline_success = run_pipeline(&andor->pipeline);
+        pipeline_success = run_pipeline(&andor->pipeline, inputfd, outputfd);
     }
 }

@@ -44,7 +44,7 @@ void run_cmd(const char *line) {
         exit(EXIT_FAILURE);
     }
 
-    sh_run(&job);
+    sh_run(&job, STDIN_FILENO, STDOUT_FILENO);
 
     lx_free(&toks);
     ps_free(&job);
