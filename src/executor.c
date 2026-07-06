@@ -180,7 +180,8 @@ static int move_fd(int fd1, int fd2) {
     return 0;
 }
 
-static int exec_pipeline(const ps_pipeline *pipeline, da_pid *pids) {
+static int exec_pipeline(const ps_pipeline *pipeline, da_pid *pids, \
+        int inputfd, int outputfd) {
     da_init(pids);
 
     pid_t child_pid;
@@ -211,11 +212,17 @@ static int exec_pipeline(const ps_pipeline *pipeline, da_pid *pids) {
         if (child_pid == 0) {
             shell_env.subshell = true;
 
-            if (!first)
+            if (first) {
+                if (move_fd(inputfd, STDIN_FILENO) == -1)
+                    exit(EXIT_FAILURE);
+            } else if (!first)
                 if (move_fd(prev_read_fd, STDIN_FILENO) == -1)
                     exit(EXIT_FAILURE);
 
-            if (!last) {
+            if (last) {
+                if (move_fd(outputfd, STDOUT_FILENO) == -1)
+                    exit(EXIT_FAILURE);
+            } else if (!last) {
                 if (move_fd(next_pipe[1], STDOUT_FILENO) == -1)
                     exit(EXIT_FAILURE);
 
@@ -264,7 +271,7 @@ static bool run_pipeline(const ps_pipeline *pipeline) {
     }
 
     da_pid pids;
-    if (exec_pipeline(pipeline, &pids) == -1)
+    if (exec_pipeline(pipeline, &pids, STDIN_FILENO, STDOUT_FILENO) == -1)
         return false;
 
     int last_status = wait_for_pids(&pids);
