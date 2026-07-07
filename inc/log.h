@@ -76,7 +76,7 @@ void log_msg(log_level type, const char *errstr, const char *file, \
     ({ \
         int rv = pipe(next_pipe); \
         if (rv == -1) \
-            LOG_ERRNO("pipe2"); \
+            LOG_ERRNO("pipe"); \
         rv; \
     })
 

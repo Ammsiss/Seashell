@@ -301,15 +301,11 @@ void sh_run(const ps_job *job, int inputfd, int outputfd) {
     for (size_t i = 0; i < job->andors.size; ++i) {
         const ps_andor *andor = &job->andors.data[i];
 
-        if (andor->op == PS_OR_IF && pline_success) {
-            LOG_INFO("skipping next pipeline (||)");
+        if (andor->op == PS_OR_IF && pline_success)
             continue;
-        }
 
-        if (andor->op == PS_AND_IF && !pline_success) {
-            LOG_INFO("skipping next pipeline (&&)");
+        if (andor->op == PS_AND_IF && !pline_success)
             continue;
-        }
 
         pline_success = run_pline(&andor->pline, inputfd, outputfd);
     }
