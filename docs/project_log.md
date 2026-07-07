@@ -3,6 +3,53 @@
 ## 2026-07-6
 
 ### Next
+
+- [ ] err_exit should always exit with EXIT_FAILURE, use _exit where needed
+- [ ] add regression tests for redirections
+
+### Tasks
+
+**Expander**
+- [ ] set builtin should not allow key to have ' '
+- [ ] set builtin should not allow key to have any symbols besides _ or -
+- [ ] set builtin should not allow duplicate key entries
+
+**Misc**
+- [ ] Expand unquoted ~ with $HOME
+- [ ] Use X macros to centralize da_array registration
+- [ ] Consider recreating the xda_arr log helpers but for shell modules
+- [ ] Add logging of file descriptors using /proc/pid/fd...
+- [ ] Come up with a system for toggleable tracing.
+
+**Complete**
+- [x] Remove all xsyscall macros. logs aren't meant to be hidden
+- [x] Add macro wrappers for logs that preserve context macros
+- [x] Add a validation func for fd count in exec_pipeline
+- [x] Write redir expansion function
+- [x] Add initial redirecion implementation in executor
+
+### Notes
+
+All planned features are done! Except job control of course. But redirections,
+variable expansion, pipelines, and andor chains are all implemented. I think I'm
+going to spend the next week cleaning up, adding tests, and scoping out how
+job control will be implemented.
+
+Also pondering adding a script mode. At the simplest level its as simple as
+just swapping the input source from lines from the interactive getline() loop
+to a small binary parsing lines from a script file.
+
+Control structures like if statements and loops wouldn't actaully be that hard
+to implement at the executor level. It would just be one or multiple andor
+chains with meta data describing how many times to run them in order. No need
+to make a boolean system either, you can just use the return status of the
+commands so if statements and boolean logic is pretty simple too.
+
+---------------------------------------------------------------------------------
+
+## 2026-07-6
+
+### Next
 - [ ] Remove all xsyscall macros. logs aren't meant to be hidden
 - [ ] Write expand redir function
 

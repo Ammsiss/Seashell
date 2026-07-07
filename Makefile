@@ -26,6 +26,6 @@ $(BLD_DIR)/%.o: $(SRC_DIR)/%.c
 
 .PHONY: clean
 clean:
-	rm -rf $(BLD_DIR) $(BIN) $(COMPCOM);
+	rm -rf $(BLD_DIR) $(BIN) $(COMPCOM)
 
 -include $(DEPS)

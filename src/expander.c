@@ -130,9 +130,6 @@ fail:
     return -1;
 }
 
-// static int expand_redir(ps_redir *redir) {
-// }
-
 static int create_argv(ps_cmd *cmd) {
     size_t argc = cmd->words.size;
 
@@ -166,6 +163,12 @@ int ex_expand(ps_job *job) {
 
             if (create_argv(cmd) == -1)
                 return -1;
+
+            for (size_t k = 0; k < cmd->redirs.size; ++k) {
+                ps_redir *redir = &cmd->redirs.data[k];
+                if (create_arg(&redir->target) == -1)
+                    return -1;
+            }
         }
     }
 

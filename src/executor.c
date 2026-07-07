@@ -22,7 +22,7 @@
 
 static sh_env shell_env = { .subshell = false };
 
-void verify_pfd_count(int exp) {
+void verify_pfd_count(int exp_pfd_n) {
     char dir_prefix[PATH_MAX];
     snprintf(dir_prefix, PATH_MAX, "/proc/%d/fd/", getpid());
 
@@ -37,7 +37,8 @@ void verify_pfd_count(int exp) {
     struct stat sb;
     struct dirent *dirent;
 
-    int pfd_cnt = 0;
+    int pfd_n = 0;
+    int total_n = 0;
 
     while (true) {
         errno = 0;
@@ -59,12 +60,16 @@ void verify_pfd_count(int exp) {
 
         /* careful: also true for fifo's */
         if (S_ISFIFO(sb.st_mode))
-            ++pfd_cnt;
+            ++pfd_n;
+
+        ++total_n;
     }
 
-    if (exp != pfd_cnt)
-        LOG_WARN("unexpected pfd count (exp %d got %d)", exp, pfd_cnt);
+    if (exp_pfd_n != pfd_n)
+        LOG_WARN("unexpected pfd count (exp %d got %d)", exp_pfd_n, pfd_n);
 
+    if (7 != total_n) /* expected: logfd + . + .. + opendir + first 3 io nums */
+        LOG_WARN("unexpected fd count: (exp 7 got %d)", total_n);
 fail:
     xclosedir(dir);
     d_str_free(&proc_path);
@@ -103,7 +108,7 @@ int run_cd_builtin(char **argv, sh_env *shell_env) {
     }
 
     if (chdir(argv[1]) == -1) {
-        perror("cd");
+        errno_msg("cd");
         return EXIT_FAILURE;
     }
 
@@ -131,11 +136,15 @@ int run_set_builtin(char **argv, sh_env *shell_env) {
 
     var_pair var = {0};
 
-    if (strlen(argv[1]) >= SHELL_VAR_MAX)
+    if (strlen(argv[1]) >= SHELL_VAR_MAX) {
         err_msg("set: key too long: %s", argv[1]);
+        return EXIT_FAILURE;
+    }
 
-    if (strlen(argv[2]) >= SHELL_VAR_MAX)
+    if (strlen(argv[2]) >= SHELL_VAR_MAX) {
         err_msg("set: value too long: %s", argv[2]);
+        return EXIT_FAILURE;
+    }
 
     strcpy(var.key, argv[1]);
     strcpy(var.value, argv[2]);
@@ -266,6 +275,7 @@ static int exec_pline(const ps_pline *pline, da_pid *pids, \
         if (child_pid == 0) {
             shell_env.subshell = true;
 
+            /* Set up file descriptors */
             if (first) {
                 if (move_fd(inputfd, STDIN_FILENO) == -1)
                     _exit(EXIT_FAILURE);
@@ -282,6 +292,38 @@ static int exec_pline(const ps_pline *pline, da_pid *pids, \
 
                 if (close(next_pipe[0]) == -1)
                     err_exit(EXIT_FAILURE, true, "close");
+            }
+
+            /* Set up redirects */
+            for (size_t i = 0; i < cmd->redirs.size; ++i) {
+                ps_redir *redir = &cmd->redirs.data[i];
+                const char *arg = redir->target.arg;
+
+                int rfd;
+
+                if (redir->io_num == STDIN_FILENO) {
+                    rfd = open(arg, O_RDONLY);
+                    if (rfd == -1)
+                        err_exit(EXIT_FAILURE, true, "open");
+                } else {
+                    if (redir->append) {
+                        rfd = open(arg, O_WRONLY | O_CREAT | O_EXCL, 0600);
+                        if (rfd == -1) {
+                            if (errno == EEXIST) {
+                                rfd = open(arg, O_WRONLY | O_APPEND);
+                                if (rfd == -1)
+                                    err_exit(EXIT_FAILURE, true, "open");
+                            } else
+                                err_exit(EXIT_FAILURE, true, "open");
+                        }
+                    } else {
+                        rfd = open(arg, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+                        if (rfd == -1)
+                            err_exit(EXIT_FAILURE, true, "open");
+                    }
+                }
+
+                move_fd(rfd, redir->io_num);
             }
 
             int status;

@@ -1,4 +1,3 @@
-#include "unity_internals.h"
 #define _GNU_SOURCE
 
 #include <string.h>
@@ -149,6 +148,8 @@ int main(void) {
     RUN_TEST(test_three_pipeline_cmd);
     RUN_TEST(test_andors);
     RUN_TEST(test_andors2);
+
+    /* Variable expansion */
     RUN_TEST(test_simple_variable_expansion);
     RUN_TEST(test_escaped_variable_should_not_expand);
     RUN_TEST(test_variable_expansion_should_be_greedy);

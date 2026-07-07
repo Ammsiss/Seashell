@@ -24,7 +24,7 @@ int log_init() {
     strcat(filename, date);
 
     char fullpath[512];
-    strcpy(fullpath, "./logs/");
+    strcpy(fullpath, "/home/juta/Projects/Seashell/logs/");
     strcat(fullpath, filename);
 
     log_output_fd = open(fullpath, O_CREAT | O_RDWR, 0600);
@@ -33,9 +33,9 @@ int log_init() {
         return -1;
     }
 
-    unlink("./logs/latest");
+    unlink("/home/juta/Projects/Seashell/logs/latest");
 
-    if (symlink(filename, "./logs/latest") == -1) {
+    if (symlink(filename, "/home/juta/Projects/Seashell/logs/latest") == -1) {
         perror("in logsinit: symlink");
         return -1;
     }
