@@ -131,7 +131,7 @@ static int wait_for_pids(da_pid *pids) {
     for (size_t i = 0; i < pids->size; ++i) {
         pid_t pid = pids->data[i];
 
-        if (xwaitpid(pid, &wstat, 0) == -1) {
+        if (waitpid(pid, &wstat, 0) == -1) {
             err_msg(true, "waitpid");
             goto fail;
         }
@@ -167,12 +167,12 @@ static int move_fd(int fd1, int fd2) {
     if (fd1 == fd2)
         return 0;
 
-    if (xdup2(fd1, fd2) == -1) {
+    if (dup2(fd1, fd2) == -1) {
         err_msg(true, "dup2");
         return -1;
     }
 
-    if (xclose(fd1) == -1) {
+    if (close(fd1) == -1) {
         err_msg(true, "close");
         return -1;
     }
@@ -197,10 +197,10 @@ static int exec_pipeline(const ps_pipeline *pipeline, da_pid *pids, \
         bool last = (i == cmd_cnt - 1);
 
         if (!last)
-            if (xpipe2(next_pipe, O_CLOEXEC) == -1)
+            if (pipe2(next_pipe, O_CLOEXEC) == -1)
                 goto fail;
 
-        child_pid = xfork();
+        child_pid = fork();
         if (child_pid == -1)
             goto fail;
 
@@ -226,7 +226,7 @@ static int exec_pipeline(const ps_pipeline *pipeline, da_pid *pids, \
                 if (move_fd(next_pipe[1], STDOUT_FILENO) == -1)
                     _exit(EXIT_FAILURE);
 
-                if (xclose(next_pipe[0]) == -1)
+                if (close(next_pipe[0]) == -1)
                     err_exit(EXIT_FAILURE, true, "close");
             }
 
@@ -234,18 +234,18 @@ static int exec_pipeline(const ps_pipeline *pipeline, da_pid *pids, \
             if (try_run_builtin(cmd, &status))
                 _exit(status);
 
-            xexecvp(cmd->argv[0], cmd->argv);
+            execvp(cmd->argv[0], cmd->argv);
             err_exit(127, false, "command not found: %s", cmd->argv[0]);
         }
 
         if (!first)
-            if (xclose(prev_read_fd) == -1)
+            if (close(prev_read_fd) == -1)
                 goto fail;
 
         if (!last) {
             prev_read_fd = next_pipe[0];
 
-            if (xclose(next_pipe[1]) == -1)
+            if (close(next_pipe[1]) == -1)
                 goto fail;
         }
     }

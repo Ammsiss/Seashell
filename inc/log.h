@@ -66,13 +66,9 @@ typedef enum {
 extern int log_output_fd;
 
 int log_init();
-PFFORMAT(6, 7) void log_msg(log_level type, const char *errstr, const char *file, \
+
+PFFORMAT(6, 7)
+void log_msg(log_level type, const char *errstr, const char *file, \
     int line, const char *function, const char *fmt, ...);
-int xpipe2(int pipefd[2], int flags);
-int xfork(void);
-int xdup2(int oldfd, int newfd);
-int xclose(int fd);
-void xexecvp(const char *file, char *const argv[]);
-pid_t xwaitpid(pid_t pid, int *wstatus, int options);
 
 #endif

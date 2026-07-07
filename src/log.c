@@ -44,11 +44,7 @@ int log_init() {
     return 0;
 }
 
-/*
-  Best effort; drops message on any failure
-
-  level: file:line:func:pid msg[: errstr]
-*/
+/* level: file:line:func:pid msg[: errstr] */
 void log_msg(log_level level, const char *errstr, const char *file, int line, \
         const char *func, const char *fmt, ...) {
 
@@ -89,83 +85,4 @@ void log_msg(log_level level, const char *errstr, const char *file, int line, \
     write(log_output_fd, output_str, strlen(output_str));
 
     errno = saved_errno;
-}
-
-int xpipe2(int pipefd[2], int flags) {
-    if (pipe2(pipefd, flags) == -1) {
-        LOG_ERRNO("pipe2");
-        return -1;
-    }
-
-    LOG_INFO("piped");
-    return 0;
-}
-
-int xfork(void) {
-    pid_t child_pid = fork();
-
-    switch (child_pid) {
-    case -1:
-        LOG_ERRNO("fork");
-        return -1;
-    case 0:
-        return 0;
-    default:
-        LOG_INFO("forked with child pid = %d", child_pid);
-        return child_pid;
-    }
-}
-
-int xdup2(int oldfd, int newfd) {
-    if (dup2(oldfd, newfd) == -1) {
-        LOG_ERRNO("dup2");
-        return -1;
-    }
-    return newfd;
-}
-
-int xclose(int fd) {
-    if (close(fd) == -1) {
-        LOG_ERRNO("close");
-        return -1;
-    }
-    return 0;
-}
-
-void xexecvp(const char *file, char *const argv[]) {
-    LOG_INFO("execing %s", argv[0]);
-    execvp(file, argv);
-    LOG_ERRNO("execvp");
-}
-
-pid_t xwaitpid(pid_t pid, int *wstatus, int options) {
-    int wstat;
-
-    pid_t child_pid = waitpid(pid, &wstat, options);
-    if (child_pid == -1) {
-        if (errno != ECHILD) {
-            LOG_ERRNO("waitpid(%d)", pid);
-        } else {
-            return -1;
-        }
-    }
-
-    if (wstatus)
-        *wstatus = wstat;
-
-    int status;
-    if (WIFEXITED(wstat)) {
-        status = WEXITSTATUS(wstat);
-        LOG_INFO("waited for pid=%d (status %d)", child_pid, status);
-    } else if (WIFSIGNALED(wstat)) {
-        int signum = WTERMSIG(wstat);
-        status = 128 + signum;
-        LOG_INFO("waited for pid=%d (status %d)", child_pid, status);
-    /*} else if (WIFSTOPPED(wstat)) {
-#ifdef WIFCONTINUED
-    } else if (WIFCONTINUED(wstat)) {
-#endif*/
-    }
-
-    return child_pid;
 }
