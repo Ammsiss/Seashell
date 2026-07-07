@@ -9,6 +9,9 @@
 #include <fcntl.h>
 #include <wait.h>
 #include <stdlib.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <dyn_str.h>
 
 #include "utils.h"
 #include "executor.h"
@@ -19,10 +22,56 @@
 
 static sh_env shell_env = { .subshell = false };
 
+void verify_pfd_count(int exp) {
+    char dir_prefix[PATH_MAX];
+    snprintf(dir_prefix, PATH_MAX, "/proc/%d/fd/", getpid());
+
+    DIR *dir = xopendir(dir_prefix);
+    if (!dir)
+        return;
+
+    d_str proc_path;
+    if (d_str_init(&proc_path) == -1)
+        return;
+
+    struct stat sb;
+    struct dirent *dirent;
+
+    int pfd_cnt = 0;
+
+    while (true) {
+        errno = 0;
+        dirent = xreaddir(dir);
+        if (!dirent) {
+            if (errno != 0) {
+                goto fail;
+            } else
+                break;
+        }
+
+        if (d_strcpy(&proc_path, dir_prefix) == -1)
+            goto fail;
+        if (d_strcat(&proc_path, dirent->d_name) == -1)
+            goto fail;
+
+        if (xstat(proc_path.c_str, &sb) == -1)
+            goto fail;
+
+        /* careful: also true for fifo's */
+        if (S_ISFIFO(sb.st_mode))
+            ++pfd_cnt;
+    }
+
+    if (exp != pfd_cnt)
+        LOG_WARN("unexpected pfd count (exp %d got %d)", exp, pfd_cnt);
+
+fail:
+    xclosedir(dir);
+    d_str_free(&proc_path);
+}
+
 int run_exit_builtin(char **argv, sh_env *shell_env) {
     (void) argv; /* no args for now */
-
-    LOG_INFO("running builtin exit");
 
     if (shell_env->subshell)
         _exit(EXIT_SUCCESS);
@@ -90,8 +139,6 @@ int run_set_builtin(char **argv, sh_env *shell_env) {
 
     strcpy(var.key, argv[1]);
     strcpy(var.value, argv[2]);
-
-    LOG_INFO("saved variable %s=%s", var.key, var.value);
 
     st_add_var(&var);
 
@@ -241,6 +288,13 @@ static int exec_pline(const ps_pline *pline, da_pid *pids, \
             if (try_run_builtin(cmd, &status))
                 _exit(status);
 
+            if (first && last)
+                verify_pfd_count(0);
+            else if ((!first && last) || (first && !last))
+                verify_pfd_count(1);
+            else if (!first && !last)
+                verify_pfd_count(2);
+
             xexecvp(cmd->argv[0], cmd->argv);
 
             if (errno == ENOENT) {
@@ -267,6 +321,7 @@ static int exec_pline(const ps_pline *pline, da_pid *pids, \
         }
     }
 
+    verify_pfd_count(0);
     return 0;
 
 fail:

@@ -17,6 +17,9 @@
 #define LOG_INFO(fmt, ...) \
     LOG_MSG(L_INFO, NULL, fmt __VA_OPT__(,) __VA_ARGS__)
 
+#define LOG_WARN(fmt, ...) \
+    LOG_MSG(L_WARN, NULL, fmt __VA_OPT__(,) __VA_ARGS__)
+
 #define LOG_ERR(fmt, ...) \
     LOG_MSG(L_ERR, NULL, fmt __VA_OPT__(,) __VA_ARGS__)
 
@@ -61,6 +64,7 @@
 
 typedef enum {
     L_INFO,
+    L_WARN,
     L_ERR,
 } log_level;
 
@@ -128,6 +132,36 @@ void log_msg(log_level type, const char *errstr, const char *file, \
         rv; \
     })
 
+#define xopendir(path) \
+    ({ \
+        DIR *rv = opendir(path); \
+        if (!rv) \
+            LOG_ERRNO("opendir"); \
+        rv; \
+    })
 
+#define xclosedir(dir) \
+    ({ \
+        int rv = closedir(dir); \
+        if (rv == -1) \
+            LOG_ERRNO("closedir"); \
+        rv; \
+    })
+
+#define xreaddir(dir) \
+    ({ \
+        struct dirent *rv = readdir(dir); \
+        if (!rv && errno != 0) \
+            LOG_ERRNO("readdir"); \
+        rv; \
+    })
+
+#define xstat(name, sb) \
+    ({ \
+        int rv = stat(name, sb); \
+        if (rv == -1) \
+            LOG_ERRNO("stat"); \
+        rv; \
+    })
 
 #endif

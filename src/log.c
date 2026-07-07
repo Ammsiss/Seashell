@@ -55,9 +55,11 @@ void log_msg(log_level level, const char *errstr, const char *file, int line, \
     char msg[LOG_BUF_SIZE] = "";
 
     if (level == L_INFO)
-        strcpy(level_str, CGREEN "info" CCL);
+        strcpy(level_str, CGREEN "INFO" CCL);
     else if (level == L_ERR)
-        strcpy(level_str, CRED "error" CCL);
+        strcpy(level_str, CRED "ERROR" CCL);
+    else if (level == L_WARN)
+        strcpy(level_str, CYELLOW "WARN" CCL);
     else
         strcpy(level_str, "???");
 
@@ -73,11 +75,11 @@ void log_msg(log_level level, const char *errstr, const char *file, int line, \
 
     if (errstr) {
         snprintf(output_str, OUTPUT_SIZE, \
-            "%s: " CDIM "%s:%d:%s:%d " CCL "%s: %s\n", \
+            "%s " CDIM "%s:%d:%s:%d " CCL "%s: %s\n", \
             level_str, basename(file_str), line, func_str, getpid(), msg, errstr);
     } else {
         snprintf(output_str, OUTPUT_SIZE, \
-            "%s: " CDIM "%s:%d:%s:%d " CCL "%s\n", \
+            "%s " CDIM "%s:%d:%s:%d " CCL "%s\n", \
             level_str, basename(file_str), line, func_str, getpid(), msg);
     }
 
