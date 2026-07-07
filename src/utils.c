@@ -51,10 +51,17 @@ void err_exit(int exit_code, bool print_err, const char *fmt, ...) {
     _exit(exit_code);
 }
 
-void err_msg(bool print_err, const char *fmt, ...) {
+void err_msg(const char *fmt, ...) {
     va_list va;
     va_start(va, fmt);
-    output_err(fmt, &va, print_err);
+    output_err(fmt, &va, false);
+    va_end(va);
+}
+
+void errno_msg(const char *fmt, ...) {
+    va_list va;
+    va_start(va, fmt);
+    output_err(fmt, &va, true);
     va_end(va);
 }
 

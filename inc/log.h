@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <errno.h>
 
 #define STR_IMP(x) #x
 #define STR(x) STR_IMP(x)
@@ -70,5 +71,63 @@ int log_init();
 PFFORMAT(6, 7)
 void log_msg(log_level type, const char *errstr, const char *file, \
     int line, const char *function, const char *fmt, ...);
+
+#define xpipe(pfd) \
+    ({ \
+        int rv = pipe(next_pipe); \
+        if (rv == -1) \
+            LOG_ERRNO("pipe2"); \
+        rv; \
+    })
+
+#define xfork() \
+    ({ \
+        int rv = fork(); \
+        if (rv == -1) \
+            LOG_ERRNO("fork"); \
+        rv; \
+     })
+
+#define xclose(fd) \
+    ({ \
+        int rv = close(fd); \
+        if (rv == -1) \
+            LOG_ERRNO("close"); \
+        rv; \
+    })
+
+#define xdup2(fd1, fd2) \
+    ({ \
+        int rv = dup2(fd1, fd2); \
+        if (rv == -1) \
+            LOG_ERRNO("dup2"); \
+        rv; \
+    })
+
+#define xwaitpid(pid, wstatus, options) \
+    ({ \
+        int rv = waitpid(pid, wstatus, options); \
+        if (rv == -1) \
+            LOG_ERRNO("waitpid"); \
+        rv; \
+    })
+
+#define xexecvp(file, argv) \
+    ({ \
+        int rv = execvp(file, argv); \
+        if (rv == -1) \
+            LOG_ERRNO("execvp"); \
+        rv; \
+    })
+
+#define xopen(file, oflags, ...) \
+    ({ \
+        int rv = xopen(file, oflags __VA_OPT__(,) __VA_ARGS__); \
+        if (rv == -1) \
+            LOG_ERRNO("open"); \
+        rv; \
+    })
+
+
 
 #endif

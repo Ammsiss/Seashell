@@ -8,7 +8,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "utils.h"
 #include "log.h"
 
 int log_output_fd;
@@ -30,14 +29,14 @@ int log_init() {
 
     log_output_fd = open(fullpath, O_CREAT | O_RDWR, 0600);
     if (log_output_fd == -1) {
-        err_msg(true, "failed to create log file %s", filename);
+        perror("in log_init: open");
         return -1;
     }
 
     unlink("./logs/latest");
 
     if (symlink(filename, "./logs/latest") == -1) {
-        err_msg(true, "failed to create log sym link");
+        perror("in logsinit: symlink");
         return -1;
     }
 

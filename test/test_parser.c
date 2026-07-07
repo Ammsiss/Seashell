@@ -202,13 +202,13 @@ void validate_cmds(const exp_da_cmd *exp, const da_cmd *cmds) {
     }
 }
 
-void validate_pipeline(const exp_pipeline *exp, const ps_pipeline *pipeline) {
+void validate_pipeline(const exp_pipeline *exp, const ps_pline *pipeline) {
     validate_cmds(&exp->cmds, &pipeline->cmds);
 }
 
 void validate_andor(const exp_andor *exp, const ps_andor *andor) {
     TEST_ASSERT_EQUAL(exp->op, andor->op);
-    validate_pipeline(&exp->pipeline, &andor->pipeline);
+    validate_pipeline(&exp->pipeline, &andor->pline);
 }
 
 void validate_andors(const exp_da_andor *exp, const da_andor *andors) {

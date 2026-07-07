@@ -7,7 +7,7 @@
 #include "dyn_arr.h"
 
 typedef struct {
-    ps_pipeline *cur_pipeline;
+    ps_pline *cur_pline;
     ps_cmd *cur_cmd;
     lx_tok *cur_tok;
     ps_redir *queued_redir;
@@ -96,32 +96,32 @@ static void free_cmd(ps_cmd *cmd) {
     *cmd = (ps_cmd){0};
 }
 
-static int init_pipeline(ps_pipeline *pipeline) {
-    assert(pipeline);
+static int init_pline(ps_pline *pline) {
+    assert(pline);
 
-    *pipeline = (ps_pipeline){0};
-    if (da_init(&pipeline->cmds) == -1)
+    *pline = (ps_pline){0};
+    if (da_init(&pline->cmds) == -1)
         return -1;
 
     return 0;
 }
 
-static void free_pipeline(ps_pipeline *pipeline) {
-    if (!pipeline)
+static void free_pline(ps_pline *pline) {
+    if (!pline)
         return;
 
-    for (size_t i = 0; i < pipeline->cmds.size; ++i)
-        free_cmd(&pipeline->cmds.data[i]);
-    da_free(&pipeline->cmds);
+    for (size_t i = 0; i < pline->cmds.size; ++i)
+        free_cmd(&pline->cmds.data[i]);
+    da_free(&pline->cmds);
 
-    *pipeline = (ps_pipeline){0};
+    *pline = (ps_pline){0};
 }
 
 static int init_andor(ps_andor *andor) {
     assert(andor);
 
     *andor = (ps_andor){0};
-    if (init_pipeline(&andor->pipeline) == -1)
+    if (init_pline(&andor->pline) == -1)
         return -1;
 
     return 0;
@@ -131,7 +131,7 @@ static void free_andor(ps_andor *andor) {
     if (!andor)
         return;
 
-    free_pipeline(&andor->pipeline);
+    free_pline(&andor->pline);
 
     *andor = (ps_andor){0};
 }
@@ -185,14 +185,14 @@ static int add_andor(da_andor *andors, ps_andor_op op,
 
     andor->op = op;
 
-    scanner->cur_pipeline = &andor->pipeline;
+    scanner->cur_pline = &andor->pline;
 
     return 0;
 }
 
-static int ensure_pipeline(da_andor *andors, ps_andor_op op,
+static int ensure_pline(da_andor *andors, ps_andor_op op,
         ps_scanner *scanner) {
-    if (!scanner->cur_pipeline)
+    if (!scanner->cur_pline)
         if (add_andor(andors, op, scanner) == -1)
             return -1;
 
@@ -211,9 +211,9 @@ static int add_cmd(da_cmd *cmds, ps_scanner *scanner) {
     return 0;
 }
 
-static int ensure_cmd(ps_pipeline *pipeline, ps_scanner *scanner) {
+static int ensure_cmd(ps_pline *pline, ps_scanner *scanner) {
     if (!scanner->cur_cmd)
-        if (add_cmd(&pipeline->cmds, scanner) == -1)
+        if (add_cmd(&pline->cmds, scanner) == -1)
             return -1;
 
     return 0;
@@ -266,7 +266,7 @@ int ps_parse(da_tok *tokens, ps_job *job) {
     scanner.cur_andor_op = PS_NO_IF;
 
     for (size_t i = 0; i < tokens->size; ++i, ++scanner.cur_tok) {
-        if (!scanner.cur_pipeline || !scanner.cur_cmd || scanner.queued_redir) {
+        if (!scanner.cur_pline || !scanner.cur_cmd || scanner.queued_redir) {
             if (scanner.cur_tok->kind != LX_TOK_WORD)
                 goto fail;
         }
@@ -280,8 +280,8 @@ int ps_parse(da_tok *tokens, ps_job *job) {
                 continue;
             }
 
-            ensure_pipeline(&job->andors, scanner.cur_andor_op, &scanner);
-            ensure_cmd(scanner.cur_pipeline, &scanner);
+            ensure_pline(&job->andors, scanner.cur_andor_op, &scanner);
+            ensure_cmd(scanner.cur_pline, &scanner);
 
             ps_word *word = da_push_init(&scanner.cur_cmd->words, init_word);
             if (init_word(word) == -1)
@@ -299,13 +299,13 @@ int ps_parse(da_tok *tokens, ps_job *job) {
 
         case LX_TOK_AND_IF:
             scanner.cur_cmd = NULL;
-            scanner.cur_pipeline = NULL;
+            scanner.cur_pline = NULL;
             scanner.cur_andor_op = PS_AND_IF;
             break;
 
         case LX_TOK_OR_IF:
             scanner.cur_cmd = NULL;
-            scanner.cur_pipeline = NULL;
+            scanner.cur_pline = NULL;
             scanner.cur_andor_op = PS_OR_IF;
             break;
 
@@ -321,7 +321,7 @@ int ps_parse(da_tok *tokens, ps_job *job) {
         case LX_TOK_RDR_OUT:
         case LX_TOK_RDR_ERR:
         case LX_TOK_APPEND: {
-            if (!scanner.cur_pipeline || !scanner.cur_cmd)
+            if (!scanner.cur_pline || !scanner.cur_cmd)
                 goto fail;
 
             const lx_kind kind = scanner.cur_tok->kind;

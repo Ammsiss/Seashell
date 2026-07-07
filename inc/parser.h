@@ -28,12 +28,12 @@ struct ps_cmd {
     char **argv;
 };
 
-struct ps_pipeline {
+struct ps_pline {
     da_cmd cmds;
 };
 
 struct ps_andor {
-    ps_pipeline pipeline;
+    ps_pline pline;
     ps_andor_op op;
 };
 

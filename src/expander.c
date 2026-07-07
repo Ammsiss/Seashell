@@ -153,10 +153,10 @@ static int create_argv(ps_cmd *cmd) {
 int ex_expand(ps_job *job) {
     for (size_t i = 0; i < job->andors.size; ++i) {
         ps_andor *andor = &job->andors.data[i];
-        ps_pipeline *pipeline = &andor->pipeline;
+        ps_pline *pline = &andor->pline;
 
-        for (size_t j = 0; j < pipeline->cmds.size; ++j) {
-            ps_cmd *cmd = &pipeline->cmds.data[j];
+        for (size_t j = 0; j < pline->cmds.size; ++j) {
+            ps_cmd *cmd = &pline->cmds.data[j];
 
             for (size_t k = 0; k < cmd->words.size; ++k) {
                 ps_word *word = &cmd->words.data[k];

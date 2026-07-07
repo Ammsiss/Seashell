@@ -7,8 +7,8 @@
     for (size_t i = 0; i < job.andors.size; ++i) { \
         ps_andor *andor = &job.andors.data[i]; \
         \
-        for (size_t j = 0; j < andor->pipeline.cmds.size; ++j) { \
-            ps_cmd *cmd = &andor->pipeline.cmds.data[j]; \
+        for (size_t j = 0; j < andor->pline.cmds.size; ++j) { \
+            ps_cmd *cmd = &andor->pline.cmds.data[j]; \
             \
             for (size_t k = 0; k < cmd->words.size; ++k) { \
                 ps_word *word = &cmd->words.data[k];

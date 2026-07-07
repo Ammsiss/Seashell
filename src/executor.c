@@ -39,22 +39,22 @@ int run_cd_builtin(char **argv, sh_env *shell_env) {
 
     if (!argv || !argv[0]) {
         LOG_ERR("builtin cd received invalid argv structure");
-        err_msg(false, "cd: internal error check logs");
+        err_msg("cd: internal error check logs");
         return EXIT_FAILURE;
     }
 
     if (!argv[1]) {
-        err_msg(false, "cd: path required");
+        err_msg("cd: path required");
         return EXIT_FAILURE;
     }
 
     if (argv[2]) {
-        err_msg(false, "cd: too many arguments");
+        err_msg("cd: too many arguments");
         return EXIT_FAILURE;
     }
 
     if (chdir(argv[1]) == -1) {
-        err_msg(true, "cd");
+        perror("cd");
         return EXIT_FAILURE;
     }
 
@@ -66,27 +66,27 @@ int run_set_builtin(char **argv, sh_env *shell_env) {
 
     if (!argv || !argv[0]) {
         LOG_ERR("builtin set received invalid argv structure");
-        err_msg(false, "set: internal error check logs");
+        err_msg("set: internal error check logs");
         return EXIT_FAILURE;
     }
 
     if (!argv[1] || !argv[2]) {
-        err_msg(false, "set: not enough arguments");
+        err_msg("set: not enough arguments");
         return EXIT_FAILURE;
     }
 
     if (argv[3]) {
-        err_msg(false, "set: too many arguments");
+        err_msg("set: too many arguments");
         return EXIT_FAILURE;
     }
 
     var_pair var = {0};
 
     if (strlen(argv[1]) >= SHELL_VAR_MAX)
-        err_msg(false, "set: key too long: %s", argv[1]);
+        err_msg("set: key too long: %s", argv[1]);
 
     if (strlen(argv[2]) >= SHELL_VAR_MAX)
-        err_msg(false, "set: value too long: %s", argv[2]);
+        err_msg("set: value too long: %s", argv[2]);
 
     strcpy(var.key, argv[1]);
     strcpy(var.value, argv[2]);
@@ -131,8 +131,8 @@ static int wait_for_pids(da_pid *pids) {
     for (size_t i = 0; i < pids->size; ++i) {
         pid_t pid = pids->data[i];
 
-        if (waitpid(pid, &wstat, 0) == -1) {
-            err_msg(true, "waitpid");
+        if (xwaitpid(pid, &wstat, 0) == -1) {
+            errno_msg("waitpid");
             goto fail;
         }
 
@@ -167,20 +167,20 @@ static int move_fd(int fd1, int fd2) {
     if (fd1 == fd2)
         return 0;
 
-    if (dup2(fd1, fd2) == -1) {
-        err_msg(true, "dup2");
+    if (xdup2(fd1, fd2) == -1) {
+        errno_msg("dup2");
         return -1;
     }
 
-    if (close(fd1) == -1) {
-        err_msg(true, "close");
+    if (xclose(fd1) == -1) {
+        errno_msg("close");
         return -1;
     }
 
     return 0;
 }
 
-static int exec_pipeline(const ps_pipeline *pipeline, da_pid *pids, \
+static int exec_pline(const ps_pline *pline, da_pid *pids, \
         int inputfd, int outputfd) {
     da_init(pids);
 
@@ -189,24 +189,31 @@ static int exec_pipeline(const ps_pipeline *pipeline, da_pid *pids, \
     int next_pipe[2];
     int prev_read_fd;
 
-    size_t cmd_cnt = pipeline->cmds.size;
+    size_t cmd_cnt = pline->cmds.size;
 
     for (size_t i = 0; i < cmd_cnt; ++i) {
-        ps_cmd *cmd = &pipeline->cmds.data[i];
+        ps_cmd *cmd = &pline->cmds.data[i];
         bool first = (i == 0);
         bool last = (i == cmd_cnt - 1);
 
-        if (!last)
-            if (pipe2(next_pipe, O_CLOEXEC) == -1)
+        if (!last) {
+            if (xpipe(next_pipe) == -1) {
+                errno_msg("pipe");
                 goto fail;
+            }
+        }
 
-        child_pid = fork();
-        if (child_pid == -1)
+        child_pid = xfork();
+        if (child_pid == -1) {
+            errno_msg("fork");
             goto fail;
+        }
 
         pid_t *pid = da_push(pids);
-        if (!pid)
+        if (!pid) {
+            err_msg("da_push");
             goto fail;
+        }
         *pid = child_pid;
 
         if (child_pid == 0) {
@@ -234,36 +241,43 @@ static int exec_pipeline(const ps_pipeline *pipeline, da_pid *pids, \
             if (try_run_builtin(cmd, &status))
                 _exit(status);
 
-            execvp(cmd->argv[0], cmd->argv);
-            err_exit(127, false, "command not found: %s", cmd->argv[0]);
+            xexecvp(cmd->argv[0], cmd->argv);
+
+            if (errno == ENOENT) {
+                err_msg("command not found: %s", cmd->argv[0]);
+            } else
+                errno_msg("execvp");
+
+            _exit(EXIT_FAILURE);
         }
 
         if (!first)
-            if (close(prev_read_fd) == -1)
+            if (xclose(prev_read_fd) == -1) {
+                errno_msg("close");
                 goto fail;
+            }
 
         if (!last) {
             prev_read_fd = next_pipe[0];
 
-            if (close(next_pipe[1]) == -1)
+            if (xclose(next_pipe[1]) == -1) {
+                errno_msg("close");
                 goto fail;
+            }
         }
     }
 
     return 0;
 
 fail:
-    err_msg(false, "internal error check logs");
     da_free(pids);
     return -1;
 }
 
-static bool run_pipeline(const ps_pipeline *pipeline, int inputfd, int outputfd) {
-    LOG_INFO("running %ld cmd pipeline", pipeline->cmds.size);
+static bool run_pline(const ps_pline *pline, int inputfd, int outputfd) {
+    ps_cmd *cmd = &pline->cmds.data[0];
 
-    ps_cmd *cmd = &pipeline->cmds.data[0];
-
-    if (pipeline->cmds.size == 1) {
+    if (pline->cmds.size == 1) {
 
         int bltin_status;
         if (try_run_builtin(cmd, &bltin_status))
@@ -271,7 +285,7 @@ static bool run_pipeline(const ps_pipeline *pipeline, int inputfd, int outputfd)
     }
 
     da_pid pids;
-    if (exec_pipeline(pipeline, &pids, inputfd, outputfd) == -1)
+    if (exec_pline(pline, &pids, inputfd, outputfd) == -1)
         return false;
 
     int last_status = wait_for_pids(&pids);
@@ -282,17 +296,21 @@ static bool run_pipeline(const ps_pipeline *pipeline, int inputfd, int outputfd)
 }
 
 void sh_run(const ps_job *job, int inputfd, int outputfd) {
-    bool pipeline_success = true;
+    bool pline_success = true;
 
     for (size_t i = 0; i < job->andors.size; ++i) {
         const ps_andor *andor = &job->andors.data[i];
 
-        if (andor->op == PS_OR_IF && pipeline_success)
+        if (andor->op == PS_OR_IF && pline_success) {
+            LOG_INFO("skipping next pipeline (||)");
             continue;
+        }
 
-        if (andor->op == PS_AND_IF && !pipeline_success)
+        if (andor->op == PS_AND_IF && !pline_success) {
+            LOG_INFO("skipping next pipeline (&&)");
             continue;
+        }
 
-        pipeline_success = run_pipeline(&andor->pipeline, inputfd, outputfd);
+        pline_success = run_pline(&andor->pline, inputfd, outputfd);
     }
 }
