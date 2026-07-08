@@ -127,6 +127,18 @@ int run_cd_builtin(char **argv, sh_env *shell_env) {
     return EXIT_SUCCESS;
 }
 
+bool verify_var_key(const char *key) {
+    for (const char *c = key; *c != '\0'; ++c) {
+        if (!((*c >= 'a' && *c <= 'z') ||
+            (*c >= 'A' && *c <= 'Z') ||
+            // (*c >= '0' && *c <= '9') ||
+            *c == '-' || *c == '_'))
+            return false;
+    }
+
+    return true;
+}
+
 int run_set_builtin(char **argv, sh_env *shell_env) {
     (void) shell_env;
 
@@ -155,6 +167,11 @@ int run_set_builtin(char **argv, sh_env *shell_env) {
 
     if (strlen(argv[2]) >= SHELL_VAR_MAX) {
         err_msg("set: value too long: %s", argv[2]);
+        return EXIT_FAILURE;
+    }
+
+    if (!verify_var_key(argv[1])) {
+        err_msg("set: invald variable name: %s", argv[1]);
         return EXIT_FAILURE;
     }
 
