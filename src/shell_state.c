@@ -8,25 +8,46 @@
 
 static da_vars st_vars;
 
-char *st_lookup_var(char *key) {
+static bool st_get_index_var(char *key, size_t *index) {
     for (size_t i = 0; i < st_vars.size; ++i) {
         if (strcmp(st_vars.data[i].key, key) == 0) {
-            return st_vars.data[i].value;
+            *index = i;
+            return true;
         }
     }
 
-    return NULL;
+    return false;
 }
 
-void st_add_var(var_pair *var) {
-    char *old_value = st_lookup_var(var->key);
-    if (old_value) {
-        strcpy(old_value, var->value);
+char *st_lookup_var(char *key) {
+    size_t index;
+    if (st_get_index_var(key, &index)) {
+        return st_vars.data[index].value;
+    } else
+        return NULL;
+}
+
+int st_add_var(var_pair *var) {
+    size_t index;
+    if (st_get_index_var(var->key, &index)) {
+        strcpy(st_vars.data[index].value, var->value);
     } else {
         var_pair *new_var = da_push(&st_vars);
         if (!new_var)
-            return;
+            return - 1;
 
         *new_var = *var;
     }
+
+    return 0;
+}
+
+int st_delete_var(var_pair *var) {
+    size_t index;
+    if (st_get_index_var(var->key, &index)) {
+        if (da_delete(&st_vars, index) == -1)
+            return -1;
+    }
+
+    return 0;
 }

@@ -178,7 +178,10 @@ int run_set_builtin(char **argv, sh_env *shell_env) {
     strcpy(var.key, argv[1]);
     strcpy(var.value, argv[2]);
 
-    st_add_var(&var);
+    if (st_add_var(&var) == -1) {
+        err_msg("set: failed to add variable");
+        return EXIT_FAILURE;
+    }
 
     return EXIT_SUCCESS;
 }
