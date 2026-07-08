@@ -143,7 +143,8 @@ static int move_fd(int fd1, int fd2) {
 
 static int exec_pline(const ps_pline *pline, da_pid *pids, \
         int inputfd, int outputfd) {
-    da_init(pids);
+    if (da_init(pids) == -1)
+        LOG_ERR("da_init");
 
     pid_t child_pid;
 
@@ -173,6 +174,7 @@ static int exec_pline(const ps_pline *pline, da_pid *pids, \
         pid_t *pid = da_push(pids);
         if (!pid) {
             err_msg("da_push");
+            LOG_ERR("da_push");
             goto fail;
         }
         *pid = child_pid;

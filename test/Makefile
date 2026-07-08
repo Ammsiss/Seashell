@@ -24,7 +24,7 @@ PS_MODS   := $(UOBJ) $(BLD_DIR)/test_parser.o $(BLD_DIR)/parser.o \
 DA_MODS   := $(UOBJ) $(BLD_DIR)/test_dyn_arr.o $(BLD_DIR)/dyn_arr.o
 EX_MODS   := $(UOBJ) $(BLD_DIR)/test_expander.o $(BLD_DIR)/dyn_arr.o \
 			 $(BLD_DIR)/parser.o $(BLD_DIR)/lexer.o $(BLD_DIR)/expander.o \
-			 $(BLD_DIR)/shell_state.o $(BLD_DIR)/dyn_str.o
+			 $(BLD_DIR)/shell_state.o $(BLD_DIR)/dyn_str.o $(BLD_DIR)/log.o
 SH_MODS   := $(UOBJ) $(BLD_DIR)/test_executor.o $(BLD_DIR)/executor.o \
 			 $(BLD_DIR)/dyn_arr.o $(BLD_DIR)/parser.o $(BLD_DIR)/lexer.o \
 			 $(BLD_DIR)/expander.o $(BLD_DIR)/log.o $(BLD_DIR)/utils.o \
