@@ -5,9 +5,10 @@
 #include "builtins.h"
 #include "log.h"
 #include "parser.h"
+#include "utils.h"
 
 static int run_exit_builtin(char **argv, sh_env *shell_env) {
-    (void) argv; /* no args for now */
+    (void) argv;
 
     if (shell_env->subshell)
         _exit(EXIT_SUCCESS);
@@ -21,13 +22,6 @@ static int run_exit_builtin(char **argv, sh_env *shell_env) {
 
 static int run_cd_builtin(char **argv, sh_env *shell_env) {
     (void) shell_env;
-
-    if (!argv || !argv[0]) {
-        LOG_ERR("builtin cd received invalid argv structure");
-        fprintf(stderr, "cd: internal error check logs\n");
-        return EXIT_FAILURE;
-    }
-
     if (!argv[1]) {
         fprintf(stderr, "cd: path required\n");
         return EXIT_FAILURE;
@@ -60,13 +54,6 @@ bool verify_var_key(const char *key) {
 
 static int run_set_builtin(char **argv, sh_env *shell_env) {
     (void) shell_env;
-
-    if (!argv || !argv[0]) {
-        LOG_ERR("builtin set received invalid argv structure");
-        fprintf(stderr, "set: internal error check logs\n");
-        return EXIT_FAILURE;
-    }
-
     if (!argv[1] || !argv[2]) {
         fprintf(stderr, "set: not enough arguments\n");
         return EXIT_FAILURE;
@@ -107,13 +94,6 @@ static int run_set_builtin(char **argv, sh_env *shell_env) {
 
 static int run_unset_builtin(char **argv, sh_env *shell_env) {
     (void) shell_env;
-
-    if (!argv || !argv[0]) {
-        LOG_ERR("builtin set received invalid argv structure");
-        fprintf(stderr, "unset: internal error check logs\n");
-        return EXIT_FAILURE;
-    }
-
     if (!argv[1]) {
         fprintf(stderr, "unset: not enough arguments\n");
         return EXIT_FAILURE;
@@ -152,6 +132,11 @@ static sh_builtin *get_builtin(const char *arg) {
 }
 
 bool try_run_builtin(char **argv, int *status) {
+    if (!argv || !argv[0]) {
+        LOG_ERR("received invalid argv structure");
+        err_exit(false, "internal error check logs\n");
+    }
+
     sh_builtin *builtin = get_builtin(argv[0]);
     if (builtin) {
         *status = builtin->func(argv, &shell_env);
