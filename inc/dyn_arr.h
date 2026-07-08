@@ -17,7 +17,8 @@
     int name##_init(name *arr);\
     void name##_free(name *arr); \
     type *name##_push(name *arr); \
-    int name##_reserve(name *arr, size_t min);
+    int name##_reserve(name *arr, size_t min); \
+    int name##_delete(name *arr, size_t remove_i);
 
 /* for tests */
 DECLARE_DYN_ARR(da_int, int)
@@ -90,6 +91,24 @@ DECLARE_DYN_ARR(da_andor, ps_andor)
 
 #define da_reserve(arr, min) \
     get_da_reserve(arr)(arr, min)
+
+#define get_da_delete(arr) \
+    _Generic(*(arr), \
+        da_int: da_int_delete, \
+        da_pid: da_pid_delete, \
+        da_vars: da_vars_delete, \
+        da_charp: da_charp_delete, \
+        da_part: da_part_delete, \
+        da_tok: da_tok_delete, \
+        da_segment: da_segment_delete, \
+        da_word: da_word_delete, \
+        da_redir: da_redir_delete, \
+        da_cmd: da_cmd_delete, \
+        da_andor: da_andor_delete \
+    )
+
+#define da_delete(arr, remove_i) \
+    get_da_delete(arr)(arr, remove_i)
 
 #define get_da_push(arr) \
     _Generic(*(arr), \

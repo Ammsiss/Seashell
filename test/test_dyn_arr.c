@@ -68,6 +68,64 @@ void test_push_returns_new_element(void) {
     TEST_ASSERT_EQUAL_INT(0, *p);
 }
 
+void test_delete_only_element(void) {
+    da_push(&arr);
+    validate_array(&arr, 1, 1);
+
+    da_delete(&arr, 0);
+    validate_array(&arr, 0, 1);
+}
+
+void test_delete_first_element(void) {
+    int *p1 = da_push(&arr);
+    validate_array(&arr, 1, 1);
+    *p1 = 1;
+
+    int *p2 = da_push(&arr);
+    validate_array(&arr, 2, 2);
+    *p2 = 2;
+
+    da_delete(&arr, 0);
+    validate_array(&arr, 1, 2);
+
+    TEST_ASSERT_EQUAL_INT(arr.data[0], 2);
+}
+
+void test_delete_last_element(void) {
+    int *p1 = da_push(&arr);
+    validate_array(&arr, 1, 1);
+    *p1 = 1;
+
+    int *p2 = da_push(&arr);
+    validate_array(&arr, 2, 2);
+    *p2 = 2;
+
+    da_delete(&arr, 1);
+    validate_array(&arr, 1, 2);
+
+    TEST_ASSERT_EQUAL_INT(arr.data[0], 1);
+}
+
+void test_delete_middle_element(void) {
+    int *p1 = da_push(&arr);
+    validate_array(&arr, 1, 1);
+    *p1 = 1;
+
+    int *p2 = da_push(&arr);
+    validate_array(&arr, 2, 2);
+    *p2 = 2;
+
+    int *p3 = da_push(&arr);
+    validate_array(&arr, 3, 3);
+    *p3 = 3;
+
+    da_delete(&arr, 1);
+    validate_array(&arr, 2, 3);
+
+    TEST_ASSERT_EQUAL_INT(arr.data[0], 1);
+    TEST_ASSERT_EQUAL_INT(arr.data[1], 3);
+}
+
 void test_generic_init(void) {
     da_tok toks;
     TEST_ASSERT_EQUAL_PTR(da_tok_init, get_da_init(&toks));
@@ -97,6 +155,11 @@ int main(void) {
     RUN_TEST(test_reserve_realloc_preserves_data);
 
     RUN_TEST(test_push_returns_new_element);
+
+    RUN_TEST(test_delete_only_element);
+    RUN_TEST(test_delete_first_element);
+    RUN_TEST(test_delete_last_element);
+    RUN_TEST(test_delete_middle_element);
 
     RUN_TEST(test_generic_init);
     RUN_TEST(test_generic_free);

@@ -65,6 +65,22 @@
         \
         return p; \
     } \
+    \
+    int name##_delete(name *arr, size_t remove_i) { \
+        assert(arr); \
+        if (!arr) \
+            return -1; \
+        \
+        if (remove_i >= arr->size || remove_i < 0) \
+            return -1; \
+        \
+        for (size_t i = remove_i + 1; i < arr->size; ++i) \
+            arr->data[i - 1] = arr->data[i]; \
+        \
+        arr->size -= 1; \
+        \
+        return 0; \
+    }
 
 /* for tests */
 DEFINE_DYN_ARR(da_int, int)
