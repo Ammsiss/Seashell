@@ -10,8 +10,12 @@
 #include <wait.h>
 #include <stdlib.h>
 #include <dirent.h>
-#include <sys/stat.h>
 #include <dyn_str.h>
+#include <sys/statfs.h>
+#include <linux/magic.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <valgrind/valgrind.h>
 
 #include "utils.h"
 #include "executor.h"
@@ -22,7 +26,7 @@
 
 static sh_env shell_env = { .subshell = false };
 
-void verify_pfd_count(int exp_pfd_n) {
+void verify_fd_count(int exp_pfd_n) {
     char dir_prefix[PATH_MAX];
     snprintf(dir_prefix, PATH_MAX, "/proc/%d/fd/", getpid());
 
@@ -30,11 +34,11 @@ void verify_pfd_count(int exp_pfd_n) {
     if (!dir)
         return;
 
-    d_str proc_path;
-    if (d_str_init(&proc_path) == -1)
+    d_str fd_entry;
+    if (d_str_init(&fd_entry) == -1)
         return;
 
-    struct stat sb;
+    struct statfs sfsb;
     struct dirent *dirent;
 
     int pfd_n = 0;
@@ -50,16 +54,15 @@ void verify_pfd_count(int exp_pfd_n) {
                 break;
         }
 
-        if (d_strcpy(&proc_path, dir_prefix) == -1)
+        if (d_strcpy(&fd_entry, dir_prefix) == -1)
             goto fail;
-        if (d_strcat(&proc_path, dirent->d_name) == -1)
-            goto fail;
-
-        if (xstat(proc_path.c_str, &sb) == -1)
+        if (d_strcat(&fd_entry, dirent->d_name) == -1)
             goto fail;
 
-        /* careful: also true for fifo's */
-        if (S_ISFIFO(sb.st_mode))
+        if (xstatfs(fd_entry.c_str, &sfsb) == -1)
+            goto fail;
+
+        if (sfsb.f_type == PIPEFS_MAGIC)
             ++pfd_n;
 
         ++total_n;
@@ -72,7 +75,16 @@ void verify_pfd_count(int exp_pfd_n) {
         LOG_WARN("unexpected fd count: (exp 7 got %d)", total_n);
 fail:
     xclosedir(dir);
-    d_str_free(&proc_path);
+    d_str_free(&fd_entry);
+}
+
+void verify_pline_child_fds(bool first, bool last) {
+    if (first && last)
+        verify_fd_count(0);
+    else if ((!first && last) || (first && !last))
+        verify_fd_count(1);
+    else if (!first && !last)
+        verify_fd_count(2);
 }
 
 int run_exit_builtin(char **argv, sh_env *shell_env) {
@@ -330,12 +342,8 @@ static int exec_pline(const ps_pline *pline, da_pid *pids, \
             if (try_run_builtin(cmd, &status))
                 _exit(status);
 
-            if (first && last)
-                verify_pfd_count(0);
-            else if ((!first && last) || (first && !last))
-                verify_pfd_count(1);
-            else if (!first && !last)
-                verify_pfd_count(2);
+            if (!RUNNING_ON_VALGRIND) /* valgrind opens fds */
+                verify_pline_child_fds(first, last);
 
             xexecvp(cmd->argv[0], cmd->argv);
 
@@ -364,7 +372,8 @@ static int exec_pline(const ps_pline *pline, da_pid *pids, \
         }
     }
 
-    verify_pfd_count(0);
+    if (!RUNNING_ON_VALGRIND)
+        verify_fd_count(0);
     return 0;
 
 fail:

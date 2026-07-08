@@ -164,4 +164,12 @@ void log_msg(log_level type, const char *errstr, const char *file, \
         rv; \
     })
 
+#define xstatfs(name, sfsb) \
+    ({ \
+        int rv = statfs(name, sfsb); \
+        if (rv == -1) \
+            LOG_ERRNO("statfs"); \
+        rv; \
+    })
+
 #endif
