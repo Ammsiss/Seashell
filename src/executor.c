@@ -17,14 +17,12 @@
 #include <sys/stat.h>
 #include <valgrind/valgrind.h>
 
+#include "builtins.h"
 #include "utils.h"
 #include "executor.h"
-#include "executor_types.h"
 #include "parser.h" // IWYU pragma: keep - See 2026-06-25 Notes
 #include "log.h"
 #include "shell_state.h"
-
-static sh_env shell_env = { .subshell = false };
 
 void verify_fd_count(int exp_pfd_n) {
     char dir_prefix[PATH_MAX];
@@ -85,161 +83,6 @@ void verify_pline_child_fds(bool first, bool last) {
         verify_fd_count(1);
     else if (!first && !last)
         verify_fd_count(2);
-}
-
-int run_exit_builtin(char **argv, sh_env *shell_env) {
-    (void) argv; /* no args for now */
-
-    if (shell_env->subshell)
-        _exit(EXIT_SUCCESS);
-    else {
-        printf("exit\n");
-        exit(EXIT_SUCCESS);
-    }
-
-    return EXIT_FAILURE;
-}
-
-int run_cd_builtin(char **argv, sh_env *shell_env) {
-    (void) shell_env;
-
-    if (!argv || !argv[0]) {
-        LOG_ERR("builtin cd received invalid argv structure");
-        fprintf(stderr, "cd: internal error check logs\n");
-        return EXIT_FAILURE;
-    }
-
-    if (!argv[1]) {
-        fprintf(stderr, "cd: path required\n");
-        return EXIT_FAILURE;
-    }
-
-    if (argv[2]) {
-        fprintf(stderr, "cd: too many arguments\n");
-        return EXIT_FAILURE;
-    }
-
-    if (chdir(argv[1]) == -1) {
-        fprintf(stderr, "cd: chdir: %s\n", strerror(errno));
-        return EXIT_FAILURE;
-    }
-
-    return EXIT_SUCCESS;
-}
-
-bool verify_var_key(const char *key) {
-    for (const char *c = key; *c != '\0'; ++c) {
-        if (!((*c >= 'a' && *c <= 'z') ||
-            (*c >= 'A' && *c <= 'Z') ||
-            // (*c >= '0' && *c <= '9') ||
-            *c == '-' || *c == '_'))
-            return false;
-    }
-
-    return true;
-}
-
-int run_set_builtin(char **argv, sh_env *shell_env) {
-    (void) shell_env;
-
-    if (!argv || !argv[0]) {
-        LOG_ERR("builtin set received invalid argv structure");
-        fprintf(stderr, "set: internal error check logs\n");
-        return EXIT_FAILURE;
-    }
-
-    if (!argv[1] || !argv[2]) {
-        fprintf(stderr, "set: not enough arguments\n");
-        return EXIT_FAILURE;
-    }
-
-    if (argv[3]) {
-        fprintf(stderr, "set: too many arguments\n");
-        return EXIT_FAILURE;
-    }
-
-    var_pair var = {0};
-
-    if (strlen(argv[1]) >= SHELL_VAR_MAX) {
-        fprintf(stderr, "set: variable name too long: %s\n", argv[1]);
-        return EXIT_FAILURE;
-    }
-
-    if (strlen(argv[2]) >= SHELL_VAR_MAX) {
-        fprintf(stderr, "set: variable value too long: %s\n", argv[2]);
-        return EXIT_FAILURE;
-    }
-
-    if (!verify_var_key(argv[1])) {
-        fprintf(stderr, "set: invald variable name: %s\n", argv[1]);
-        return EXIT_FAILURE;
-    }
-
-    strcpy(var.key, argv[1]);
-    strcpy(var.value, argv[2]);
-
-    if (st_add_var(&var) == -1) {
-        fprintf(stderr, "set: failed to add variable\n");
-        return EXIT_FAILURE;
-    }
-
-    return EXIT_SUCCESS;
-}
-
-int run_unset_builtin(char **argv, sh_env *shell_env) {
-    (void) shell_env;
-
-    if (!argv || !argv[0]) {
-        LOG_ERR("builtin set received invalid argv structure");
-        fprintf(stderr, "unset: internal error check logs\n");
-        return EXIT_FAILURE;
-    }
-
-    if (!argv[1]) {
-        fprintf(stderr, "unset: not enough arguments\n");
-        return EXIT_FAILURE;
-    }
-
-    if (argv[2]) {
-        fprintf(stderr, "unset: too many arguments\n");
-        return EXIT_FAILURE;
-    }
-
-    if (strlen(argv[1]) >= SHELL_VAR_MAX) {
-        fprintf(stderr, "set: variable name too long: %s\n", argv[1]);
-        return EXIT_FAILURE;
-    }
-
-    st_delete_var(argv[1]);
-
-    return EXIT_SUCCESS;
-}
-
-static sh_builtin builtins[BUILTIN_COUNT] = {
-    { .name = "exit", .func = run_exit_builtin },
-    { .name = "cd", .func = run_cd_builtin },
-    { .name = "set", .func = run_set_builtin },
-    { .name = "unset", .func = run_unset_builtin }
-};
-
-sh_builtin *get_builtin(const ps_cmd *cmd) {
-    const char *name = cmd->words.data[0].arg;
-
-    for (size_t i = 0; i < BUILTIN_COUNT; ++i)
-        if (strcmp(builtins[i].name, name) == 0)
-            return &builtins[i];
-
-    return NULL;
-}
-
-static bool try_run_builtin(const ps_cmd *cmd, int *status) {
-    sh_builtin *builtin = get_builtin(cmd);
-    if (builtin) {
-        *status = builtin->func(cmd->argv, &shell_env);
-        return true;
-    }
-
-    return false;
 }
 
 static int wait_for_pids(da_pid *pids) {
@@ -389,7 +232,7 @@ static int exec_pline(const ps_pline *pline, da_pid *pids, \
             }
 
             int status;
-            if (try_run_builtin(cmd, &status))
+            if (try_run_builtin(cmd->argv, &status))
                 _exit(status);
 
             if (!RUNNING_ON_VALGRIND) /* valgrind opens fds */
@@ -437,7 +280,7 @@ static bool run_pline(const ps_pline *pline, int inputfd, int outputfd) {
     if (pline->cmds.size == 1) {
 
         int bltin_status;
-        if (try_run_builtin(cmd, &bltin_status))
+        if (try_run_builtin(cmd->argv, &bltin_status))
             return bltin_status == EXIT_SUCCESS;
     }
 

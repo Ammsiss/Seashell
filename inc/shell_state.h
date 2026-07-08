@@ -12,6 +12,12 @@ struct var_pair {
     char value[SHELL_VAR_MAX];
 };
 
+typedef struct {
+    bool subshell;
+} sh_env;
+
+static sh_env shell_env = { .subshell = false };
+
 int st_add_var(var_pair *var);
 int st_delete_var(char *key);
 char *st_lookup_var(char *key);
