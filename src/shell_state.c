@@ -42,9 +42,9 @@ int st_add_var(var_pair *var) {
     return 0;
 }
 
-int st_delete_var(var_pair *var) {
+int st_delete_var(char *key) {
     size_t index;
-    if (st_get_index_var(var->key, &index)) {
+    if (st_get_index_var(key, &index)) {
         if (da_delete(&st_vars, index) == -1)
             return -1;
     }

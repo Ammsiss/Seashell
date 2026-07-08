@@ -13,7 +13,7 @@ struct var_pair {
 };
 
 int st_add_var(var_pair *var);
-int st_delete_var(var_pair *var);
+int st_delete_var(char *key);
 char *st_lookup_var(char *key);
 
 #endif

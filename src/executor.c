@@ -105,22 +105,22 @@ int run_cd_builtin(char **argv, sh_env *shell_env) {
 
     if (!argv || !argv[0]) {
         LOG_ERR("builtin cd received invalid argv structure");
-        err_msg("cd: internal error check logs");
+        fprintf(stderr, "cd: internal error check logs\n");
         return EXIT_FAILURE;
     }
 
     if (!argv[1]) {
-        err_msg("cd: path required");
+        fprintf(stderr, "cd: path required\n");
         return EXIT_FAILURE;
     }
 
     if (argv[2]) {
-        err_msg("cd: too many arguments");
+        fprintf(stderr, "cd: too many arguments\n");
         return EXIT_FAILURE;
     }
 
     if (chdir(argv[1]) == -1) {
-        errno_msg("cd");
+        fprintf(stderr, "cd: chdir: %s\n", strerror(errno));
         return EXIT_FAILURE;
     }
 
@@ -144,34 +144,34 @@ int run_set_builtin(char **argv, sh_env *shell_env) {
 
     if (!argv || !argv[0]) {
         LOG_ERR("builtin set received invalid argv structure");
-        err_msg("set: internal error check logs");
+        fprintf(stderr, "set: internal error check logs\n");
         return EXIT_FAILURE;
     }
 
     if (!argv[1] || !argv[2]) {
-        err_msg("set: not enough arguments");
+        fprintf(stderr, "set: not enough arguments\n");
         return EXIT_FAILURE;
     }
 
     if (argv[3]) {
-        err_msg("set: too many arguments");
+        fprintf(stderr, "set: too many arguments\n");
         return EXIT_FAILURE;
     }
 
     var_pair var = {0};
 
     if (strlen(argv[1]) >= SHELL_VAR_MAX) {
-        err_msg("set: key too long: %s", argv[1]);
+        fprintf(stderr, "set: variable name too long: %s\n", argv[1]);
         return EXIT_FAILURE;
     }
 
     if (strlen(argv[2]) >= SHELL_VAR_MAX) {
-        err_msg("set: value too long: %s", argv[2]);
+        fprintf(stderr, "set: variable value too long: %s\n", argv[2]);
         return EXIT_FAILURE;
     }
 
     if (!verify_var_key(argv[1])) {
-        err_msg("set: invald variable name: %s", argv[1]);
+        fprintf(stderr, "set: invald variable name: %s\n", argv[1]);
         return EXIT_FAILURE;
     }
 
@@ -179,9 +179,38 @@ int run_set_builtin(char **argv, sh_env *shell_env) {
     strcpy(var.value, argv[2]);
 
     if (st_add_var(&var) == -1) {
-        err_msg("set: failed to add variable");
+        fprintf(stderr, "set: failed to add variable\n");
         return EXIT_FAILURE;
     }
+
+    return EXIT_SUCCESS;
+}
+
+int run_unset_builtin(char **argv, sh_env *shell_env) {
+    (void) shell_env;
+
+    if (!argv || !argv[0]) {
+        LOG_ERR("builtin set received invalid argv structure");
+        fprintf(stderr, "unset: internal error check logs\n");
+        return EXIT_FAILURE;
+    }
+
+    if (!argv[1]) {
+        fprintf(stderr, "unset: not enough arguments\n");
+        return EXIT_FAILURE;
+    }
+
+    if (argv[2]) {
+        fprintf(stderr, "unset: too many arguments\n");
+        return EXIT_FAILURE;
+    }
+
+    if (strlen(argv[1]) >= SHELL_VAR_MAX) {
+        fprintf(stderr, "set: variable name too long: %s\n", argv[1]);
+        return EXIT_FAILURE;
+    }
+
+    st_delete_var(argv[1]);
 
     return EXIT_SUCCESS;
 }
@@ -189,7 +218,8 @@ int run_set_builtin(char **argv, sh_env *shell_env) {
 static sh_builtin builtins[BUILTIN_COUNT] = {
     { .name = "exit", .func = run_exit_builtin },
     { .name = "cd", .func = run_cd_builtin },
-    { .name = "set", .func = run_set_builtin }
+    { .name = "set", .func = run_set_builtin },
+    { .name = "unset", .func = run_unset_builtin }
 };
 
 sh_builtin *get_builtin(const ps_cmd *cmd) {
