@@ -8,6 +8,22 @@
 #include "parser_types.h"
 #include "shell_types.h"
 
+#define DYN_ARR_TYPES \
+    /* lexer */ \
+    X(da_part, lx_part) \
+    X(da_tok, lx_tok) \
+    /* parser */ \
+    X(da_segment, ps_segment) \
+    X(da_word, ps_word) \
+    X(da_redir, ps_redir) \
+    X(da_cmd, ps_cmd) \
+    X(da_andor, ps_andor) \
+    /* misc */ \
+    X(da_int, int) \
+    X(da_pid, pid_t) \
+    X(da_vars, var_pair) \
+    X(da_charp, char *)
+
 #define DECLARE_DYN_ARR(name, type) \
     typedef struct { \
         type *data; \
@@ -20,23 +36,9 @@
     int name##_reserve(name *arr, size_t min); \
     int name##_delete(name *arr, size_t remove_i);
 
-/* for tests */
-DECLARE_DYN_ARR(da_int, int)
-
-DECLARE_DYN_ARR(da_pid, pid_t)
-DECLARE_DYN_ARR(da_vars, var_pair)
-DECLARE_DYN_ARR(da_charp, char *)
-
-/* lexer */
-DECLARE_DYN_ARR(da_part, lx_part)
-DECLARE_DYN_ARR(da_tok, lx_tok)
-
-/* parser */
-DECLARE_DYN_ARR(da_segment, ps_segment)
-DECLARE_DYN_ARR(da_word, ps_word)
-DECLARE_DYN_ARR(da_redir, ps_redir)
-DECLARE_DYN_ARR(da_cmd, ps_cmd)
-DECLARE_DYN_ARR(da_andor, ps_andor)
+#define X(name, type) DECLARE_DYN_ARR(name, type)
+    DYN_ARR_TYPES /* invocation */
+#undef X
 
 #define get_da_init(arr) \
     _Generic(*(arr), \

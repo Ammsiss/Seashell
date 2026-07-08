@@ -1,11 +1,70 @@
 ---------------------------------------------------------------------------------
 
-## 2026-07-6
+## 2026-07-8
+
+### Next
+
+- [ ] Job control!
+
+### Tasks
+
+Where is everyone?
+
+**Complete**
+- [x] err_exit should always exit with EXIT_FAILURE, use _exit where needed
+- [x] use statfs to discern pipes from fifos in validate_pfd_count
+- [x] add happy path tests for redirections
+- [x] set builtin should not allow key to have ' '
+- [x] set builtin should not allow key to have any symbols besides _ or -
+- [x] add da_delete function for the st_unset_var function
+- [x] write unset builtin
+- [x] add a separate source file for the builtins.
+- [x] move out error checking from buitins into "try run builtin"
+- [x] add arg handling to exit builtin
+- [x] Use X macros to centralize da_array registration
+- [ ] (Removed) set builtin should not allow duplicate key entries
+- [ ] (Removed - requires expander overhaul) Expand unquoted ~ with $HOME
+- [ ] (Removed) use xda_arr log helpers but for shell modules
+- [ ] (Removed) Add logging of file descriptors using proc/pid/fd
+- [ ] (Removed) Come up with a system for toggleable tracing.
+
+### Notes
+
+Lots done today, sort of just checking stuff off. Moving the builtins to
+their own source was a nice change, the api it actually needs to expose
+turned out to be tiny (just try_run_builtin()) so the executor got a lot
+simpler.
+
+I don't think proactively writing trace code makes sense after thinking about
+it. It should probably naturaly develop from just debugging areas of code where
+you write print statements to check assumptions then over time if those print
+statements keep being useful you build some structure around it so that they
+stay up and you don't start from zero every time. But the shell is still simple
+enough that debugging still feels pretty surface level. No need for permanent
+traces yet.
+
+Choosing the boring todo items and just sticking with them seems to pay rent
+much more then following interesting little rabbit holes. Going to try and do
+that more. I got a suprising amount done today just by choosing a todos.
+
+When you choose a todo and then another good next step arises from working on
+it, I think its better to not do it right away. Write it down and finish the
+current item even if it would just be deleted/reverted by the next step
+anyways. I think its better because you don't want to stack changes, you start
+the current todo with some assumptions and if mid way through the todo you move
+on to another todo you discovered in the half finished state of the first todo
+its as lot easier to forget the initial assumptions and break something. It
+feels really tempting to just do it quickly becuase it seems directly related
+but its not. Its it's own unique todo that you may or may not want to do after.
+
+---------------------------------------------------------------------------------
+
+## 2026-07-7
 
 ### Next
 
 - [ ] err_exit should always exit with EXIT_FAILURE, use _exit where needed
-- [ ] add regression tests for redirections
+- [ ] add happy path tests for redirections
 
 ### Tasks
 

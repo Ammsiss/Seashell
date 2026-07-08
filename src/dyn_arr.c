@@ -82,20 +82,6 @@
         return 0; \
     }
 
-/* for tests */
-DEFINE_DYN_ARR(da_int, int)
-
-DEFINE_DYN_ARR(da_pid, pid_t)
-DEFINE_DYN_ARR(da_vars, var_pair)
-DEFINE_DYN_ARR(da_charp, char *)
-
-/* lexer */
-DEFINE_DYN_ARR(da_part, lx_part)
-DEFINE_DYN_ARR(da_tok, lx_tok)
-
-/* parser */
-DEFINE_DYN_ARR(da_segment, ps_segment)
-DEFINE_DYN_ARR(da_word, ps_word)
-DEFINE_DYN_ARR(da_redir, ps_redir)
-DEFINE_DYN_ARR(da_cmd, ps_cmd)
-DEFINE_DYN_ARR(da_andor, ps_andor)
+#define X(name ,type) DEFINE_DYN_ARR(name, type)
+    DYN_ARR_TYPES
+#undef X
