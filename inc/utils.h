@@ -9,11 +9,11 @@
 PFFORMAT(1, 2)
 void fatal(const char *fmt, ...);
 
-PFFORMAT(3, 4)
-void errExit(int exit_code, bool print_err, const char *fmt, ...);
+PFFORMAT(2, 3)
+void errExit(bool print_err, const char *fmt, ...);
 
-PFFORMAT(3, 4)
-void err_exit(int exit_code, bool print_err, const char *fmt, ...);
+PFFORMAT(2, 3)
+void err_exit(bool print_err, const char *fmt, ...);
 
 PFFORMAT(1, 2)
 void err_msg(const char *fmt, ...);

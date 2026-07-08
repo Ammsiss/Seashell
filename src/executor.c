@@ -291,7 +291,7 @@ static int exec_pline(const ps_pline *pline, da_pid *pids, \
                     _exit(EXIT_FAILURE);
 
                 if (close(next_pipe[0]) == -1)
-                    err_exit(EXIT_FAILURE, true, "close");
+                    err_exit(true, "close");
             }
 
             /* Set up redirects */
@@ -304,7 +304,7 @@ static int exec_pline(const ps_pline *pline, da_pid *pids, \
                 if (redir->io_num == STDIN_FILENO) {
                     rfd = open(arg, O_RDONLY);
                     if (rfd == -1)
-                        err_exit(EXIT_FAILURE, true, "open");
+                        err_exit(true, "open");
                 } else {
                     if (redir->append) {
                         rfd = open(arg, O_WRONLY | O_CREAT | O_EXCL, 0600);
@@ -312,14 +312,14 @@ static int exec_pline(const ps_pline *pline, da_pid *pids, \
                             if (errno == EEXIST) {
                                 rfd = open(arg, O_WRONLY | O_APPEND);
                                 if (rfd == -1)
-                                    err_exit(EXIT_FAILURE, true, "open");
+                                    err_exit(true, "open");
                             } else
-                                err_exit(EXIT_FAILURE, true, "open");
+                                err_exit(true, "open");
                         }
                     } else {
                         rfd = open(arg, O_WRONLY | O_CREAT | O_TRUNC, 0600);
                         if (rfd == -1)
-                            err_exit(EXIT_FAILURE, true, "open");
+                            err_exit(true, "open");
                     }
                 }
 
@@ -341,10 +341,11 @@ static int exec_pline(const ps_pline *pline, da_pid *pids, \
 
             if (errno == ENOENT) {
                 err_msg("command not found: %s", cmd->argv[0]);
-            } else
+                _exit(127);
+            } else {
                 errno_msg("execvp");
-
-            _exit(EXIT_FAILURE);
+                _exit(EXIT_FAILURE);
+            }
         }
 
         if (!first)

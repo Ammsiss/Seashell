@@ -33,22 +33,22 @@ void fatal(const char *fmt, ...) {
     exit(EXIT_FAILURE);
 }
 
-void errExit(int exit_code, bool print_err, const char *fmt, ...) {
+void errExit(bool print_err, const char *fmt, ...) {
     va_list va;
     va_start(va, fmt);
     output_err(fmt, &va, print_err);
     va_end(va);
 
-    exit(exit_code);
+    exit(EXIT_FAILURE);
 }
 
-void err_exit(int exit_code, bool print_err, const char *fmt, ...) {
+void err_exit(bool print_err, const char *fmt, ...) {
     va_list va;
     va_start(va, fmt);
     output_err(fmt, &va, print_err);
     va_end(va);
 
-    _exit(exit_code);
+    _exit(EXIT_FAILURE);
 }
 
 void err_msg(const char *fmt, ...) {
