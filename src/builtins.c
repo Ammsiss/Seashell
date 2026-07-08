@@ -8,16 +8,31 @@
 #include "utils.h"
 
 static int run_exit_builtin(char **argv, sh_env *shell_env) {
-    (void) argv;
+    int exit_status = EXIT_FAILURE;
 
-    if (shell_env->subshell)
-        _exit(EXIT_SUCCESS);
-    else {
-        printf("exit\n");
-        exit(EXIT_SUCCESS);
+    if (argv[1]) {
+        char *endptr;
+        exit_status = strtol(argv[1], &endptr, 10);
+
+        if (strcmp(argv[1], "") == 0 || *endptr != '\0') {
+            fprintf(stderr, "exit: invalid argument: %s\n", argv[1]);
+            return EXIT_FAILURE;
+        }
+
+        if (argv[2]) {
+            fprintf(stderr, "exit: too many arguments\n");
+            return EXIT_FAILURE;
+        }
     }
 
-    return EXIT_FAILURE;
+    printf("exiting with status %d\n", exit_status);
+
+    if (shell_env->subshell)
+        _exit(exit_status);
+    else {
+        printf("exit\n");
+        exit(exit_status);
+    }
 }
 
 static int run_cd_builtin(char **argv, sh_env *shell_env) {
