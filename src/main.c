@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include <unistd.h>
+#include <signal.h>
 #include <wait.h>
 
 #include "utils.h"
@@ -45,34 +46,30 @@ void run_cmd(const char *line) {
     ps_free(&job);
 }
 
-int main(int argc, char **argv) {
+void process_sighup(const sigset_t *block_set) {
+    if (sigtimedwait(block_set, NULL, &(struct timespec){0}) == -1) {
+        if (errno != EAGAIN)
+            errExit(true, "sigtimedwait");
+    } else {
+        LOG_INFO("caught sighup");
+        /* send SIGHUP to all fg and bg pgroups */
+        exit(128 + SIGHUP);
+    }
+}
+
+int main(void) {
+    sigset_t block_set;
+    if (xsigemptyset(&block_set) == -1)
+        errExit(true, "sigemptyset");
+    if (xsigaddset(&block_set, SIGHUP) == -1)
+        errExit(true, "sigaddset");
+    if (xsigprocmask(SIG_SETMASK, &block_set, NULL) == -1)
+        errExit(true, "sigprocmask");
+
     if (log_init() == -1)
         return EXIT_FAILURE;
 
     LOG_INFO("seashell PID(%d)", getpid());
-
-    bool cmd_mode = false;
-    const char *opt_cmd;
-
-    char opt_char;
-    while ((opt_char = getopt(argc, argv, ":c:")) != -1) {
-        switch (opt_char) {
-        case 'c':
-            cmd_mode = true;
-            opt_cmd = optarg;
-            break;
-        case ':':
-            usage_err("-%c requires an argument", optopt);
-            exit(EXIT_FAILURE); /* getopt prints usage errs */
-        case '?':
-            usage_err("%s [-c]", argv[0]);
-        }
-    }
-
-    if (cmd_mode) {
-        run_cmd(opt_cmd);
-        exit(EXIT_SUCCESS);
-    }
 
     char *line;
 
@@ -90,16 +87,21 @@ int main(int argc, char **argv) {
         if (num_read == -1) {
             free(line);
             free(cwd);
-            if (feof(stdin))
+            if (feof(stdin)) {
+                process_sighup(&block_set);
                 break;
+            }
             return EXIT_FAILURE;
         }
 
         if (line[num_read - 1] == '\n')
             line[num_read - 1] = '\0';
 
-        if (strlen(line) != 0)
+        if (strlen(line) != 0) {
             run_cmd(line);
+            process_sighup(&block_set);
+        }
+
 
         free(line);
         free(cwd);

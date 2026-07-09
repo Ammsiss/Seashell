@@ -172,4 +172,36 @@ void log_msg(log_level type, const char *errstr, const char *file, \
         rv; \
     })
 
+#define xsigaction(signum, sa, old) \
+    ({ \
+        int rv = sigaction(signum, sa, old); \
+        if (rv == -1) \
+            LOG_ERRNO("sigaction"); \
+        rv; \
+    })
+
+#define xsigemptyset(set) \
+    ({ \
+        int rv = sigemptyset(set); \
+        if (rv == -1) \
+            LOG_ERRNO("sigemptyset"); \
+        rv; \
+    })
+
+#define xsigaddset(set, signum) \
+    ({ \
+        int rv = sigaddset(set, signum); \
+        if (rv == -1) \
+            LOG_ERRNO("sigaddset"); \
+        rv; \
+    })
+
+#define xsigprocmask(how, set, old) \
+    ({ \
+        int rv = sigprocmask(how, set, old); \
+        if (rv == -1) \
+            LOG_ERRNO("sigprocmask"); \
+        rv; \
+    })
+
 #endif
