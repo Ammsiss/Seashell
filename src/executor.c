@@ -225,24 +225,19 @@ static void child_exec_or_exit(const struct exec_pline_st *pline_st) {
     }
 }
 
-static int exec_pline(const ps_pline *pline, da_pid *pids, \
-        int inputfd, int outputfd) {
+static int exec_pline(struct exec_pline_st *pline_st, da_pid *pids) {
     if (da_init(pids) == -1)
         LOG_ERR("da_init");
 
     pid_t child_pid;
 
-    struct exec_pline_st pline_st = {0};
-    pline_st.inputfd = inputfd;
-    pline_st.outputfd = outputfd;
+    for (size_t i = 0; i < pline_st->pline->cmds.size; ++i) {
+        pline_st->cmd = &pline_st->pline->cmds.data[i];
+        pline_st->first = (i == 0);
+        pline_st->last = (i == pline_st->pline->cmds.size - 1);
 
-    for (size_t i = 0; i < pline->cmds.size; ++i) {
-        pline_st.cmd = &pline->cmds.data[i];
-        pline_st.first = (i == 0);
-        pline_st.last = (i == pline->cmds.size - 1);
-
-        if (!pline_st.last) {
-            if (xpipe(pline_st.next_pipe) == -1) {
+        if (!pline_st->last) {
+            if (xpipe(pline_st->next_pipe) == -1) {
                 errno_msg("pipe");
                 goto fail;
             }
@@ -267,26 +262,26 @@ static int exec_pline(const ps_pline *pline, da_pid *pids, \
         if (child_pid == 0) {
             shell_env.subshell = true;
 
-            child_fd_setup(&pline_st);
-            child_redir_setup(&pline_st);
+            child_fd_setup(pline_st);
+            child_redir_setup(pline_st);
 
             int status;
-            if (try_run_builtin(pline_st.cmd->argv, &status))
+            if (try_run_builtin(pline_st->cmd->argv, &status))
                 _exit(status);
 
-            child_exec_or_exit(&pline_st);
+            child_exec_or_exit(pline_st);
         }
 
-        if (!pline_st.first)
-            if (xclose(pline_st.prev_read_fd) == -1) {
+        if (!pline_st->first)
+            if (xclose(pline_st->prev_read_fd) == -1) {
                 errno_msg("close");
                 goto fail;
             }
 
-        if (!pline_st.last) {
-            pline_st.prev_read_fd = pline_st.next_pipe[0];
+        if (!pline_st->last) {
+            pline_st->prev_read_fd = pline_st->next_pipe[0];
 
-            if (xclose(pline_st.next_pipe[1]) == -1) {
+            if (xclose(pline_st->next_pipe[1]) == -1) {
                 errno_msg("close");
                 goto fail;
             }
@@ -303,16 +298,20 @@ fail:
 }
 
 static bool run_pline(const ps_pline *pline, int inputfd, int outputfd) {
-    ps_cmd *cmd = &pline->cmds.data[0];
+    struct exec_pline_st pline_st = {0};
+    pline_st.pline = pline;
+    pline_st.cmd = &pline->cmds.data[0];
+    pline_st.inputfd = inputfd;
+    pline_st.outputfd = outputfd;
 
-    if (pline->cmds.size == 1) {
+    if (pline_st.pline->cmds.size == 1) {
         int bltin_status;
-        if (try_run_builtin(cmd->argv, &bltin_status))
+        if (try_run_builtin(pline_st.cmd->argv, &bltin_status))
             return bltin_status == EXIT_SUCCESS;
     }
 
     da_pid pids;
-    if (exec_pline(pline, &pids, inputfd, outputfd) == -1)
+    if (exec_pline(&pline_st, &pids) == -1)
         return false;
 
     int last_status = wait_for_pids(&pids);
