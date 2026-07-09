@@ -85,7 +85,7 @@ void verify_pline_child_fds(bool first, bool last) {
         verify_fd_count(2);
 }
 
-static int wait_for_pids(da_pid *pids) {
+static int wait_for_pids(da_pid *pids, int *status) {
     int wstat;
     int last_status;
 
@@ -117,7 +117,8 @@ static int wait_for_pids(da_pid *pids) {
     }
 
     da_free(pids);
-    return last_status;
+    *status = last_status;
+    return 0;
 
 fail:
     da_free(pids);
@@ -141,18 +142,18 @@ static int move_fd(int fd1, int fd2) {
     return 0;
 }
 
-struct exec_pline_st {
+typedef struct {
     const ps_pline *pline;
-    const ps_cmd *cmd;
+    const ps_cmd *cur_cmd;
     int next_pipe[2];
     int prev_read_fd;
     bool first;
     bool last;
     int inputfd;
     int outputfd;
-};
+} pline_st;
 
-static void child_fd_setup(const struct exec_pline_st *pline_st) {
+static void child_fd_setup(const pline_st *pline_st) {
     /* Set up file descriptors */
     if (pline_st->first) {
         if (move_fd(pline_st->inputfd, STDIN_FILENO) == -1)
@@ -176,10 +177,10 @@ static void child_fd_setup(const struct exec_pline_st *pline_st) {
         verify_pline_child_fds(pline_st->first, pline_st->last);
 }
 
-void child_redir_setup(const struct exec_pline_st *pline_st) {
+void child_redir_setup(const pline_st *pst) {
     /* Set up redirects */
-    for (size_t i = 0; i < pline_st->cmd->redirs.size; ++i) {
-        ps_redir *redir = &pline_st->cmd->redirs.data[i];
+    for (size_t i = 0; i < pst->cur_cmd->redirs.size; ++i) {
+        ps_redir *redir = &pst->cur_cmd->redirs.data[i];
         const char *arg = redir->target.arg;
 
         int rfd;
@@ -210,14 +211,14 @@ void child_redir_setup(const struct exec_pline_st *pline_st) {
     }
 
     if (!RUNNING_ON_VALGRIND) /* valgrind opens fds */
-        verify_pline_child_fds(pline_st->first, pline_st->last);
+        verify_pline_child_fds(pst->first, pst->last);
 }
 
-static void child_exec_or_exit(const struct exec_pline_st *pline_st) {
-    xexecvp(pline_st->cmd->argv[0], pline_st->cmd->argv);
+static void child_exec_or_exit(const pline_st *pst) {
+    xexecvp(pst->cur_cmd->argv[0], pst->cur_cmd->argv);
 
     if (errno == ENOENT) {
-        err_msg("command not found: %s", pline_st->cmd->argv[0]);
+        err_msg("command not found: %s", pst->cur_cmd->argv[0]);
         _exit(127);
     } else {
         errno_msg("execvp");
@@ -225,19 +226,19 @@ static void child_exec_or_exit(const struct exec_pline_st *pline_st) {
     }
 }
 
-static int exec_pline(struct exec_pline_st *pline_st, da_pid *pids) {
+static int exec_pline(pline_st *pst, da_pid *pids) {
     if (da_init(pids) == -1)
         LOG_ERR("da_init");
 
     pid_t child_pid;
 
-    for (size_t i = 0; i < pline_st->pline->cmds.size; ++i) {
-        pline_st->cmd = &pline_st->pline->cmds.data[i];
-        pline_st->first = (i == 0);
-        pline_st->last = (i == pline_st->pline->cmds.size - 1);
+    for (size_t i = 0; i < pst->pline->cmds.size; ++i) {
+        pst->cur_cmd = &pst->pline->cmds.data[i];
+        pst->first = (i == 0);
+        pst->last = (i == pst->pline->cmds.size - 1);
 
-        if (!pline_st->last) {
-            if (xpipe(pline_st->next_pipe) == -1) {
+        if (!pst->last) {
+            if (xpipe(pst->next_pipe) == -1) {
                 errno_msg("pipe");
                 goto fail;
             }
@@ -262,26 +263,26 @@ static int exec_pline(struct exec_pline_st *pline_st, da_pid *pids) {
         if (child_pid == 0) {
             shell_env.subshell = true;
 
-            child_fd_setup(pline_st);
-            child_redir_setup(pline_st);
+            child_fd_setup(pst);
+            child_redir_setup(pst);
 
             int status;
-            if (try_run_builtin(pline_st->cmd->argv, &status))
+            if (try_run_builtin(pst->cur_cmd->argv, &status))
                 _exit(status);
 
-            child_exec_or_exit(pline_st);
+            child_exec_or_exit(pst);
         }
 
-        if (!pline_st->first)
-            if (xclose(pline_st->prev_read_fd) == -1) {
+        if (!pst->first)
+            if (xclose(pst->prev_read_fd) == -1) {
                 errno_msg("close");
                 goto fail;
             }
 
-        if (!pline_st->last) {
-            pline_st->prev_read_fd = pline_st->next_pipe[0];
+        if (!pst->last) {
+            pst->prev_read_fd = pst->next_pipe[0];
 
-            if (xclose(pline_st->next_pipe[1]) == -1) {
+            if (xclose(pst->next_pipe[1]) == -1) {
                 errno_msg("close");
                 goto fail;
             }
@@ -298,27 +299,26 @@ fail:
 }
 
 static bool run_pline(const ps_pline *pline, int inputfd, int outputfd) {
-    struct exec_pline_st pline_st = {0};
-    pline_st.pline = pline;
-    pline_st.cmd = &pline->cmds.data[0];
-    pline_st.inputfd = inputfd;
-    pline_st.outputfd = outputfd;
+    pline_st pst = {0};
+    pst.pline = pline;
+    pst.cur_cmd = &pline->cmds.data[0];
+    pst.inputfd = inputfd;
+    pst.outputfd = outputfd;
 
-    if (pline_st.pline->cmds.size == 1) {
-        int bltin_status;
-        if (try_run_builtin(pline_st.cmd->argv, &bltin_status))
-            return bltin_status == EXIT_SUCCESS;
-    }
+    int status = {0};
+
+    if (pst.pline->cmds.size == 1)
+        if (try_run_builtin(pst.cur_cmd->argv, &status))
+            return status == EXIT_SUCCESS;
 
     da_pid pids;
-    if (exec_pline(&pline_st, &pids) == -1)
+    if (exec_pline(&pst, &pids) == -1)
         return false;
 
-    int last_status = wait_for_pids(&pids);
-    if (last_status == -1)
+    if (wait_for_pids(&pids, &status) == -1)
         fatal("fatal: bad job control state");
 
-    return last_status == EXIT_SUCCESS;
+    return status == EXIT_SUCCESS;
 }
 
 void sh_run(const ps_job *job, int inputfd, int outputfd) {
