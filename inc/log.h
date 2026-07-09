@@ -204,4 +204,20 @@ void log_msg(log_level type, const char *errstr, const char *file, \
         rv; \
     })
 
+#define xsetpgid(pid, pgid) \
+    ({ \
+        int rv = setpgid(pid, pgid); \
+        if (rv == -1) \
+            LOG_ERRNO("setpgid"); \
+        rv; \
+    })
+
+#define xtcsetpgrp(fd, pgid) \
+    ({ \
+        int rv = tcsetpgrp(fd, pgid); \
+        if (rv == -1) \
+            LOG_ERRNO("tcsetpgrp"); \
+        rv; \
+    })
+
 #endif

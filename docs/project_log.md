@@ -1,5 +1,30 @@
 ---------------------------------------------------------------------------------
 
+## 2026-07-9
+
+### Next
+
+- [ ] Investigate why tcsetpgrp is failing
+
+### Tasks
+
+- [ ] handle SIGTTIN in child
+- [ ] parent should report STOPPED and CONTINUED through waitpid
+- [ ] add err_msg to the fail: label and remove them from syscalls in exec_pline
+
+**Complete**
+- [x] refactor exec_pline
+
+### Notes
+
+Job control is pretty interesting. Just re-reading some material on it
+and testing the waters for now. Already ran into a head scratcher but It
+shouldn't be too bad. Why is tcsetpgrp failing... I don't think its the
+fd not refering to the controlling terminal but the pgrp thing should also
+be right. Good luck tommorow me.
+
+---------------------------------------------------------------------------------
+
 ## 2026-07-8
 
 ### Next
