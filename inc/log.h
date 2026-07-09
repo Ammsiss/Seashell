@@ -78,7 +78,7 @@ void log_msg(log_level type, const char *errstr, const char *file, \
 
 #define xpipe(pfd) \
     ({ \
-        int rv = pipe(next_pipe); \
+        int rv = pipe(pfd); \
         if (rv == -1) \
             LOG_ERRNO("pipe"); \
         rv; \

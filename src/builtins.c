@@ -25,8 +25,6 @@ static int run_exit_builtin(char **argv, sh_env *shell_env) {
         }
     }
 
-    printf("exiting with status %d\n", exit_status);
-
     if (shell_env->subshell)
         _exit(exit_status);
     else {

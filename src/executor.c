@@ -141,6 +141,90 @@ static int move_fd(int fd1, int fd2) {
     return 0;
 }
 
+struct exec_pline_st {
+    const ps_pline *pline;
+    const ps_cmd *cmd;
+    int next_pipe[2];
+    int prev_read_fd;
+    bool first;
+    bool last;
+    int inputfd;
+    int outputfd;
+};
+
+static void child_fd_setup(const struct exec_pline_st *pline_st) {
+    /* Set up file descriptors */
+    if (pline_st->first) {
+        if (move_fd(pline_st->inputfd, STDIN_FILENO) == -1)
+            _exit(EXIT_FAILURE);
+    } else if (!pline_st->first)
+        if (move_fd(pline_st->prev_read_fd, STDIN_FILENO) == -1)
+            _exit(EXIT_FAILURE);
+
+    if (pline_st->last) {
+        if (move_fd(pline_st->outputfd, STDOUT_FILENO) == -1)
+            _exit(EXIT_FAILURE);
+    } else if (!pline_st->last) {
+        if (move_fd(pline_st->next_pipe[1], STDOUT_FILENO) == -1)
+            _exit(EXIT_FAILURE);
+
+        if (close(pline_st->next_pipe[0]) == -1)
+            err_exit(true, "close");
+    }
+
+    if (!RUNNING_ON_VALGRIND) /* valgrind opens fds */
+        verify_pline_child_fds(pline_st->first, pline_st->last);
+}
+
+void child_redir_setup(const struct exec_pline_st *pline_st) {
+    /* Set up redirects */
+    for (size_t i = 0; i < pline_st->cmd->redirs.size; ++i) {
+        ps_redir *redir = &pline_st->cmd->redirs.data[i];
+        const char *arg = redir->target.arg;
+
+        int rfd;
+
+        if (redir->io_num == STDIN_FILENO) {
+            rfd = open(arg, O_RDONLY);
+            if (rfd == -1)
+                err_exit(true, "open");
+        } else {
+            if (redir->append) {
+                rfd = open(arg, O_WRONLY | O_CREAT | O_EXCL, 0600);
+                if (rfd == -1) {
+                    if (errno == EEXIST) {
+                        rfd = open(arg, O_WRONLY | O_APPEND);
+                        if (rfd == -1)
+                            err_exit(true, "open");
+                    } else
+                        err_exit(true, "open");
+                }
+            } else {
+                rfd = open(arg, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+                if (rfd == -1)
+                    err_exit(true, "open");
+            }
+        }
+
+        move_fd(rfd, redir->io_num);
+    }
+
+    if (!RUNNING_ON_VALGRIND) /* valgrind opens fds */
+        verify_pline_child_fds(pline_st->first, pline_st->last);
+}
+
+static void child_exec_or_exit(const struct exec_pline_st *pline_st) {
+    xexecvp(pline_st->cmd->argv[0], pline_st->cmd->argv);
+
+    if (errno == ENOENT) {
+        err_msg("command not found: %s", pline_st->cmd->argv[0]);
+        _exit(127);
+    } else {
+        errno_msg("execvp");
+        _exit(EXIT_FAILURE);
+    }
+}
+
 static int exec_pline(const ps_pline *pline, da_pid *pids, \
         int inputfd, int outputfd) {
     if (da_init(pids) == -1)
@@ -148,23 +232,23 @@ static int exec_pline(const ps_pline *pline, da_pid *pids, \
 
     pid_t child_pid;
 
-    int next_pipe[2];
-    int prev_read_fd;
+    struct exec_pline_st pline_st = {0};
+    pline_st.inputfd = inputfd;
+    pline_st.outputfd = outputfd;
 
-    size_t cmd_cnt = pline->cmds.size;
+    for (size_t i = 0; i < pline->cmds.size; ++i) {
+        pline_st.cmd = &pline->cmds.data[i];
+        pline_st.first = (i == 0);
+        pline_st.last = (i == pline->cmds.size - 1);
 
-    for (size_t i = 0; i < cmd_cnt; ++i) {
-        ps_cmd *cmd = &pline->cmds.data[i];
-        bool first = (i == 0);
-        bool last = (i == cmd_cnt - 1);
-
-        if (!last) {
-            if (xpipe(next_pipe) == -1) {
+        if (!pline_st.last) {
+            if (xpipe(pline_st.next_pipe) == -1) {
                 errno_msg("pipe");
                 goto fail;
             }
         }
 
+        /********** PID TRACKING START **********/
         child_pid = xfork();
         if (child_pid == -1) {
             errno_msg("fork");
@@ -178,89 +262,31 @@ static int exec_pline(const ps_pline *pline, da_pid *pids, \
             goto fail;
         }
         *pid = child_pid;
+        /********** PID TRACKING END ************/
 
         if (child_pid == 0) {
             shell_env.subshell = true;
 
-            /* Set up file descriptors */
-            if (first) {
-                if (move_fd(inputfd, STDIN_FILENO) == -1)
-                    _exit(EXIT_FAILURE);
-            } else if (!first)
-                if (move_fd(prev_read_fd, STDIN_FILENO) == -1)
-                    _exit(EXIT_FAILURE);
-
-            if (last) {
-                if (move_fd(outputfd, STDOUT_FILENO) == -1)
-                    _exit(EXIT_FAILURE);
-            } else if (!last) {
-                if (move_fd(next_pipe[1], STDOUT_FILENO) == -1)
-                    _exit(EXIT_FAILURE);
-
-                if (close(next_pipe[0]) == -1)
-                    err_exit(true, "close");
-            }
-
-            /* Set up redirects */
-            for (size_t i = 0; i < cmd->redirs.size; ++i) {
-                ps_redir *redir = &cmd->redirs.data[i];
-                const char *arg = redir->target.arg;
-
-                int rfd;
-
-                if (redir->io_num == STDIN_FILENO) {
-                    rfd = open(arg, O_RDONLY);
-                    if (rfd == -1)
-                        err_exit(true, "open");
-                } else {
-                    if (redir->append) {
-                        rfd = open(arg, O_WRONLY | O_CREAT | O_EXCL, 0600);
-                        if (rfd == -1) {
-                            if (errno == EEXIST) {
-                                rfd = open(arg, O_WRONLY | O_APPEND);
-                                if (rfd == -1)
-                                    err_exit(true, "open");
-                            } else
-                                err_exit(true, "open");
-                        }
-                    } else {
-                        rfd = open(arg, O_WRONLY | O_CREAT | O_TRUNC, 0600);
-                        if (rfd == -1)
-                            err_exit(true, "open");
-                    }
-                }
-
-                move_fd(rfd, redir->io_num);
-            }
+            child_fd_setup(&pline_st);
+            child_redir_setup(&pline_st);
 
             int status;
-            if (try_run_builtin(cmd->argv, &status))
+            if (try_run_builtin(pline_st.cmd->argv, &status))
                 _exit(status);
 
-            if (!RUNNING_ON_VALGRIND) /* valgrind opens fds */
-                verify_pline_child_fds(first, last);
-
-            xexecvp(cmd->argv[0], cmd->argv);
-
-            if (errno == ENOENT) {
-                err_msg("command not found: %s", cmd->argv[0]);
-                _exit(127);
-            } else {
-                errno_msg("execvp");
-                _exit(EXIT_FAILURE);
-            }
+            child_exec_or_exit(&pline_st);
         }
 
-        if (!first)
-            if (xclose(prev_read_fd) == -1) {
+        if (!pline_st.first)
+            if (xclose(pline_st.prev_read_fd) == -1) {
                 errno_msg("close");
                 goto fail;
             }
 
-        if (!last) {
-            prev_read_fd = next_pipe[0];
+        if (!pline_st.last) {
+            pline_st.prev_read_fd = pline_st.next_pipe[0];
 
-            if (xclose(next_pipe[1]) == -1) {
+            if (xclose(pline_st.next_pipe[1]) == -1) {
                 errno_msg("close");
                 goto fail;
             }
@@ -280,7 +306,6 @@ static bool run_pline(const ps_pline *pline, int inputfd, int outputfd) {
     ps_cmd *cmd = &pline->cmds.data[0];
 
     if (pline->cmds.size == 1) {
-
         int bltin_status;
         if (try_run_builtin(cmd->argv, &bltin_status))
             return bltin_status == EXIT_SUCCESS;
