@@ -212,6 +212,23 @@ void log_msg(log_level type, const char *errstr, const char *file, \
         rv; \
     })
 
+#define xisatty(fd) \
+    ({ \
+        int rv = isatty(fd); \
+        if (rv == -1) \
+            LOG_ERRNO("isatty"); \
+        rv; \
+    })
+
+
+#define xtcgetpgrp(fd) \
+    ({ \
+        pid_t rv = tcgetpgrp(fd); \
+        if (rv == -1) \
+            LOG_ERRNO("tcgetpgrp"); \
+        rv; \
+    })
+
 #define xtcsetpgrp(fd, pgid) \
     ({ \
         int rv = tcsetpgrp(fd, pgid); \

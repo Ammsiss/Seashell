@@ -1,16 +1,58 @@
 ---------------------------------------------------------------------------------
 
+## 2026-07-10
+
+### Next
+
+Add a tcsetpgrp call to the test file to return fg pgram status to the parent
+and then attempt to read from the terminal and see if you still get EIO.
+
+Also see if the tcsetpgrp call returns ENOTTY like in the shell. If it doesn't
+then it's definitely my code causing the bug.
+
+### Tasks
+
+- [ ] add err_msg to the fail: label and remove them from syscalls in exec_pline
+- [ ] run the job_mon.c program to verify job control setup
+
+**Completed**
+- [x] parent should report STOPPED and CONTINUED through waitpid
+- [ ] (Removed) handle SIGTTIN in child
+
+### Notes
+
+Worked through a bad misconception that was causing a lot of confusion. For
+some reason when I read that "by defintion a session leaders process group is
+orphaned" my brain filled in the blank to be "so the normal orphaned process
+group rules don't apply to it". That was making it very confusing as to why in
+a test program I wrote when the controlling process is in a background group
+and tries to read from the controlling terminal while not having set up a
+signal handler for SIGTTIN it was getting EIO after calling read. I thought it
+should stop the process no? But no, the rules do apply to it just like any
+other process group. So no matter what a session leaders process group will
+always be orphaned.
+
+Also relating to that, its not the case that a session leaders process group
+will *always* be orphaned. You could have a situation where process A creates a
+session, forks B, B moves to a new process group in the same session, B forks
+C, then C moves to A's process group. Now the session leader's (A) process
+group has another process in it (C) that has a parent (B) in another process
+group but the same session.
+
+---------------------------------------------------------------------------------
+
 ## 2026-07-9
 
 ### Next
 
-- [ ] Investigate why tcsetpgrp is failing
+Investigate why tcsetpgrp is failing
 
 ### Tasks
 
 - [ ] handle SIGTTIN in child
 - [ ] parent should report STOPPED and CONTINUED through waitpid
 - [ ] add err_msg to the fail: label and remove them from syscalls in exec_pline
+- [ ] run the job_mon.c program to verify job control setup
 
 **Complete**
 - [x] refactor exec_pline
