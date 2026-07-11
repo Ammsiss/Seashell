@@ -52,6 +52,10 @@ void verify_fd_count(int exp_pfd_n) {
                 break;
         }
 
+        if (strcmp(".", dirent->d_name) == 0 ||
+            strcmp("..", dirent->d_name) == 0)
+            continue;
+
         if (d_strcpy(&fd_entry, dir_prefix) == -1)
             goto fail;
         if (d_strcat(&fd_entry, dirent->d_name) == -1)
@@ -69,7 +73,7 @@ void verify_fd_count(int exp_pfd_n) {
     if (exp_pfd_n != pfd_n)
         LOG_WARN("unexpected pfd count (exp %d got %d)", exp_pfd_n, pfd_n);
 
-    if (7 != total_n) /* expected: logfd + . + .. + opendir + first 3 io nums */
+    if (6 != total_n) /* expected: logfd + opendir + 3 io nums + tty_fd */
         LOG_WARN("unexpected fd count: (exp 7 got %d)", total_n);
 fail:
     xclosedir(dir);
@@ -92,7 +96,7 @@ static int wait_for_pids(da_pid *pids, int *status) {
     for (size_t i = 0; i < pids->size; ++i) {
         pid_t pid = pids->data[i];
 
-        if (xwaitpid(pid, &wstat, 0) == -1) {
+        if (xwaitpid(pid, &wstat, WUNTRACED) == -1) {
             errno_msg("waitpid");
             goto fail;
         }
@@ -111,6 +115,12 @@ static int wait_for_pids(da_pid *pids, int *status) {
                 printf("\n");
 
                 last_status = 128 + signum;
+            } else if (WIFSTOPPED(wstat)) {
+                LOG_INFO("process stopped pid=%d", pid);
+#ifdef WIFCONTINUED
+            } else if (WIFCONTINUED(wstat)) {
+                LOG_INFO("process continued pid=%d", pid);
+#endif
             } else
                 goto fail;
         }
@@ -215,22 +225,28 @@ void child_redir_setup(const pline_st *pst) {
 }
 
 static void child_exec_or_exit(const pline_st *pst) {
+    sigset_t unblock_set;
+    if (xsigemptyset(&unblock_set) == -1)
+        err_exit(true, "sigemptyset");
+    if (xsigaddset(&unblock_set, SIGHUP) == -1)
+        err_exit(true, "sigaddset");
+    if (xsigprocmask(SIG_UNBLOCK, &unblock_set, NULL) == -1)
+        err_exit(true, "sigprocmask");
+
     xexecvp(pst->cur_cmd->argv[0], pst->cur_cmd->argv);
 
     if (errno == ENOENT) {
         err_msg("command not found: %s", pst->cur_cmd->argv[0]);
         _exit(127);
-    } else {
-        errno_msg("execvp");
-        _exit(EXIT_FAILURE);
-    }
+    } else
+        err_exit(true, "execvp");
 }
 
 static int exec_pline(pline_st *pst, da_pid *pids) {
     if (da_init(pids) == -1)
         LOG_ERR("da_init");
 
-    pid_t child_pid;
+    pid_t pipeline_pgid;
 
     for (size_t i = 0; i < pst->pline->cmds.size; ++i) {
         pst->cur_cmd = &pst->pline->cmds.data[i];
@@ -244,24 +260,25 @@ static int exec_pline(pline_st *pst, da_pid *pids) {
             }
         }
 
-        /********** PID TRACKING START **********/
-        child_pid = xfork();
+        int child_pid = xfork();
         if (child_pid == -1) {
             errno_msg("fork");
             goto fail;
         }
 
-        pid_t *pid = da_push(pids);
-        if (!pid) {
-            err_msg("da_push");
-            LOG_ERR("da_push");
-            goto fail;
-        }
-        *pid = child_pid;
-        /********** PID TRACKING END ************/
+        if (pst->first)
+            pipeline_pgid = child_pid;
 
+        /********** CHILD START *****************/
         if (child_pid == 0) {
             shell_env.subshell = true;
+
+            if (xsetpgid(0, pipeline_pgid) == -1)
+                err_exit(true, "setpgid");
+
+            if (pst->first)
+                if (xtcsetpgrp(shell_env.tty_fd, getpgrp()) == -1)
+                    err_exit(true, "tcsetpgrp");
 
             child_fd_setup(pst);
             child_redir_setup(pst);
@@ -271,6 +288,29 @@ static int exec_pline(pline_st *pst, da_pid *pids) {
                 _exit(status);
 
             child_exec_or_exit(pst);
+        }
+        /********** CHILD END *******************/
+
+        pid_t *pid = da_push(pids);
+        if (!pid) {
+            err_msg("da_push");
+            LOG_ERR("da_push");
+            goto fail;
+        }
+        *pid = child_pid;
+
+        if (xsetpgid(child_pid, pipeline_pgid) == -1) {
+            if (errno != EACCES) {
+                errno_msg("setpgid");
+                goto fail;
+            }
+        }
+
+        if (pst->first) {
+            if (xtcsetpgrp(shell_env.tty_fd, pipeline_pgid) == -1) {
+                errno_msg("tcsetpgrp");
+                goto fail;
+            }
         }
 
         if (!pst->first)
@@ -317,6 +357,10 @@ static bool run_pline(const ps_pline *pline, int inputfd, int outputfd) {
 
     if (wait_for_pids(&pids, &status) == -1)
         fatal("fatal: bad job control state");
+
+    /* restore fg pgroup status; SIGTTOU must be blocked/ignored */
+    if (xtcsetpgrp(shell_env.tty_fd, getpgrp()) == -1)
+        errExit(true, "tcsetpgrp");
 
     return status == EXIT_SUCCESS;
 }

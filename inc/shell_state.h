@@ -14,6 +14,7 @@ struct var_pair {
 
 typedef struct {
     bool subshell;
+    int tty_fd;
 } sh_env;
 
 static sh_env shell_env = { .subshell = false };

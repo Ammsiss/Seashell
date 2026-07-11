@@ -126,7 +126,7 @@ void log_msg(log_level type, const char *errstr, const char *file, \
 
 #define xopen(file, oflags, ...) \
     ({ \
-        int rv = xopen(file, oflags __VA_OPT__(,) __VA_ARGS__); \
+        int rv = open(file, oflags __VA_OPT__(,) __VA_ARGS__); \
         if (rv == -1) \
             LOG_ERRNO("open"); \
         rv; \
@@ -207,8 +207,12 @@ void log_msg(log_level type, const char *errstr, const char *file, \
 #define xsetpgid(pid, pgid) \
     ({ \
         int rv = setpgid(pid, pgid); \
-        if (rv == -1) \
-            LOG_ERRNO("setpgid"); \
+        if (rv == -1) {\
+            if (errno == EACCES) {\
+                LOG_WARN("setpgid"); \
+            } else \
+                LOG_ERRNO("setpgid"); \
+        } \
         rv; \
     })
 
@@ -234,6 +238,15 @@ void log_msg(log_level type, const char *errstr, const char *file, \
         int rv = tcsetpgrp(fd, pgid); \
         if (rv == -1) \
             LOG_ERRNO("tcsetpgrp"); \
+        rv; \
+    })
+
+#define xgetline(line, len, stream) \
+    ({ \
+        int rv = getline(line, len, stream); \
+        if (rv == -1) \
+            if (ferror(stream)) \
+                LOG_ERRNO("getline"); \
         rv; \
     })
 

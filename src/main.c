@@ -7,6 +7,7 @@
 #include <signal.h>
 #include <wait.h>
 
+#include "shell_state.h"
 #include "utils.h"
 #include "log.h"
 #include "lexer.h"
@@ -58,6 +59,14 @@ void process_sighup(const sigset_t *block_set) {
 }
 
 int main(void) {
+    struct sigaction sa;
+    sa.sa_flags = 0;
+    xsigemptyset(&sa.sa_mask);
+    sa.sa_handler = SIG_IGN;
+
+    if (xsigaction(SIGTTOU, &sa, NULL) == -1)
+        errExit(true, "sigaction");
+
     sigset_t block_set;
     if (xsigemptyset(&block_set) == -1)
         errExit(true, "sigemptyset");
@@ -71,6 +80,12 @@ int main(void) {
 
     LOG_INFO("seashell PID(%d)", getpid());
 
+    /* initial state */
+    shell_env.subshell = false;
+    shell_env.tty_fd = xopen("/dev/tty", O_RDWR | O_CLOEXEC);
+    if (shell_env.tty_fd == -1)
+        errExit(true, "open");
+
     char *line;
 
     while (true) {
@@ -83,7 +98,7 @@ int main(void) {
         line = NULL;
         size_t len;
 
-        int num_read = getline(&line, &len, stdin);
+        int num_read = xgetline(&line, &len, stdin);
         if (num_read == -1) {
             free(line);
             free(cwd);
@@ -91,7 +106,8 @@ int main(void) {
                 process_sighup(&block_set);
                 break;
             }
-            return EXIT_FAILURE;
+
+            errExit(true, "getline");
         }
 
         if (line[num_read - 1] == '\n')

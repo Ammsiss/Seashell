@@ -247,6 +247,14 @@ void test_redirect_stdin(void) {
 int main(void) {
     log_init();
 
+    struct sigaction sa;
+    sa.sa_flags = 0;
+    xsigemptyset(&sa.sa_mask);
+    sa.sa_handler = SIG_IGN;
+
+    if (xsigaction(SIGTTOU, &sa, NULL) == -1)
+        return EXIT_FAILURE;
+
     UNITY_BEGIN();
 
     RUN_TEST(test_three_pipeline_cmd);
