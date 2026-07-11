@@ -101,29 +101,28 @@ static int wait_for_pids(da_pid *pids, int *status) {
             goto fail;
         }
 
-        if (i == pids->size - 1) {
-            if (WIFEXITED(wstat)) {
-                last_status = WEXITSTATUS(wstat);
-            } else if (WIFSIGNALED(wstat)) {
-                int signum = WTERMSIG(wstat);
-                fprintf(stderr, "terminated by signal %d (%s)",
-                        signum, strsignal(signum));
-#ifdef WCOREDUMP
-                if (WCOREDUMP(wstat))
-                    printf(" (core dumped)");
-#endif
-                printf("\n");
+        if (i == pids->size - 1)
+            last_status = WEXITSTATUS(wstat);
 
-                last_status = 128 + signum;
-            } else if (WIFSTOPPED(wstat)) {
-                LOG_INFO("process stopped pid=%d", pid);
-#ifdef WIFCONTINUED
-            } else if (WIFCONTINUED(wstat)) {
-                LOG_INFO("process continued pid=%d", pid);
+        if (WIFSIGNALED(wstat)) {
+            int signum = WTERMSIG(wstat);
+            fprintf(stderr, "terminated by signal %d (%s)",
+                    signum, strsignal(signum));
+#ifdef WCOREDUMP
+            if (WCOREDUMP(wstat))
+                printf(" (core dumped)");
 #endif
-            } else
-                goto fail;
-        }
+            printf("\n");
+
+            last_status = 128 + signum;
+        } else if (WIFSTOPPED(wstat)) {
+            printf("seashell: process %d stopped\n", pid);
+#ifdef WIFCONTINUED
+        } else if (WIFCONTINUED(wstat)) {
+            printf("seashell: process %d continued\n", pid);
+#endif
+        } else
+            goto fail;
     }
 
     da_free(pids);
@@ -225,6 +224,7 @@ void child_redir_setup(const pline_st *pst) {
 }
 
 static void child_exec_or_exit(const pline_st *pst) {
+    /* execed programs should not block SIGHUP */
     sigset_t unblock_set;
     if (xsigemptyset(&unblock_set) == -1)
         err_exit(true, "sigemptyset");
