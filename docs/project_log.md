@@ -1,5 +1,110 @@
 ---------------------------------------------------------------------------------
 
+## 2026-07-12
+
+### Next
+- [ ] Create helper functions for signal semantics (blocking/ignoring/handlers)
+
+### Tasks
+
+- [ ] Use epoll_pwait/ppoll/pselect to wait on tty_fd and signal delivery
+- [ ] add err_msg to the fail: label and remove them from syscalls in exec_pline
+- [ ] think about any life time resources the shell will need to clean up.
+- [ ] errExit early and use exit handlers to clean up persistant state
+
+**Completed**
+- [x] Add initial job control structures
+- [x] Replace use of C11 getline function with new input module
+
+### Notes
+
+The semantics around SIGHUP, SIGCHLD, and blocking calls is requiring some
+careful thought. I'm going to need 2 separate modes for running a job. One that
+is guaranteed to not block (not reap children) and another that does. This is
+because if a job is being run in the foreground, the parent does want to block.
+Convrsely if the job is run in the background it should be handled async by a
+SIGCHLD handler.
+
+I'm going to need to block SIGHUP and SIGCHLD, installed handlers for them that
+set a global flag, then use a function like epoll_pwait to atomically unblock
+and wait on the ttyfd and signal devlivery.
+
+If a job is run in the foreground then the shell should exec the pipeline, move
+the pipeline pgid to the foreground add the pgroup to the job control
+structure, collect the pids and then block on waitpid until it reaps all the
+children then return to the epoll_pwait call.
+
+    The reason we still add the pgroup the the job control structure is because
+    if the user suspends all the processes in the fgroup such as through C-Z
+    then the job would have to be moved to the background and tracked through
+    job control.
+
+If the job is run in the background then the shell should exec the pipeline,
+add the pgroup to the job control structure, and then immediately return to the
+epoll_pwait call where any future wait statusus will be reported asynchrounsly.
+
+The interesting case which I don't yet know how I would implement is if you have a background job running with another job in the foreground that runs for a while (such as ping) what happens if the background job has a wait status to report?
+
+One idea: we would already be blocking at the waitpid call (for example waiting
+for ping to exit) so we could just wait for *any* pid and report the status
+while we are there (while updating the job control structure). Then when we
+successfully consume a wait status for all of the children in the job control
+flow returns the to shell. That seems like it could work because just reaping
+the children wont remove the pending SIGCHLD.
+
+Essentially the invariant should be that every waitpid call is routed through
+the job control update function. That allows us to report on statuses that
+happen to be available as soon as possible when blocking on a foreground job.
+
+---------------------------------------------------------------------------------
+
+## 2026-07-11
+
+### Next
+
+### Tasks
+
+- [ ] add err_msg to the fail: label and remove them from syscalls in exec_pline
+- [ ] think about any life time resources the shell will need to clean up.
+- [ ] errExit early and use exit handlers to clean up persistant state
+
+**Completed**
+- [x] block SIGTTOU so that tcsetpgrp() doesn't fail with ENOTTY
+- [x] add tcsetpgrp call in child too; same race fix as setpgid
+- [x] run the job_mon.c program to verify job control setup
+
+### Notes
+
+Figured out the bug!
+
+What was happening is I was calling tcsetpgrp from an orphaned bg process
+group. So 2 separate rules and one non obvious conversion was happening.
+
+First even with the NOSTOP flag being set there are functions where SIGTTOU is
+still generated when called by a bg process group. tcsetpgrp which I was
+calling, is one of them.
+
+Next because I was calling it from the sesion leader which is by definition in
+an orphaned process group (initially), the orphaned process group rule takes
+precedence and the syscall should instead fail and return EIO.
+
+But the final and most confusing part is that tcsetpgrp doesn't actually return
+EIO. It instead exposes that failure path through ENOTTY which the man page
+description describes as:
+
+    The calling process does not have a controlling terminal, or it has one but
+    it is not described by fd, or, for tcsetpgrp(), this controlling terminal
+    is no longer associated with the session of the calling process.
+
+and the errno string as:
+
+    tcsetpgrp: Inappropriate ioctl for device
+
+which was quite confusing. The fix is simply blocking or ignoring SIGTTOU which
+causes the fuctions like tcsetpgrp to succeed.
+
+---------------------------------------------------------------------------------
+
 ## 2026-07-10
 
 ### Next

@@ -90,7 +90,6 @@ int main(void) {
     job_ctl_init();
     /*******************************************/
 
-    /* INTERACTIVE INPUT ***********************/
     char *line;
 
     while (true) {
@@ -108,7 +107,6 @@ int main(void) {
         run_cmd(line);
         process_sighup(&block_set);
     }
-    /*******************************************/
 
     job_ctl_free();
     return EXIT_SUCCESS;
