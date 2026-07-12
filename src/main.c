@@ -7,6 +7,7 @@
 #include <signal.h>
 #include <wait.h>
 
+#include "input.h"
 #include "shell_state.h"
 #include "utils.h"
 #include "log.h"
@@ -80,47 +81,35 @@ int main(void) {
 
     LOG_INFO("seashell PID(%d)", getpid());
 
-    /* initial state */
+    /* INITIALIZE SHELL STRUCTURES *************/
     shell_env.subshell = false;
     shell_env.tty_fd = xopen("/dev/tty", O_RDWR | O_CLOEXEC);
     if (shell_env.tty_fd == -1)
         errExit(true, "open");
 
+    job_ctl_init();
+    /*******************************************/
+
+    /* INTERACTIVE INPUT ***********************/
     char *line;
 
     while (true) {
-        char *cwd = getcwd(NULL, 0);
-        char *cwd_base = basename(cwd);
+        input_status input_st = get_line(&line);
 
-        printf(CMAGENTA "%s" CCL " " CMAGENTA ">" CCL " ", cwd_base);
-        fflush(stdout);
-
-        line = NULL;
-        size_t len;
-
-        int num_read = xgetline(&line, &len, stdin);
-        if (num_read == -1) {
-            free(line);
-            free(cwd);
-            if (feof(stdin)) {
-                process_sighup(&block_set);
-                break;
-            }
-
-            errExit(true, "getline");
-        }
-
-        if (line[num_read - 1] == '\n')
-            line[num_read - 1] = '\0';
-
-        if (strlen(line) != 0) {
-            run_cmd(line);
+        if (input_st == INPUT_ERR) {
+            errExit(false, "failed to get line");
+        } else if (input_st == INPUT_EOF) {
+            break;
+        } else if (input_st == INPUT_SIG) {
             process_sighup(&block_set);
+            /* handle sighup/sigchild */
         }
 
-        free(line);
-        free(cwd);
+        run_cmd(line);
+        process_sighup(&block_set);
     }
+    /*******************************************/
 
+    job_ctl_free();
     return EXIT_SUCCESS;
 }

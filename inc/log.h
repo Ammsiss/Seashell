@@ -250,4 +250,20 @@ void log_msg(log_level type, const char *errstr, const char *file, \
         rv; \
     })
 
+#define xread(fd, buf, size) \
+    ({ \
+        int rv = read(fd, buf, size); \
+        if (rv == -1) \
+            LOG_ERRNO("read"); \
+        rv; \
+    })
+
+#define xgetcwd(buf, size) \
+    ({ \
+        char *rv = getcwd(buf, size); \
+        if (!rv) \
+            LOG_ERRNO("getcwd"); \
+        rv; \
+    })
+
 #endif
