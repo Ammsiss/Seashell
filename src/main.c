@@ -118,7 +118,6 @@ int main(void) {
             process_sighup(&block_set);
         }
 
-
         free(line);
         free(cwd);
     }

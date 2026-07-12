@@ -11,3 +11,4 @@ shell-debug
 log*
 !log.h
 !log.c
+job_mon

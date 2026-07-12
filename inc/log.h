@@ -108,9 +108,9 @@ void log_msg(log_level type, const char *errstr, const char *file, \
         rv; \
     })
 
-#define xwaitpid(pid, wstatus, options) \
+#define xwaitpid(pid, wstat, options) \
     ({ \
-        int rv = waitpid(pid, wstatus, options); \
+        int rv = waitpid(pid, wstat, options); \
         if (rv == -1) \
             LOG_ERRNO("waitpid"); \
         rv; \

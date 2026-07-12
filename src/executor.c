@@ -121,7 +121,7 @@ static int wait_for_pids(da_pid *pids, int *status) {
         } else if (WIFCONTINUED(wstat)) {
             printf("seashell: process %d continued\n", pid);
 #endif
-        } else
+        } else if (!WIFEXITED(wstat))
             goto fail;
     }
 
@@ -243,8 +243,10 @@ static void child_exec_or_exit(const pline_st *pst) {
 }
 
 static int exec_pline(pline_st *pst, da_pid *pids) {
-    if (da_init(pids) == -1)
+    if (da_init(pids) == -1) {
         LOG_ERR("da_init");
+        goto fail;
+    }
 
     pid_t pipeline_pgid;
 

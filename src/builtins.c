@@ -7,6 +7,13 @@
 #include "parser.h"
 #include "utils.h"
 
+/*
+Job control builtins:
+    bg -> cotinues a suspended bg job (without bringing it to the fg)
+    fg -> brings a bg job to the fg and then continues it
+    kill -> signal a job
+*/
+
 static int run_exit_builtin(char **argv, sh_env *shell_env) {
     int exit_status = EXIT_FAILURE;
 
