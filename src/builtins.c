@@ -163,7 +163,7 @@ bool try_run_builtin(char **argv, int *status) {
 
     sh_builtin *builtin = get_builtin(argv[0]);
     if (builtin) {
-        *status = builtin->func(argv, &shell_env);
+        *status = builtin->func(argv, get_env());
         return true;
     }
 

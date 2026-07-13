@@ -58,9 +58,9 @@ int main(void) {
     LOG_INFO("seashell PID(%d)", getpid());
 
     /* INITIALIZE SHELL STRUCTURES *************/
-    shell_env.subshell = false;
-    shell_env.tty_fd = xopen("/dev/tty", O_RDWR | O_CLOEXEC);
-    if (shell_env.tty_fd == -1)
+    get_env()->subshell = false;
+    get_env()->tty_fd = xopen("/dev/tty", O_RDWR | O_CLOEXEC);
+    if (get_env()->tty_fd == -1)
         errExit(true, "open");
 
     job_ctl_init();

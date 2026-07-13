@@ -223,7 +223,7 @@ void child_redir_setup(const pline_st *pst) {
         verify_pline_child_fds(pst->first, pst->last);
 }
 
-static void child_exec_or_exit(const pline_st *pst) {
+static void child_exec(const pline_st *pst) {
     xexecvp(pst->cur_cmd->argv[0], pst->cur_cmd->argv);
 
     if (errno == ENOENT) {
@@ -264,13 +264,13 @@ static int exec_pline(pline_st *pst, da_pid *pids) {
 
         /********** CHILD START *****************/
         if (child_pid == 0) {
-            shell_env.subshell = true;
+            get_env()->subshell = true;
 
             if (xsetpgid(0, pipeline_pgid) == -1)
                 err_exit(true, "setpgid");
 
             if (pst->first)
-                if (xtcsetpgrp(shell_env.tty_fd, getpgrp()) == -1)
+                if (xtcsetpgrp(get_env()->tty_fd, getpgrp()) == -1)
                     err_exit(true, "tcsetpgrp");
 
             child_fd_setup(pst);
@@ -280,7 +280,8 @@ static int exec_pline(pline_st *pst, da_pid *pids) {
             if (try_run_builtin(pst->cur_cmd->argv, &status))
                 _exit(status);
 
-            child_exec_or_exit(pst);
+            child_exec(pst);
+            _exit(EXIT_FAILURE);
         }
         /********** CHILD END *******************/
 
@@ -300,7 +301,7 @@ static int exec_pline(pline_st *pst, da_pid *pids) {
         }
 
         if (pst->first) {
-            if (xtcsetpgrp(shell_env.tty_fd, pipeline_pgid) == -1) {
+            if (xtcsetpgrp(get_env()->tty_fd, pipeline_pgid) == -1) {
                 errno_msg("tcsetpgrp");
                 goto fail;
             }
@@ -352,7 +353,7 @@ static bool run_pline(const ps_pline *pline, int inputfd, int outputfd) {
         fatal("fatal: bad job control state");
 
     /* restore fg pgroup status; SIGTTOU must be blocked/ignored */
-    if (xtcsetpgrp(shell_env.tty_fd, getpgrp()) == -1)
+    if (xtcsetpgrp(get_env()->tty_fd, getpgrp()) == -1)
         errExit(true, "tcsetpgrp");
 
     return status == EXIT_SUCCESS;

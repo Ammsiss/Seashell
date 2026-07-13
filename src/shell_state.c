@@ -3,4 +3,8 @@
 #include "shell_state.h"
 #include "shell_types.h" // IWYU pragma: keep
 
-sh_env shell_env = {0};
+static sh_env shell_env = {0};
+
+sh_env *get_env(void) {
+    return &shell_env;
+}
