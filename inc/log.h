@@ -72,6 +72,7 @@ typedef enum {
 extern int log_output_fd;
 
 int log_init();
+void log_free();
 
 PFFORMAT(6, 7)
 void log_msg(log_level type, const char *errstr, const char *file, \

@@ -43,6 +43,11 @@ int log_init() {
     return 0;
 }
 
+void log_free() {
+    xclose(log_output_fd);
+    log_output_fd = (int){0};
+}
+
 /* level: file:line:func:pid msg[: errstr] */
 void log_msg(log_level level, const char *errstr, const char *file, int line, \
         const char *func, const char *fmt, ...) {

@@ -8,6 +8,8 @@ typedef struct {
     int tty_fd;
 } sh_env;
 
+int env_init(void);
+void env_free(void);
 sh_env *get_env(void);
 
 #endif

@@ -1,7 +1,6 @@
 #define _GNU_SOURCE
 
 #include <stdio.h>
-
 #include <unistd.h>
 #include <signal.h>
 #include <wait.h>
@@ -54,17 +53,12 @@ int main(void) {
 
     if (log_init() == -1)
         return EXIT_FAILURE;
+    if (env_init() == -1)
+        return EXIT_FAILURE;
+    if (job_ctl_init() == -1)
+        return EXIT_FAILURE;
 
     LOG_INFO("seashell PID(%d)", getpid());
-
-    /* INITIALIZE SHELL STRUCTURES *************/
-    get_env()->subshell = false;
-    get_env()->tty_fd = xopen("/dev/tty", O_RDWR | O_CLOEXEC);
-    if (get_env()->tty_fd == -1)
-        errExit(true, "open");
-
-    job_ctl_init();
-    /*******************************************/
 
     char *line;
     input_status tty_st;
@@ -79,6 +73,9 @@ int main(void) {
     if (tty_st == INPUT_ERR)
         errExit(false, "failed to read from terminal");
 
+    log_free();
     job_ctl_free();
+    env_free();
+
     return EXIT_SUCCESS;
 }
