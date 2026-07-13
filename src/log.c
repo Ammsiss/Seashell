@@ -10,7 +10,7 @@
 
 #include "log.h"
 
-int log_output_fd;
+static int log_output_fd;
 
 int log_init() {
     time_t t = time(NULL);
@@ -81,7 +81,8 @@ void log_msg(log_level level, const char *errstr, const char *file, int line, \
     if (errstr) {
         snprintf(output_str, OUTPUT_SIZE, \
             "%s " CDIM "%s:%d:%s:%d " CCL "%s: %s\n", \
-            level_str, basename(file_str), line, func_str, getpid(), msg, errstr);
+            level_str, basename(file_str), line, func_str, \
+            getpid(), msg, errstr);
     } else {
         snprintf(output_str, OUTPUT_SIZE, \
             "%s " CDIM "%s:%d:%s:%d " CCL "%s\n", \

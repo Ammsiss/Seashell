@@ -12,3 +12,4 @@ log*
 !log.h
 !log.c
 job_mon
+vg.log

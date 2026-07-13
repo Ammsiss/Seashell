@@ -1,5 +1,38 @@
 ---------------------------------------------------------------------------------
 
+## 2026-07-13
+
+### Next
+
+- [ ] use pselect to wait on tty_fd and signal delivery.
+- [ ] set up async handling of SIGCHLD.
+
+### Tasks
+
+- [ ] add regression tests for builtins
+- [ ] why are we calling fprintf(stderr,...) in the builtins?
+- [ ] add err_msg to the fail: label and remove them from syscalls in exec_pline
+- [ ] think about any life time resources the shell will need to clean up.
+- [ ] errExit early and use exit handlers to clean up persistant state
+- [ ] Find out why we get this output from 'exec valgrind ./run_all.sh'
+        ```Warning: ignored attempt to set SIGKILL handler in sigaction();
+                the SIGKILL signal is uncatchable
+        Warning: ignored attempt to set SIGSTOP handler in sigaction();
+                the SIGSTOP signal is uncatchable```
+
+**Completed**
+- [x] Create helper functions for signal semantics (blocking/ignoring/handlers)
+- [x] Split up the shell_state.c function into jobctl and variable modules
+- [x] Fix bug related to static variable in header being included to srcs
+
+### Notes
+
+Mostly conceptual work today. Tommorow I plan to set up the async handling
+of SIGCHLD which will be the backbone of the job control loop. Both paths
+(fg and bg jobs) should be handled pretty simularly. See *flow.md*
+
+---------------------------------------------------------------------------------
+
 ## 2026-07-12
 
 ### Next
@@ -25,12 +58,12 @@ because if a job is being run in the foreground, the parent does want to block.
 Convrsely if the job is run in the background it should be handled async by a
 SIGCHLD handler.
 
-I'm going to need to block SIGHUP and SIGCHLD, installed handlers for them that
+I'm going to need to block SIGHUP and SIGCHLD, install handlers for them that
 set a global flag, then use a function like epoll_pwait to atomically unblock
 and wait on the ttyfd and signal devlivery.
 
-If a job is run in the foreground then the shell should exec the pipeline, move
-the pipeline pgid to the foreground add the pgroup to the job control
+If a job is run in the *foreground* then the shell should exec the pipeline,
+move the pipeline pgid to the foreground add the pgroup to the job control
 structure, collect the pids and then block on waitpid until it reaps all the
 children then return to the epoll_pwait call.
 
@@ -39,7 +72,7 @@ children then return to the epoll_pwait call.
     then the job would have to be moved to the background and tracked through
     job control.
 
-If the job is run in the background then the shell should exec the pipeline,
+If the job is run in the *background* then the shell should exec the pipeline,
 add the pgroup to the job control structure, and then immediately return to the
 epoll_pwait call where any future wait statusus will be reported asynchrounsly.
 

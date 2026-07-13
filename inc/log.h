@@ -69,8 +69,6 @@ typedef enum {
     L_ERR,
 } log_level;
 
-extern int log_output_fd;
-
 int log_init();
 void log_free();
 
