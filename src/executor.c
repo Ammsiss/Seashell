@@ -106,8 +106,8 @@ static int wait_for_pids(da_pid *pids, int *status) {
 
         if (WIFSIGNALED(wstat)) {
             int signum = WTERMSIG(wstat);
-            fprintf(stderr, "terminated by signal %d (%s)",
-                    signum, strsignal(signum));
+            fprintf(stderr, "process %d terminated by signal %d (%s)",
+                    pid, signum, strsignal(signum));
 #ifdef WCOREDUMP
             if (WCOREDUMP(wstat))
                 printf(" (core dumped)");
@@ -224,15 +224,6 @@ void child_redir_setup(const pline_st *pst) {
 }
 
 static void child_exec_or_exit(const pline_st *pst) {
-    /* execed programs should not block SIGHUP */
-    sigset_t unblock_set;
-    if (xsigemptyset(&unblock_set) == -1)
-        err_exit(true, "sigemptyset");
-    if (xsigaddset(&unblock_set, SIGHUP) == -1)
-        err_exit(true, "sigaddset");
-    if (xsigprocmask(SIG_UNBLOCK, &unblock_set, NULL) == -1)
-        err_exit(true, "sigprocmask");
-
     xexecvp(pst->cur_cmd->argv[0], pst->cur_cmd->argv);
 
     if (errno == ENOENT) {

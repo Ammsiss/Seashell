@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include <errno.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -5,7 +7,10 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "log.h"
 #include "utils.h"
+
+/* error functions */
 
 static void output_err(const char *fmt, va_list *va, bool print_err) {
     fflush(stdout);
@@ -77,4 +82,52 @@ void usage_err(const char *fmt, ...) {
     fprintf(stderr, "\n");
     fflush(stderr);
     exit(EXIT_FAILURE);
+}
+
+/* signal functions */
+
+int set_sig_action(int sig, sighandler_t handler, int flags, sigset_t *mask) {
+    struct sigaction sa;
+    sa.sa_flags = flags;
+    sa.sa_handler = handler;
+
+    if (mask) {
+        sa.sa_mask = *mask;
+    } else {
+        if (xsigemptyset(&sa.sa_mask) == -1)
+            return -1;
+    }
+
+    if (xsigaction(sig, &sa, &old_sa) == -1)
+        return -1;
+
+    return 0;
+}
+
+int procmask_add(int sig, int how) {
+    sigset_t set;
+
+    if (xsigemptyset(&set) == -1)
+        return -1;
+    if (xsigaddset(&set, sig) == -1)
+        return -1;
+
+    if (xsigprocmask(how, &set, &old_set) == -1)
+        return -1;
+
+    return 0;
+}
+
+int block_sig(int sig) {
+    if (procmask_add(sig, SIG_BLOCK) == -1)
+        return -1;
+
+    return 0;
+}
+
+int no_block_sig(int sig) {
+    if (procmask_add(sig, SIG_UNBLOCK) == -1)
+        return -1;
+
+    return 0;
 }

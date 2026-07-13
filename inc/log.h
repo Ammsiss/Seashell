@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <string.h>
 
 #define STR_IMP(x) #x
 #define STR(x) STR_IMP(x)

@@ -1,7 +1,6 @@
 #define _GNU_SOURCE
 
 #include <stdio.h>
-#include <string.h>
 
 #include <unistd.h>
 #include <signal.h>
@@ -48,33 +47,9 @@ void run_cmd(const char *line) {
     ps_free(&job);
 }
 
-void process_sighup(const sigset_t *block_set) {
-    if (sigtimedwait(block_set, NULL, &(struct timespec){0}) == -1) {
-        if (errno != EAGAIN)
-            errExit(true, "sigtimedwait");
-    } else {
-        LOG_INFO("caught sighup");
-        /* send SIGHUP to all fg and bg pgroups */
-        exit(128 + SIGHUP);
-    }
-}
-
 int main(void) {
-    struct sigaction sa;
-    sa.sa_flags = 0;
-    xsigemptyset(&sa.sa_mask);
-    sa.sa_handler = SIG_IGN;
-
-    if (xsigaction(SIGTTOU, &sa, NULL) == -1)
-        errExit(true, "sigaction");
-
-    sigset_t block_set;
-    if (xsigemptyset(&block_set) == -1)
-        errExit(true, "sigemptyset");
-    if (xsigaddset(&block_set, SIGHUP) == -1)
-        errExit(true, "sigaddset");
-    if (xsigprocmask(SIG_SETMASK, &block_set, NULL) == -1)
-        errExit(true, "sigprocmask");
+    if (set_sig_action(SIGTTOU, SIG_IGN, 0, NULL) == -1)
+        errExit(false, "set_sig_action");
 
     if (log_init() == -1)
         return EXIT_FAILURE;
@@ -100,12 +75,10 @@ int main(void) {
         } else if (input_st == INPUT_EOF) {
             break;
         } else if (input_st == INPUT_SIG) {
-            process_sighup(&block_set);
             /* handle sighup/sigchild */
         }
 
         run_cmd(line);
-        process_sighup(&block_set);
     }
 
     job_ctl_free();

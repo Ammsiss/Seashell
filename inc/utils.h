@@ -1,10 +1,13 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#define _GNU_SOURCE
+
+#include <signal.h>
+#include <stdarg.h>
+
 #define PFFORMAT(x, y) __attribute__ ((format(printf, (x), (y))))
 #define BUF_SIZE 1024
-
-#include <stdarg.h>
 
 PFFORMAT(1, 2)
 void fatal(const char *fmt, ...);
@@ -23,5 +26,13 @@ void errno_msg(const char *fmt, ...);
 
 PFFORMAT(1, 2)
 void usage_err(const char *fmt, ...);
+
+static struct sigaction old_sa;
+static sigset_t old_set;
+
+int set_sig_action(int sig, sighandler_t handler, int flags, sigset_t *mask);
+
+int block_sig(int sig);
+int no_block_sig(int sig);
 
 #endif
