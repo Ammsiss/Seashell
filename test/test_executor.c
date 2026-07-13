@@ -15,6 +15,7 @@
 #include "parser.h"
 #include "expander.h"
 #include "unity.h"
+#include "utils.h"
 
 #define BUF_SIZE 1024
 
@@ -247,12 +248,7 @@ void test_redirect_stdin(void) {
 int main(void) {
     log_init();
 
-    struct sigaction sa;
-    sa.sa_flags = 0;
-    xsigemptyset(&sa.sa_mask);
-    sa.sa_handler = SIG_IGN;
-
-    if (xsigaction(SIGTTOU, &sa, NULL) == -1)
+    if (set_sig_action(SIGTTOU, SIG_IGN, 0, NULL) == -1)
         return EXIT_FAILURE;
 
     UNITY_BEGIN();

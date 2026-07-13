@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "shell_state.h"
+#include "variable.h"
 #include "expander.h"
 #include "parser.h" // IWYU pragma: keep - See 2026-06-25 Notes
 #include "dyn_str.h"

@@ -3,6 +3,8 @@
 #include <sys/types.h>
 
 #include "dyn_arr.h"
+#include "variable.h" // IWYU pragma: keep
+#include "jobctl.h" // IWYU pragma: keep
 #include "lexer.h" // IWYU pragma: keep - See 2026-06-25 Notes
 #include "parser.h" // IWYU pragma: keep - See 2026-06-25 Notes
 #include "shell_state.h" // IWYU pragma: keep - See 2026-06-25 Notes

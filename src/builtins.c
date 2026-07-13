@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "shell_types.h"
+#include "variable.h"
 #include "builtins.h"
 #include "log.h"
 #include "parser.h"
@@ -34,9 +36,9 @@ static int run_exit_builtin(char **argv, sh_env *shell_env) {
         }
     }
 
-    if (shell_env->subshell)
+    if (shell_env->subshell) {
         _exit(exit_status);
-    else {
+    } else {
         printf("exit\n");
         exit(exit_status);
     }
