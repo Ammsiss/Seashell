@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <wait.h>
 
+#include "jobctl.h"
 #include "input.h"
 #include "shell_state.h"
 #include "utils.h"
@@ -66,20 +67,17 @@ int main(void) {
     /*******************************************/
 
     char *line;
+    input_status tty_st;
 
-    while (true) {
-        input_status input_st = get_line(&line);
+    do {
+        tty_st = get_line(&line);
+        if (tty_st == INPUT_OK)
+            run_cmd(line);
 
-        if (input_st == INPUT_ERR) {
-            errExit(false, "failed to get line");
-        } else if (input_st == INPUT_EOF) {
-            break;
-        } else if (input_st == INPUT_SIG) {
-            /* handle sighup/sigchild */
-        }
+    } while (tty_st == INPUT_OK);
 
-        run_cmd(line);
-    }
+    if (tty_st == INPUT_ERR)
+        errExit(false, "failed to read from terminal");
 
     job_ctl_free();
     return EXIT_SUCCESS;

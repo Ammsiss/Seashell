@@ -48,9 +48,7 @@ input_status get_line(char **line) {
 
         int num_read = xread(shell_env.tty_fd, input_line, LINE_BUF - 1);
         if (num_read == -1) {
-            if (errno == EINTR) {
-                return INPUT_SIG;
-            } else
+            if (errno == EINTR)
                 return INPUT_ERR;
         }
 
