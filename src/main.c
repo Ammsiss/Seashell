@@ -55,8 +55,6 @@ int main(void) {
         return EXIT_FAILURE;
     if (env_init() == -1)
         return EXIT_FAILURE;
-    if (job_ctl_init() == -1)
-        return EXIT_FAILURE;
 
     LOG_INFO("seashell PID(%d)", getpid());
 
@@ -74,7 +72,6 @@ int main(void) {
         errExit(false, "failed to read from terminal");
 
     log_free();
-    job_ctl_free();
     env_free();
 
     return EXIT_SUCCESS;
