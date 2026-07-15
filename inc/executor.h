@@ -3,6 +3,6 @@
 
 #include "parser_types.h"
 
-void sh_run(const ps_job *job, int inputfd, int outputfd);
+void sh_run(const ps_job *job);
 
 #endif

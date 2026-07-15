@@ -181,17 +181,11 @@ static void child_exec(bool first, bool last, int next_pipe[2], \
         err_exit(true, "execvp");
 }
 
-pline_info *run_pline(ps_pline *pline, bool bg) {
+int exec_pline(const ps_pline *pline, bool bg, pline_info *info) {
     (void) bg;
 
-    pline_info *out = xmalloc(sizeof(pline_info));
-    if (!out)
-        return NULL;
-
-    if (da_init(&out->pids) == -1) {
-        free(out);
-        return NULL;
-    }
+    if (da_init(&info->pids) == -1)
+        return -1;
 
     int next_pipe[2];
     int prev_rfd;
@@ -211,19 +205,19 @@ pline_info *run_pline(ps_pline *pline, bool bg) {
             goto fail;
 
         if (first)
-            out->pgid = child_pid;
+            info->pgid = child_pid;
 
         if (child_pid == 0) {
-            child_exec(first, last, next_pipe, prev_rfd, cur_cmd, out->pgid);
+            child_exec(first, last, next_pipe, prev_rfd, cur_cmd, info->pgid);
             _exit(EXIT_FAILURE);
         }
 
-        pid_t *pid = da_push(&out->pids);
+        pid_t *pid = da_push(&info->pids);
         if (!pid)
             goto fail;
         *pid = child_pid;
 
-        if (xsetpgid(child_pid, out->pgid) == -1) {
+        if (xsetpgid(child_pid, info->pgid) == -1) {
             if (errno != EACCES) {
                 errno_msg("setpgid");
                 goto fail;
@@ -231,7 +225,7 @@ pline_info *run_pline(ps_pline *pline, bool bg) {
         }
 
         if (first) {
-            if (xtcsetpgrp(get_env()->tty_fd, out->pgid) == -1) {
+            if (xtcsetpgrp(get_env()->tty_fd, info->pgid) == -1) {
                 errno_msg("tcsetpgrp");
                 goto fail;
             }
@@ -259,7 +253,6 @@ pline_info *run_pline(ps_pline *pline, bool bg) {
     return 0;
 
 fail:
-    free(out);
-    da_free(&out->pids);
-    return NULL;
+    da_free(&info->pids);
+    return -1;
 }

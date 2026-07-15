@@ -8,6 +8,6 @@ typedef struct {
     pid_t pgid;
 } pline_info;
 
-pline_info *run_pline(ps_pline *pline, bool bg);
+int exec_pline(const ps_pline *pline, bool bg, pline_info *info);
 
 #endif
