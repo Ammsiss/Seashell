@@ -274,4 +274,12 @@ void log_msg(log_level type, const char *errstr, const char *file, \
         rv; \
     })
 
+#define xmalloc(size) \
+    ({ \
+        void *rv = malloc(size); \
+        if (!rv) \
+            LOG_ERRNO("malloc"); \
+        rv; \
+    })
+
 #endif

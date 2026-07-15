@@ -23,9 +23,6 @@
     X(da_pid, pid_t) \
     X(da_vars, var_pair) \
     X(da_charp, char *) \
-    X(da_pgrp, jc_pgrp) \
-    X(da_proc, proc) \
-    X(da_job, jc_job)
 
 #define DECLARE_DYN_ARR(name, type) \
     typedef struct { \
@@ -55,10 +52,7 @@
         da_word: da_word_init, \
         da_redir: da_redir_init, \
         da_cmd: da_cmd_init, \
-        da_andor: da_andor_init, \
-        da_proc: da_proc_init, \
-        da_pgrp: da_pgrp_init, \
-        da_job: da_job_init \
+        da_andor: da_andor_init \
     )
 
 #define da_init(arr) \
@@ -76,10 +70,7 @@
         da_word: da_word_free, \
         da_redir: da_redir_free, \
         da_cmd: da_cmd_free, \
-        da_andor: da_andor_free, \
-        da_proc: da_proc_free, \
-        da_pgrp: da_pgrp_free, \
-        da_job: da_job_free \
+        da_andor: da_andor_free \
     )
 
 #define da_free(arr) \
@@ -97,10 +88,7 @@
         da_word: da_word_reserve, \
         da_redir: da_redir_reserve, \
         da_cmd: da_cmd_reserve, \
-        da_andor: da_andor_reserve, \
-        da_proc: da_proc_reserve, \
-        da_pgrp: da_pgrp_reserve, \
-        da_job: da_job_reserve \
+        da_andor: da_andor_reserve \
     )
 
 #define da_reserve(arr, min) \
@@ -118,10 +106,7 @@
         da_word: da_word_delete, \
         da_redir: da_redir_delete, \
         da_cmd: da_cmd_delete, \
-        da_andor: da_andor_delete, \
-        da_proc: da_proc_delete, \
-        da_pgrp: da_pgrp_delete, \
-        da_job: da_job_delete \
+        da_andor: da_andor_delete \
     )
 
 #define da_delete(arr, remove_i) \
@@ -139,10 +124,7 @@
         da_word: da_word_push, \
         da_redir: da_redir_push, \
         da_cmd: da_cmd_push, \
-        da_andor: da_andor_push, \
-        da_proc: da_proc_push, \
-        da_pgrp: da_pgrp_push, \
-        da_job: da_job_push \
+        da_andor: da_andor_push \
     )
 
 #define da_push(arr) \
