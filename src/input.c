@@ -43,14 +43,9 @@ fail:
 
 input_status get_line(char **line) {
     do {
-        if (display_prompt() == -1)
-            return INPUT_ERR;
-
         int num_read = xread(get_env()->tty_fd, input_line, LINE_BUF - 1);
-        if (num_read == -1) {
-            if (errno == EINTR)
-                return INPUT_ERR;
-        }
+        if (num_read == -1)
+            return INPUT_ERR;
 
         if (num_read == 0)
             return INPUT_EOF;

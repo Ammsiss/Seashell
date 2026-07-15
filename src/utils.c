@@ -125,9 +125,30 @@ int block_sig(int sig) {
     return 0;
 }
 
-int no_block_sig(int sig) {
+int unblock_sig(int sig) {
     if (procmask_add(sig, SIG_UNBLOCK) == -1)
         return -1;
+
+    return 0;
+}
+
+int make_sigset(int sigs[], sigset_t *set, bool start_empty) {
+    if (start_empty) {
+        if (sigemptyset(set) == -1)
+            return -1;
+        for (int *sig = sigs; *sig != -1; ++ sig) {
+            if (sigaddset(set, *sig) == -1)
+                return -1;
+        }
+    } else {
+        if (sigfillset(set) == -1)
+            return -1;
+        for (int *sig = sigs; *sig != -1; ++ sig) {
+            if (sigdelset(set, *sig) == -1)
+                return -1;
+        }
+    }
+
 
     return 0;
 }

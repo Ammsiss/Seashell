@@ -266,4 +266,12 @@ void log_msg(log_level type, const char *errstr, const char *file, \
         rv; \
     })
 
+#define xppoll(fds, nfds, timeout, ss) \
+    ({ \
+        int rv = ppoll(fds, nfds, timeout, ss); \
+        if (rv == -1 && errno != EINTR) \
+            LOG_ERRNO("ppoll"); \
+        rv; \
+    })
+
 #endif

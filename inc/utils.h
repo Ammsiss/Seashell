@@ -33,6 +33,7 @@ static sigset_t old_set;
 int set_sig_action(int sig, sighandler_t handler, int flags, sigset_t *mask);
 
 int block_sig(int sig);
-int no_block_sig(int sig);
+int unblock_sig(int sig);
+int make_sigset(int sigs[], sigset_t *set, bool start_empty);
 
 #endif

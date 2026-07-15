@@ -143,7 +143,7 @@ typedef struct {
 
 typedef struct {
     exp_da_andor andors;
-    int bg;
+    bool bg;
 } exp_job;
 
 void validate_segment(const exp_segment *exp, const ps_segment *segment) {

@@ -1,11 +1,11 @@
 #define _GNU_SOURCE
 
+#include <poll.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <signal.h>
 #include <wait.h>
 
-#include "jobctl.h"
 #include "input.h"
 #include "shell_state.h"
 #include "utils.h"
@@ -47,29 +47,67 @@ void run_cmd(const char *line) {
     ps_free(&job);
 }
 
-int main(void) {
-    if (set_sig_action(SIGTTOU, SIG_IGN, 0, NULL) == -1)
-        errExit(false, "set_sig_action");
+static volatile sig_atomic_t sigint_caught = false;
 
+void sigint_handler(int sig) {
+    (void)sig;
+    sigint_caught = true;
+}
+
+int main(void) {
     if (log_init() == -1)
-        return EXIT_FAILURE;
+        errExit(false, "log_init");
     if (env_init() == -1)
-        return EXIT_FAILURE;
+        errExit(false, "env_init");
 
     LOG_INFO("seashell PID(%d)", getpid());
 
+    if (set_sig_action(SIGTTOU, SIG_IGN, 0, NULL) == -1)
+        errExit(false, "set_sig_action");
+
+    if (block_sig(SIGINT) == -1)
+        errExit(false, "block_sig");
+    if (set_sig_action(SIGINT, sigint_handler, 0, NULL) == -1)
+        errExit(false, "set_sig_action");
+
+    sigset_t block_set;
+    if (sigprocmask(0, NULL, &block_set) == -1)
+        errExit(true, "sigprocmask");
+    if (sigdelset(&block_set, SIGINT) == -1)
+        errExit(true, "sigdelset");
+
+    struct pollfd events;
+    events.events = POLLIN;
+    events.fd = get_env()->tty_fd;
+
     char *line;
-    input_status tty_st;
 
-    do {
-        tty_st = get_line(&line);
-        if (tty_st == INPUT_OK)
+    while (true) {
+        if (display_prompt() == -1)
+            errExit(false, "display_prompt");
+
+        int pollfd = xppoll(&events, 1, 0, &block_set);
+        if (pollfd == -1) {
+            if (errno == EINTR) {
+                if (sigint_caught) {
+                    printf("caught SIGINT; continuing...\n");
+                    sigint_caught = false;
+                    continue;
+                }
+            } else {
+                errExit(true, "poll");
+            }
+        }
+
+        input_status tty_st = get_line(&line);
+
+        if (tty_st == INPUT_OK) {
             run_cmd(line);
-
-    } while (tty_st == INPUT_OK);
-
-    if (tty_st == INPUT_ERR)
-        errExit(false, "failed to read from terminal");
+        } else if (tty_st == INPUT_EOF) {
+            break;
+        } else if (tty_st == INPUT_ERR)
+            errExit(false, "failed to read from terminal");
+    }
 
     log_free();
     env_free();

@@ -39,7 +39,7 @@ struct ps_andor {
 
 struct ps_job {
     da_andor andors;
-    int bg;
+    bool bg;
 };
 
 void ps_free(ps_job *job);

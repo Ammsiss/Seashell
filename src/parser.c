@@ -313,7 +313,7 @@ int ps_parse(da_tok *tokens, ps_job *job) {
             if (i != tokens->size - 1)
                 goto fail;
 
-            job->bg = 1;
+            job->bg = true;
             break;
         }
 
