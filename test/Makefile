@@ -30,7 +30,7 @@ SH_MODS   := $(UOBJ) $(BLD_DIR)/test_executor.o $(BLD_DIR)/executor.o \
 			 $(BLD_DIR)/dyn_arr.o $(BLD_DIR)/parser.o $(BLD_DIR)/lexer.o \
 			 $(BLD_DIR)/expander.o $(BLD_DIR)/log.o $(BLD_DIR)/utils.o \
 			 $(BLD_DIR)/shell_state.o $(BLD_DIR)/dyn_str.o \
-			 $(BLD_DIR)/builtins.o $(BLD_DIR)/variable.o
+			 $(BLD_DIR)/builtins.o $(BLD_DIR)/variable.o $(BLD_DIR)/runner.o
 DS_MODS   := $(UOBJ) $(BLD_DIR)/test_dyn_str.o $(BLD_DIR)/dyn_str.o
 
 TEST_BINS := test_lexer test_dyn_arr test_parser test_expander test_executor \

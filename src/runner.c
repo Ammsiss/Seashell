@@ -151,16 +151,15 @@ void child_redir_setup(da_redir *redirs) {
 }
 
 static void child_exec(bool first, bool last, int next_pipe[2], \
-        int prev_rfd, ps_cmd *cur_cmd, pid_t pgid) {
+        int prev_rfd, ps_cmd *cur_cmd, pid_t pgid, bool bg) {
     get_env()->subshell = true;
 
     if (xsetpgid(0, pgid) == -1)
         err_exit(true, "setpgid");
 
-    if (first) {
+    if (!bg && first)
         if (xtcsetpgrp(get_env()->tty_fd, getpgrp()) == -1)
             err_exit(true, "tcsetpgrp");
-    }
 
     child_fd_setup(first, last, next_pipe, prev_rfd);
     child_redir_setup(&cur_cmd->redirs);
@@ -182,8 +181,6 @@ static void child_exec(bool first, bool last, int next_pipe[2], \
 }
 
 int exec_pline(const ps_pline *pline, bool bg, pline_info *info) {
-    (void) bg;
-
     if (da_init(&info->pids) == -1)
         return -1;
 
@@ -208,43 +205,32 @@ int exec_pline(const ps_pline *pline, bool bg, pline_info *info) {
             info->pgid = child_pid;
 
         if (child_pid == 0) {
-            child_exec(first, last, next_pipe, prev_rfd, cur_cmd, info->pgid);
+            child_exec(first, last, next_pipe, prev_rfd, cur_cmd, \
+                    info->pgid, bg);
             _exit(EXIT_FAILURE);
+        }
+
+        if (xsetpgid(child_pid, info->pgid) == -1 && errno != EACCES)
+            goto fail;
+
+        if (!bg && first)
+            if (xtcsetpgrp(get_env()->tty_fd, info->pgid) == -1)
+                goto fail;
+
+        if (!first)
+            if (xclose(prev_rfd) == -1)
+                goto fail;
+
+        if (!last) {
+            prev_rfd = next_pipe[0];
+            if (xclose(next_pipe[1]) == -1)
+                goto fail;
         }
 
         pid_t *pid = da_push(&info->pids);
         if (!pid)
             goto fail;
         *pid = child_pid;
-
-        if (xsetpgid(child_pid, info->pgid) == -1) {
-            if (errno != EACCES) {
-                errno_msg("setpgid");
-                goto fail;
-            }
-        }
-
-        if (first) {
-            if (xtcsetpgrp(get_env()->tty_fd, info->pgid) == -1) {
-                errno_msg("tcsetpgrp");
-                goto fail;
-            }
-        }
-
-        if (!first)
-            if (xclose(prev_rfd) == -1) {
-                errno_msg("close");
-                goto fail;
-            }
-
-        if (!last) {
-            prev_rfd = next_pipe[0];
-
-            if (xclose(next_pipe[1]) == -1) {
-                errno_msg("close");
-                goto fail;
-            }
-        }
     }
 
     if (!RUNNING_ON_VALGRIND)

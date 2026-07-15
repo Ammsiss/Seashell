@@ -46,7 +46,7 @@ void validate_shell_output(const char *shell_cmd, const char *exp_output, \
         TEST_FAIL();
     }
 
-    sh_run(&job, STDIN_FILENO, pfd[1]);
+    sh_run(&job);
 
     TEST_ASSERT_EQUAL_INT(0, close(pfd[1]));
 
