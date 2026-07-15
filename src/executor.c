@@ -42,20 +42,14 @@ static int wait_for_pids(da_pid *pids, int *status) {
 
         if (WIFSIGNALED(wstat)) {
             int signum = WTERMSIG(wstat);
-            fprintf(stderr, "process %d terminated by signal %d (%s)",
+            LOG_INFO("process %d terminated by signal %d (%s)",
                     pid, signum, strsignal(signum));
-#ifdef WCOREDUMP
-            if (WCOREDUMP(wstat))
-                printf(" (core dumped)");
-#endif
-            printf("\n");
-
             last_status = 128 + signum;
         } else if (WIFSTOPPED(wstat)) {
-            printf("seashell: process %d stopped\n", pid);
+            LOG_INFO("seashell: process %d stopped\n", pid);
 #ifdef WIFCONTINUED
         } else if (WIFCONTINUED(wstat)) {
-            printf("seashell: process %d continued\n", pid);
+            LOG_INFO("seashell: process %d continued\n", pid);
 #endif
         } else if (!WIFEXITED(wstat))
             goto fail;
@@ -72,7 +66,7 @@ fail:
 
 static int run_pline(const ps_pline *pline) {
     pline_info info;
-    if (exec_pline(pline, true, &info) == -1)
+    if (exec_pline(pline, false, &info) == -1)
         fatal("exec_pline");
 
     int stat;
@@ -98,7 +92,8 @@ void sh_run(const ps_job *job) {
             continue;
 
         if (andor->pline.cmds.size == 1)
-            try_run_builtin(andor->pline.cmds.data[0].argv, &prev_stat);
+            if (try_run_builtin(andor->pline.cmds.data[0].argv, &prev_stat))
+                continue;
 
         prev_stat = run_pline(&andor->pline);
     }

@@ -1,9 +1,11 @@
 #ifndef LOG_H
 #define LOG_H
 
+#define _GNU_SOURCE
+
+#include <unistd.h>
 #include <assert.h>
 #include <stdarg.h>
-#include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h>

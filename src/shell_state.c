@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 
+#include <signal.h> // IWYU pragma: keep
 #include <assert.h>
 #include <fcntl.h>
 
@@ -13,6 +14,8 @@ int env_init(void) {
     shell_env.subshell = false;
     shell_env.tty_fd = xopen("/dev/tty", O_RDWR | O_CLOEXEC);
     if (shell_env.tty_fd == -1)
+        return -1;
+    if (xsigprocmask(0, NULL, &shell_env.og_mask) == -1)
         return -1;
 
     return 0;

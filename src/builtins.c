@@ -68,7 +68,7 @@ bool verify_var_key(const char *key) {
     for (const char *c = key; *c != '\0'; ++c) {
         if (!((*c >= 'a' && *c <= 'z') ||
             (*c >= 'A' && *c <= 'Z') ||
-            // (*c >= '0' && *c <= '9') ||
+            (*c >= '0' && *c <= '9') ||
             *c == '-' || *c == '_'))
             return false;
     }

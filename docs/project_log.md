@@ -1,5 +1,101 @@
 ---------------------------------------------------------------------------------
 
+## 2026-07-15
+
+### Next
+
+- [ ] replace use of errExit(false,...) with fatal()
+- [ ] set builtin should use the passed in sh_env (store var array in sh_env)
+- [ ] figure out how to reduce generic dyn_arr resolution boilerplate
+
+### Tasks
+
+- [ ] save initial procmask then apply it before execing in child
+- [ ] figure out way to automate test file seeing new modules
+- [ ] on exec_pline failure, excess pfds in parent should be closed
+- [ ] on init failure, the object should be safe to call free on (zero out)
+- [ ] set up async handling of SIGCHLD.
+- [ ] add regression tests for builtins
+- [ ] why are we calling fprintf(stderr,...) in the builtins?
+- [ ] add err_msg to the fail: label and remove them from syscalls in exec_pline
+- [ ] think about any life time resources the shell will need to clean up.
+- [ ] errExit early and use exit handlers to clean up persistant state
+- [ ] Find out why we get this output from 'exec valgrind ./run_all.sh'
+        ```Warning: ignored attempt to set SIGKILL handler in sigaction();
+                the SIGKILL signal is uncatchable
+        Warning: ignored attempt to set SIGSTOP handler in sigaction();
+                the SIGSTOP signal is uncatchable```
+
+**Completed**
+- [x] use pselect to wait on tty_fd and signal delivery.
+- [x] change job->bg to a boolean type
+- [x] factor out pipeline execution logic from executor
+
+### Notes
+
+Starting to implement the cleaner model of the jobctl/runner being the main
+driver of the job loop whereas the executor is more of a pipeline execer. Seems
+to be the right divide. Job control needs to see everything to manage handles.
+The executor just execs a pipeline and optionally puts the pgroup as the
+fgroup so it can be pretty naive to the job control state.
+
+Interesting that there is no method of atomically unblocking or unignoring a
+signal then execing. There's always a race condition between unblocking it and
+and execing.
+
+So for example with SIGTTOU im currently just blocking it but I'll actually
+need to set up a dummy handler so that in the child it will be reset to dfl.
+and if the parent receives it, it just consumes it and does nothing. I could
+still block it and unblock it before execing (with the handler still installed
+of course) for preformance reasons but the result should be the same.
+
+---------------------------------------------------------------------------------
+
+## 2026-07-14
+
+### Next
+
+- [ ] use pselect to wait on tty_fd and signal delivery.
+- [ ] change job->bg to a boolean type
+
+### Tasks
+
+- [ ] set up async handling of SIGCHLD.
+- [ ] add regression tests for builtins
+- [ ] why are we calling fprintf(stderr,...) in the builtins?
+- [ ] add err_msg to the fail: label and remove them from syscalls in exec_pline
+- [ ] think about any life time resources the shell will need to clean up.
+- [ ] errExit early and use exit handlers to clean up persistant state
+- [ ] Find out why we get this output from 'exec valgrind ./run_all.sh'
+        ```Warning: ignored attempt to set SIGKILL handler in sigaction();
+                the SIGKILL signal is uncatchable
+        Warning: ignored attempt to set SIGSTOP handler in sigaction();
+                the SIGSTOP signal is uncatchable```
+
+### Notes
+
+Discovered a couple of nuances with job control today.
+
+First my job control sturcture was off. It was essentially a dynamic array of
+pgroups but that only describes pipelines when jobs should be arrays of
+pipelines. So I added one level of array nesting.
+
+Second is that It's not going to be as simple as just firing off the job and
+returning the prompt when running in the background because the andor chain
+still depends on reading the return status from each pipeline. So there needs
+to be a sort of back and forth between waiting and execing which has to be
+handled asynchrounsly.
+
+This makes me think that job control should actually be a higher level entity
+then the executor not the other way around. The executor should honestly just
+handle pipeline execs. Job control should manage the list of job asts, track
+which pipeline is next to be exected in the andor chain, and then delegate to
+the executor to actually execute them. So it essentially becomes a state
+tracker for all the jobs you have. andor delegation should not be an executor
+concern.
+
+---------------------------------------------------------------------------------
+
 ## 2026-07-13
 
 ### Next
