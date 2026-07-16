@@ -1,13 +1,8 @@
-#ifndef RUNNER_H
-#define RUNNER_H
+#ifndef EXECUTOR_H
+#define EXECUTOR_H
 
-#include "dyn_arr.h"
+#include "parser_types.h"
 
-typedef struct {
-    da_pid pids;
-    pid_t pgid;
-} pline_info;
-
-int exec_pline(const ps_pline *pline, bool bg, pline_info *info);
+void sh_run(const ps_job *job);
 
 #endif

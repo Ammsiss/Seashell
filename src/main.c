@@ -13,7 +13,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "expander.h"
-#include "executor.h"
+#include "runner.h"
 
 void run_cmd(const char *line) {
     da_tok toks;
