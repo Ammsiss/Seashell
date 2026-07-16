@@ -36,7 +36,7 @@ void fatal(const char *fmt, ...) {
     output_err(fmt, &va, false);
     va_end(va);
 
-    if (get_env()->subshell)
+    if (sh_env.subshell)
         _exit(EXIT_FAILURE);
     else
         exit(EXIT_FAILURE);
@@ -48,7 +48,7 @@ void err_exit(const char *fmt, ...) {
     output_err(fmt, &va, true);
     va_end(va);
 
-    if (get_env()->subshell)
+    if (sh_env.subshell)
         _exit(EXIT_FAILURE);
     else
         exit(EXIT_FAILURE);

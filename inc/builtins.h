@@ -5,7 +5,7 @@
 
 #define BUILTIN_COUNT 4
 
-typedef int (*builtin_func)(char **, sh_env *);
+typedef int (*builtin_func)(char **, shell_env *);
 
 typedef struct {
     const char *name;

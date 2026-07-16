@@ -147,7 +147,7 @@ static void child_exec(bool first, bool last, int next_pipe[2], \
         err_exit("setpgid");
 
     if (!bg && first)
-        if (xtcsetpgrp(get_env()->tty_fd, getpgrp()) == -1)
+        if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
             err_exit("tcsetpgrp");
 
     child_fd_setup(first, last, next_pipe, prev_rfd);
@@ -194,7 +194,7 @@ int exec_pline(const ps_pline *pline, bool bg, pline_info *info) {
             info->pgid = child_pid;
 
         if (child_pid == 0) {
-            get_env()->subshell = true;
+            sh_env.subshell = true;
             child_exec(first, last, next_pipe, prev_rfd, cur_cmd, \
                     info->pgid, bg);
             _exit(EXIT_FAILURE);
@@ -204,7 +204,7 @@ int exec_pline(const ps_pline *pline, bool bg, pline_info *info) {
             goto fail;
 
         if (!bg && first)
-            if (xtcsetpgrp(get_env()->tty_fd, info->pgid) == -1)
+            if (xtcsetpgrp(sh_env.tty_fd, info->pgid) == -1)
                 goto fail;
 
         if (!first)

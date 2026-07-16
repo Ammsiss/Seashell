@@ -18,7 +18,7 @@ Job control builtins:
     kill -> signal a job
 */
 
-static int run_exit_builtin(char **argv, sh_env *shell_env) {
+static int run_exit_builtin(char **argv, shell_env *sh_env) {
     int exit_status = EXIT_FAILURE;
 
     if (argv[1]) {
@@ -36,7 +36,7 @@ static int run_exit_builtin(char **argv, sh_env *shell_env) {
         }
     }
 
-    if (shell_env->subshell) {
+    if (sh_env->subshell) {
         _exit(exit_status);
     } else {
         printf("exit\n");
@@ -44,8 +44,8 @@ static int run_exit_builtin(char **argv, sh_env *shell_env) {
     }
 }
 
-static int run_cd_builtin(char **argv, sh_env *shell_env) {
-    (void) shell_env;
+static int run_cd_builtin(char **argv, shell_env *sh_env) {
+    (void) sh_env;
     if (!argv[1]) {
         fprintf(stderr, "cd: path required\n");
         return EXIT_FAILURE;
@@ -76,7 +76,7 @@ bool verify_var_key(const char *key) {
     return true;
 }
 
-static int run_set_builtin(char **argv, sh_env *shell_env) {
+static int run_set_builtin(char **argv, shell_env *sh_env) {
     if (!argv[1] || !argv[2]) {
         fprintf(stderr, "set: not enough arguments\n");
         return EXIT_FAILURE;
@@ -107,7 +107,7 @@ static int run_set_builtin(char **argv, sh_env *shell_env) {
     strcpy(var.key, argv[1]);
     strcpy(var.value, argv[2]);
 
-    if (add_var(&shell_env->vars, &var) == -1) {
+    if (add_var(&sh_env->vars, &var) == -1) {
         fprintf(stderr, "set: failed to add variable\n");
         return EXIT_FAILURE;
     }
@@ -115,7 +115,7 @@ static int run_set_builtin(char **argv, sh_env *shell_env) {
     return EXIT_SUCCESS;
 }
 
-static int run_unset_builtin(char **argv, sh_env *shell_env) {
+static int run_unset_builtin(char **argv, shell_env *sh_env) {
     if (!argv[1]) {
         fprintf(stderr, "unset: not enough arguments\n");
         return EXIT_FAILURE;
@@ -131,7 +131,7 @@ static int run_unset_builtin(char **argv, sh_env *shell_env) {
         return EXIT_FAILURE;
     }
 
-    delete_var(&shell_env->vars, argv[1]);
+    delete_var(&sh_env->vars, argv[1]);
 
     return EXIT_SUCCESS;
 }
@@ -161,7 +161,7 @@ bool try_run_builtin(char **argv, int *status) {
 
     sh_builtin *builtin = get_builtin(argv[0]);
     if (builtin) {
-        *status = builtin->func(argv, get_env());
+        *status = builtin->func(argv, &sh_env);
         return true;
     }
 

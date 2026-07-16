@@ -79,7 +79,7 @@ int main(void) {
 
     struct pollfd events = {
         .events = POLLIN,
-        .fd = get_env()->tty_fd
+        .fd = sh_env.tty_fd
     };
 
     while (true) {
@@ -87,7 +87,7 @@ int main(void) {
             fatal("display_prompt");
 
         int ready;
-        while ((ready = xppoll(&events, 1, 0, &get_env()->og_mask)) == -1) {
+        while ((ready = xppoll(&events, 1, 0, &sh_env.og_mask)) == -1) {
             if (errno != EINTR)
                 err_exit("poll");
             process_signals();

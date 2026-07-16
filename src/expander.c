@@ -34,7 +34,7 @@ static char *expand_variable(char **c) {
         return NULL;
     }
 
-    char *value = lookup_var(&get_env()->vars, key);
+    char *value = lookup_var(&sh_env.vars, key);
 
     free(key);
     return value;

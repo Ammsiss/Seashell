@@ -28,7 +28,7 @@ int display_prompt(void) {
     if (d_strcat(&prompt, "> ") == -1)
         goto fail;
 
-    if (write(get_env()->tty_fd, prompt.c_str, prompt.len) != (int) prompt.len) {
+    if (write(sh_env.tty_fd, prompt.c_str, prompt.len) != (int) prompt.len) {
         LOG_ERR("failed/partial write");
         goto fail;
     }
@@ -43,7 +43,7 @@ fail:
 
 input_status get_line(char **line) {
     do {
-        int num_read = xread(get_env()->tty_fd, input_line, LINE_BUF - 1);
+        int num_read = xread(sh_env.tty_fd, input_line, LINE_BUF - 1);
         if (num_read == -1)
             return INPUT_ERR;
 
