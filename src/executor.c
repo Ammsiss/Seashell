@@ -92,7 +92,8 @@ void sh_run(const ps_job *job) {
             continue;
 
         if (andor->pline.cmds.size == 1)
-            try_run_builtin(andor->pline.cmds.data[0].argv, &prev_stat);
+            if (try_run_builtin(andor->pline.cmds.data[0].argv, &prev_stat))
+                continue;
 
         prev_stat = run_pline(&andor->pline);
     }
