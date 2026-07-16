@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "shell_types.h"
 #include "variable.h"
 #include "builtins.h"
 #include "log.h"

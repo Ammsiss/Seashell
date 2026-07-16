@@ -6,8 +6,6 @@
 
 #include "shell_state.h"
 #include "log.h"
-#include "shell_types.h" // IWYU pragma: keep
-#include "variable.h" // IWYU pragma: keep
 
 shell_env sh_env = {0};
 

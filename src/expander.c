@@ -6,6 +6,7 @@
 #include "expander.h"
 #include "parser.h" // IWYU pragma: keep - See 2026-06-25 Notes
 #include "dyn_str.h"
+#include "lexer.h"
 
 static char *get_key(char **c) {
     d_str var_key;

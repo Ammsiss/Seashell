@@ -4,24 +4,33 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include "lexer_types.h"
-#include "parser_types.h"
-#include "shell_types.h"
+/* Declare any struct types to avoid circular
+ * includes. See 2026-07-16 Notes */
+struct lx_part;
+struct lx_tok;
+
+struct ps_segment;
+struct ps_word;
+struct ps_redir;
+struct ps_cmd;
+struct ps_andor;
+
+struct var_pair;
 
 #define DYN_ARR_TYPES(APPLY, arg) \
     /* lexer */ \
-    APPLY(arg, da_part, lx_part) \
-    APPLY(arg, da_tok, lx_tok) \
+    APPLY(arg, da_part, struct lx_part) \
+    APPLY(arg, da_tok, struct lx_tok) \
     /* parser */ \
-    APPLY(arg, da_segment, ps_segment) \
-    APPLY(arg, da_word, ps_word) \
-    APPLY(arg, da_redir, ps_redir) \
-    APPLY(arg, da_cmd, ps_cmd) \
-    APPLY(arg, da_andor, ps_andor) \
+    APPLY(arg, da_segment, struct ps_segment) \
+    APPLY(arg, da_word, struct ps_word) \
+    APPLY(arg, da_redir, struct ps_redir) \
+    APPLY(arg, da_cmd, struct ps_cmd) \
+    APPLY(arg, da_andor, struct ps_andor) \
     /* misc */ \
     APPLY(arg, da_int, int) \
     APPLY(arg, da_pid, pid_t) \
-    APPLY(arg, da_vars, var_pair) \
+    APPLY(arg, da_vars, struct var_pair) \
     APPLY(arg, da_charp, char *) \
 
 #define DECLARE_DYN_ARR(name, type) \

@@ -3,18 +3,33 @@
 
 #include <stddef.h>
 
-#include "parser_types.h"
 #include "dyn_arr.h"
+
+typedef enum {
+    PS_AND_IF,
+    PS_OR_IF,
+    PS_NO_IF,
+} ps_andor_op;
+
+typedef enum {
+    PS_Q_SINGLE,
+    PS_Q_DOUBLE,
+    PS_Q_NONE,
+} ps_quote;
 
 struct ps_segment {
     char *raw;
     ps_quote quote;
 };
 
+typedef struct ps_segment ps_segment;
+
 struct ps_word {
     da_segment segments;
     char *arg;
 };
+
+typedef struct ps_word ps_word;
 
 struct ps_redir {
     ps_word target;
@@ -22,25 +37,35 @@ struct ps_redir {
     int append;
 };
 
+typedef struct ps_redir ps_redir;
+
 struct ps_cmd {
     da_word words;
     da_redir redirs;
     char **argv;
 };
 
+typedef struct ps_cmd ps_cmd;
+
 struct ps_pline {
     da_cmd cmds;
 };
+
+typedef struct ps_pline ps_pline;
 
 struct ps_andor {
     ps_pline pline;
     ps_andor_op op;
 };
 
+typedef struct ps_andor ps_andor;
+
 struct ps_job {
     da_andor andors;
     bool bg;
 };
+
+typedef struct ps_job ps_job;
 
 void ps_free(ps_job *job);
 int ps_parse(da_tok *tokens, ps_job *job);
