@@ -83,6 +83,6 @@
         return 0; \
     }
 
-#define X(name ,type) DEFINE_DYN_ARR(name, type)
-    DYN_ARR_TYPES
+#define DA_DEFINE(_, name, type) DEFINE_DYN_ARR(name, type)
+    DYN_ARR_TYPES(DA_DEFINE, _)
 #undef X

@@ -128,22 +128,22 @@ void test_delete_middle_element(void) {
 
 void test_generic_init(void) {
     da_tok toks;
-    TEST_ASSERT_EQUAL_PTR(da_tok_init, get_da_init(&toks));
+    TEST_ASSERT_EQUAL_PTR(da_tok_init, DA_GET(_init, &toks));
 }
 
 void test_generic_free(void) {
     da_part parts;
-    TEST_ASSERT_EQUAL_PTR(da_part_free, get_da_free(&parts));
+    TEST_ASSERT_EQUAL_PTR(da_part_free, DA_GET(_free, &parts));
 }
 
 void test_generic_reserve(void) {
     da_word words;
-    TEST_ASSERT_EQUAL_PTR(da_word_reserve, get_da_reserve(&words));
+    TEST_ASSERT_EQUAL_PTR(da_word_reserve, DA_GET(_reserve, &words));
 }
 
 void test_generic_push(void) {
     da_segment segments;
-    TEST_ASSERT_EQUAL_PTR(da_segment_push, get_da_push(&segments));
+    TEST_ASSERT_EQUAL_PTR(da_segment_push, DA_GET(_push, &segments));
 }
 
 int main(void) {
