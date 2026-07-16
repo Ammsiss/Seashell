@@ -4,11 +4,9 @@
 #include "dyn_arr.h"
 #include "log.h"
 
-static da_vars st_vars = {0};
-
-static bool st_get_index_var(char *key, size_t *index) {
-    for (size_t i = 0; i < st_vars.size; ++i) {
-        if (strcmp(st_vars.data[i].key, key) == 0) {
+static bool get_index_var(da_vars *vars, char *key, size_t *index) {
+    for (size_t i = 0; i < vars->size; ++i) {
+        if (strcmp(vars->data[i].key, key) == 0) {
             *index = i;
             return true;
         }
@@ -17,20 +15,20 @@ static bool st_get_index_var(char *key, size_t *index) {
     return false;
 }
 
-char *st_lookup_var(char *key) {
+char *lookup_var(da_vars *vars, char *key) {
     size_t index;
-    if (st_get_index_var(key, &index)) {
-        return st_vars.data[index].value;
+    if (get_index_var(vars, key, &index)) {
+        return vars->data[index].value;
     } else
         return NULL;
 }
 
-int st_add_var(var_pair *var) {
+int add_var(da_vars *vars, var_pair *var) {
     size_t index;
-    if (st_get_index_var(var->key, &index)) {
-        strcpy(st_vars.data[index].value, var->value);
+    if (get_index_var(vars, var->key, &index)) {
+        strcpy(vars->data[index].value, var->value);
     } else {
-        var_pair *new_var = da_push(&st_vars);
+        var_pair *new_var = da_push(vars);
         if (!new_var) {
             LOG_ERR("da_push");
             return - 1;
@@ -42,10 +40,10 @@ int st_add_var(var_pair *var) {
     return 0;
 }
 
-int st_delete_var(char *key) {
+int delete_var(da_vars *vars, char *key) {
     size_t index;
-    if (st_get_index_var(key, &index)) {
-        if (da_delete(&st_vars, index) == -1) {
+    if (get_index_var(vars, key, &index)) {
+        if (da_delete(vars, index) == -1) {
             LOG_ERR("da_delete");
             return -1;
         }

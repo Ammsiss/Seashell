@@ -7,6 +7,7 @@
 #include "shell_state.h"
 #include "log.h"
 #include "shell_types.h" // IWYU pragma: keep
+#include "variable.h" // IWYU pragma: keep
 
 static sh_env shell_env = {0};
 
@@ -17,12 +18,15 @@ int env_init(void) {
         return -1;
     if (xsigprocmask(0, NULL, &shell_env.og_mask) == -1)
         return -1;
+    if (da_init(&shell_env.vars) == -1)
+        return -1;
 
     return 0;
 }
 
 void env_free(void) {
     xclose(shell_env.tty_fd);
+    da_free(&shell_env.vars);
     shell_env = (sh_env){0};
 }
 

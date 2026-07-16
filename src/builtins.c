@@ -77,7 +77,6 @@ bool verify_var_key(const char *key) {
 }
 
 static int run_set_builtin(char **argv, sh_env *shell_env) {
-    (void) shell_env;
     if (!argv[1] || !argv[2]) {
         fprintf(stderr, "set: not enough arguments\n");
         return EXIT_FAILURE;
@@ -108,7 +107,7 @@ static int run_set_builtin(char **argv, sh_env *shell_env) {
     strcpy(var.key, argv[1]);
     strcpy(var.value, argv[2]);
 
-    if (st_add_var(&var) == -1) {
+    if (add_var(&shell_env->vars, &var) == -1) {
         fprintf(stderr, "set: failed to add variable\n");
         return EXIT_FAILURE;
     }
@@ -117,7 +116,6 @@ static int run_set_builtin(char **argv, sh_env *shell_env) {
 }
 
 static int run_unset_builtin(char **argv, sh_env *shell_env) {
-    (void) shell_env;
     if (!argv[1]) {
         fprintf(stderr, "unset: not enough arguments\n");
         return EXIT_FAILURE;
@@ -133,7 +131,7 @@ static int run_unset_builtin(char **argv, sh_env *shell_env) {
         return EXIT_FAILURE;
     }
 
-    st_delete_var(argv[1]);
+    delete_var(&shell_env->vars, argv[1]);
 
     return EXIT_SUCCESS;
 }

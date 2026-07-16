@@ -3,6 +3,7 @@
 
 #define SHELL_VAR_MAX 4096
 
+#include "dyn_arr.h"
 #include "shell_types.h"
 
 struct var_pair {
@@ -10,8 +11,8 @@ struct var_pair {
     char value[SHELL_VAR_MAX];
 };
 
-int st_add_var(var_pair *var);
-int st_delete_var(char *key);
-char *st_lookup_var(char *key);
+char *lookup_var(da_vars *vars, char *key);
+int add_var(da_vars *vars, var_pair *var);
+int delete_var(da_vars *vars, char *key);
 
 #endif

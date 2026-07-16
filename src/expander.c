@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "shell_state.h"
 #include "variable.h"
 #include "expander.h"
 #include "parser.h" // IWYU pragma: keep - See 2026-06-25 Notes
@@ -33,7 +34,7 @@ static char *expand_variable(char **c) {
         return NULL;
     }
 
-    char *value = st_lookup_var(key);
+    char *value = lookup_var(&get_env()->vars, key);
 
     free(key);
     return value;
