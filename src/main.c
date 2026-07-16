@@ -56,7 +56,8 @@ void sigchld_handler(int sig) {
 
 void process_signals(void) {
     if (sigchld_caught) {
-        /* wait for all pending zombie children */
+        if (wait_for_all() == -1)
+            fatal("wait_for_all");
         sigchld_caught = false;
     }
 }

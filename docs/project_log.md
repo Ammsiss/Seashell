@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------
 
-## 2026-07-16 - 522cd7b
+## 2026-07-16 - 00eab5a
 
 ### Next
 
@@ -14,6 +14,7 @@
 - [x] figure out how to reduce generic dyn_arr resolution boilerplate
 - [x] make shell_env a global
 - [x] remove module_type.h file requirement
+- [x] add a waitpid function for bg children exiting
 - [ ] (Removed) think about shell life time clean up.
 
 ### Notes
@@ -41,7 +42,7 @@ To see the state of the backlog for any entry use:
 
 So for todays todo.md state you would use:
 
-    git show 522cd7b:docs/todo.md
+    git show 00eab5a:docs/todo.md
 
 ---------------------------------------------------------------------------------
 

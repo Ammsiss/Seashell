@@ -169,8 +169,11 @@ static void child_exec(bool first, bool last, int next_pipe[2], \
         err_exit("execvp");
 }
 
-int exec_pline(const ps_pline *pline, bool bg, pline_info *info) {
-    if (da_init(&info->pids) == -1)
+int exec_pline(const ps_pline *pline, bool bg, da_pid *pids, pid_t *pgid) {
+    if (!pline || !pids || !pgid)
+        return -1;
+
+    if (da_init(pids) == -1)
         return -1;
 
     int next_pipe[2];
@@ -191,20 +194,20 @@ int exec_pline(const ps_pline *pline, bool bg, pline_info *info) {
             goto fail;
 
         if (first)
-            info->pgid = child_pid;
+            *pgid = child_pid;
 
         if (child_pid == 0) {
             sh_env.subshell = true;
             child_exec(first, last, next_pipe, prev_rfd, cur_cmd, \
-                    info->pgid, bg);
+                    *pgid, bg);
             _exit(EXIT_FAILURE);
         }
 
-        if (xsetpgid(child_pid, info->pgid) == -1 && errno != EACCES)
+        if (xsetpgid(child_pid, *pgid) == -1 && errno != EACCES)
             goto fail;
 
         if (!bg && first)
-            if (xtcsetpgrp(sh_env.tty_fd, info->pgid) == -1)
+            if (xtcsetpgrp(sh_env.tty_fd, *pgid) == -1)
                 goto fail;
 
         if (!first)
@@ -217,7 +220,7 @@ int exec_pline(const ps_pline *pline, bool bg, pline_info *info) {
                 goto fail;
         }
 
-        pid_t *pid = da_push(&info->pids);
+        pid_t *pid = da_push(pids);
         if (!pid)
             goto fail;
         *pid = child_pid;
@@ -229,6 +232,6 @@ int exec_pline(const ps_pline *pline, bool bg, pline_info *info) {
     return 0;
 
 fail:
-    da_free(&info->pids);
+    da_free(pids);
     return -1;
 }

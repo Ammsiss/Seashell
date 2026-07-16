@@ -2,12 +2,8 @@
 #define RUNNER_H
 
 #include "dyn_arr.h"
+#include "parser.h"
 
-typedef struct {
-    da_pid pids;
-    pid_t pgid;
-} pline_info;
-
-int exec_pline(const ps_pline *pline, bool bg, pline_info *info);
+int exec_pline(const ps_pline *pline, bool bg, da_pid *pids, pid_t *pgid);
 
 #endif
