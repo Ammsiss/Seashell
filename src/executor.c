@@ -74,7 +74,7 @@ static int run_pline(const ps_pline *pline) {
         fatal("bad job control state");
 
     if (xtcsetpgrp(get_env()->tty_fd, getpgrp()) == -1)
-        errExit(true, "tcsetpgrp");
+        err_exit("tcsetpgrp");
 
     return stat;
 }

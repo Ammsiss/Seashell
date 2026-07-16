@@ -82,37 +82,28 @@ void verify_child_fd_count(bool first, bool last) {
         verify_fd_count(2);
 }
 
-static int move_fd(int fd1, int fd2) {
+static void move_fd(int fd1, int fd2) {
     if (fd1 == fd2)
-        return 0;
+        return;
 
-    if (xdup2(fd1, fd2) == -1) {
-        errno_msg("dup2");
-        return -1;
-    }
+    if (xdup2(fd1, fd2) == -1)
+        err_exit("dup2");
 
-    if (xclose(fd1) == -1) {
-        errno_msg("close");
-        return -1;
-    }
-
-    return 0;
+    if (xclose(fd1) == -1)
+        err_exit("close");
 }
 
 static void child_fd_setup(bool first, bool last, int next_pipe[2], \
         int prev_rfd) {
     /* Set up file descriptors */
-    if (!first) {
-        if (move_fd(prev_rfd, STDIN_FILENO) == -1)
-            _exit(EXIT_FAILURE);
-    }
+    if (!first)
+        move_fd(prev_rfd, STDIN_FILENO);
 
     if (!last) {
-        if (move_fd(next_pipe[1], STDOUT_FILENO) == -1)
-            _exit(EXIT_FAILURE);
+        move_fd(next_pipe[1], STDOUT_FILENO);
 
         if (close(next_pipe[0]) == -1) /* why here? */
-            err_exit(true, "close");
+            err_exit("close");
     }
 
 }
@@ -127,7 +118,7 @@ void child_redir_setup(da_redir *redirs) {
         if (redir->io_num == STDIN_FILENO) {
             rfd = open(arg, O_RDONLY);
             if (rfd == -1)
-                err_exit(true, "open");
+                err_exit("open");
         } else {
             if (redir->append) {
                 rfd = open(arg, O_WRONLY | O_CREAT | O_EXCL, 0600);
@@ -135,14 +126,14 @@ void child_redir_setup(da_redir *redirs) {
                     if (errno == EEXIST) {
                         rfd = open(arg, O_WRONLY | O_APPEND);
                         if (rfd == -1)
-                            err_exit(true, "open");
+                            err_exit("open");
                     } else
-                        err_exit(true, "open");
+                        err_exit("open");
                 }
             } else {
                 rfd = open(arg, O_WRONLY | O_CREAT | O_TRUNC, 0600);
                 if (rfd == -1)
-                    err_exit(true, "open");
+                    err_exit("open");
             }
         }
 
@@ -152,14 +143,12 @@ void child_redir_setup(da_redir *redirs) {
 
 static void child_exec(bool first, bool last, int next_pipe[2], \
         int prev_rfd, ps_cmd *cur_cmd, pid_t pgid, bool bg) {
-    get_env()->subshell = true;
-
     if (xsetpgid(0, pgid) == -1)
-        err_exit(true, "setpgid");
+        err_exit("setpgid");
 
     if (!bg && first)
         if (xtcsetpgrp(get_env()->tty_fd, getpgrp()) == -1)
-            err_exit(true, "tcsetpgrp");
+            err_exit("tcsetpgrp");
 
     child_fd_setup(first, last, next_pipe, prev_rfd);
     child_redir_setup(&cur_cmd->redirs);
@@ -177,7 +166,7 @@ static void child_exec(bool first, bool last, int next_pipe[2], \
         err_msg("command not found: %s", cur_cmd->argv[0]);
         _exit(127);
     } else
-        err_exit(true, "execvp");
+        err_exit("execvp");
 }
 
 int exec_pline(const ps_pline *pline, bool bg, pline_info *info) {
@@ -205,6 +194,7 @@ int exec_pline(const ps_pline *pline, bool bg, pline_info *info) {
             info->pgid = child_pid;
 
         if (child_pid == 0) {
+            get_env()->subshell = true;
             child_exec(first, last, next_pipe, prev_rfd, cur_cmd, \
                     info->pgid, bg);
             _exit(EXIT_FAILURE);

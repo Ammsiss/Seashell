@@ -9,6 +9,7 @@
 
 #include "log.h"
 #include "utils.h"
+#include "shell_state.h"
 
 /* error functions */
 
@@ -35,25 +36,22 @@ void fatal(const char *fmt, ...) {
     output_err(fmt, &va, false);
     va_end(va);
 
-    exit(EXIT_FAILURE);
+    if (get_env()->subshell)
+        _exit(EXIT_FAILURE);
+    else
+        exit(EXIT_FAILURE);
 }
 
-void errExit(bool print_err, const char *fmt, ...) {
+void err_exit(const char *fmt, ...) {
     va_list va;
     va_start(va, fmt);
-    output_err(fmt, &va, print_err);
+    output_err(fmt, &va, true);
     va_end(va);
 
-    exit(EXIT_FAILURE);
-}
-
-void err_exit(bool print_err, const char *fmt, ...) {
-    va_list va;
-    va_start(va, fmt);
-    output_err(fmt, &va, print_err);
-    va_end(va);
-
-    _exit(EXIT_FAILURE);
+    if (get_env()->subshell)
+        _exit(EXIT_FAILURE);
+    else
+        exit(EXIT_FAILURE);
 }
 
 void err_msg(const char *fmt, ...) {
