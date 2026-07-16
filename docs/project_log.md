@@ -1,5 +1,50 @@
 ---------------------------------------------------------------------------------
 
+## 2026-07-16 - 522cd7b
+
+### Next
+
+- [ ] on exec_pline failure, excess pfds in parent should be closed
+- [ ] why are we calling fprintf(stderr,...) in the builtins?
+
+### Completed
+
+- [x] replace use of errExit(false,...) with fatal()
+- [x] set builtin should use the passed in sh_env (store var array in sh_env)
+- [x] figure out how to reduce generic dyn_arr resolution boilerplate
+- [x] make shell_env a global
+- [x] remove module_type.h file requirement
+- [ ] (Removed) think about shell life time clean up.
+
+### Notes
+
+Discovered a way to remove the annoying "module_types.h" files. I just
+needed to declare the struct tags in the header while keeping the typedefs
+and struct definitions *separate* but defined in the same h file.
+
+I could come up with some system to automate the declaration lines (the
+simplest would be to just declare all types added even scaler types and
+silence the "Declaration does not declare anything" warning but for the sake of
+simplicity I'll just declare them manually. It makes it more explicit too.
+
+See dyn_arr.h(9-18,22-34), parser.h(20-25)
+
+Also changed the format of the logs. The task backlog being duped everyday is
+noisy so it's now in a separate todo.md file which can be interogated with git.
+The *Next*, *Completed*, and *Notes* section will stay here because they all
+change everyday but the task backlog could be the same for many days or only be
+slightly different.
+
+To see the state of the backlog for any entry use:
+
+    git show <hash>:path
+
+So for todays todo.md state you would use:
+
+    git show 522cd7b:docs/todo.md
+
+---------------------------------------------------------------------------------
+
 ## 2026-07-15
 
 ### Next
