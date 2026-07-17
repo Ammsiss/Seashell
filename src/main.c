@@ -48,18 +48,35 @@ void run_cmd(const char *line) {
 }
 
 static volatile sig_atomic_t sigchld_caught = false;
-
 void sigchld_handler(int sig) {
     (void) sig;
     sigchld_caught = true;
 }
 
-void process_signals(void) {
+static volatile sig_atomic_t sigint_caught = false;
+void sigint_handler(int sig) {
+    (void) sig;
+    sigint_caught = true;
+}
+
+int process_signals(void) {
     if (sigchld_caught) {
         if (wait_for_all() == -1)
-            fatal("wait_for_all");
+            return -1;
+
         sigchld_caught = false;
     }
+
+    if (sigint_caught) {
+        printf("\n");
+
+        if (display_prompt() == -1)
+            return -1;
+
+        sigint_caught = false;
+    }
+
+    return 0;
 }
 
 int main(void) {
@@ -70,12 +87,20 @@ int main(void) {
 
     LOG_INFO("seashell PID(%d)", getpid());
 
+    /* SIGTTOU */
     if (set_sig_action(SIGTTOU, SIG_IGN, 0, NULL) == -1)
         fatal("set_sig_action");
 
+    /* SIGCHLD */
     if (block_sig(SIGCHLD) == -1)
         fatal("block_sig");
     if (set_sig_action(SIGCHLD, sigchld_handler, 0, NULL) == -1)
+        fatal("set_sig_action");
+
+    /* SIGINT */
+    if (block_sig(SIGINT) == -1)
+        fatal("block_sig");
+    if (set_sig_action(SIGINT, sigint_handler, 0, NULL) == -1)
         fatal("set_sig_action");
 
     struct pollfd events = {
@@ -89,16 +114,21 @@ int main(void) {
 
         int ready;
         while ((ready = xppoll(&events, 1, 0, &sh_env.og_mask)) == -1) {
-            if (errno != EINTR)
+            if (errno != EINTR) {
                 err_exit("poll");
-            process_signals();
+            } else {
+                if (process_signals() == -1)
+                    err_exit("process_signals");
+            }
         }
 
-        char *line;
-        switch (get_line(&line)) {
-        case INPUT_ERR: fatal("failed to read from terminal");
-        case INPUT_OK:  run_cmd(line); break;
-        case INPUT_EOF: goto done;
+        if (ready == 1) {
+            char *line;
+            switch (get_line(&line)) {
+            case INPUT_ERR: fatal("failed to read from terminal");
+            case INPUT_OK:  run_cmd(line); break;
+            case INPUT_EOF: goto done;
+            }
         }
     }
 

@@ -198,6 +198,14 @@ void log_msg(log_level type, const char *errstr, const char *file, \
         rv; \
     })
 
+#define xsigdelset(set, signum) \
+    ({ \
+        int rv = sigdelset(set, signum); \
+        if (rv == -1) \
+            LOG_ERRNO("sigdelset"); \
+        rv; \
+    })
+
 #define xsigprocmask(how, set, old) \
     ({ \
         int rv = sigprocmask(how, set, old); \
