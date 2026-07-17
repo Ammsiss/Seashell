@@ -1,5 +1,59 @@
 ---------------------------------------------------------------------------------
 
+## 2026-07-17 - 31211d8
+
+### Next
+
+- [ ] Run time jobs should correspond to plines, change da_pgrp->jc_pgrp
+
+### Completed
+
+- [x] add argc validation function for builtins
+- [x] handle SIGINT in repl loop
+- [ ] (Removed) set up async handling of SIGCHLD.
+- [ ] (Removed) unblock SIGTTOU (any blk/ign sigs) before execing
+- [ ] (Removed) save initial procmask then apply it before execing in child
+- [ ] (Removed) add regression tests for builtins
+
+### Notes
+
+Realized that my AST model of a job should be different then my runtime
+representation. Jobs in the runtime are really just pipelines. When a job
+stops, all the processes in the pipeline are stopped *not* the andor chain.
+
+So the jctl structure will only store pipelines as jobs, with something like a
+pointer to the next pipeline in the AST andor chain. the AST andor chain should
+be immutable launch instructions which can contain many potential jobs with
+launch criteria (andor) whearas the jctl would store run time info relating to
+a single job (pline)
+
+This is nice because we don't have to store all the extra pgrp info in every
+job or duplicate the state. We just run a pline and then optionally launch
+another after based on the AST.
+
+I think its good to think of it as the runner taking job launch instructions 2
+different ways. From a new AST or from an existing AST. Each AST has a count of
+jobs and a progression tracker. The AST is only dropped and removed as a
+potential provider of jobs once all the jobs in it are launched.
+
+Also my pipeline exec failure path leaks persistent resources such as fds and
+wait statuses. I currently free the dyn arr of pids and return immediately
+without closing any remaining pipe fds. Additionally because I free the dyn arr
+I don't add the children of the failed pipeline exec into the job control
+structure. This means that when those wait statuses are eventually reaped (for
+example asynchrounsly by wait_for_all()) the job control structure will see
+pids that are not tracked by it, which could be confusing.
+
+For now I am just going to fix the pfd leak issue, and I will return to the
+wait status issue once the job control code is further along as the fix is
+going to depend on the implementation.
+
+PS you can diff file blobs, for example:
+
+    git diff HEAD~1:src/main.c HEAD:src/main.c
+
+---------------------------------------------------------------------------------
+
 ## 2026-07-16 - 00eab5a
 
 ### Next
