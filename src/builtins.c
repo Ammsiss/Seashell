@@ -17,7 +17,33 @@ Job control builtins:
     kill -> signal a job
 */
 
+static bool validate_argc(char **argv, size_t min_argc, size_t max_argc) {
+    if (!argv || !argv[0]) {
+        LOG_ERR("validate_args: bad argv array");
+        fatal("internal error; check logs");
+    }
+
+    size_t arg_n = 0;
+    for (char **i = argv + 1; *i != NULL; ++i)
+        ++arg_n;
+
+    if (arg_n < min_argc) {
+        fprintf(stderr, "%s: not enough arguments\n", argv[0]);
+        return false;
+    }
+
+    if (arg_n > max_argc) {
+        fprintf(stderr, "%s: too many arguments\n", argv[0]);
+        return false;
+    }
+
+    return true;
+}
+
 static int run_exit_builtin(char **argv, shell_env *sh_env) {
+    if (!validate_argc(argv, 0, 1))
+        return EXIT_FAILURE;
+
     int exit_status = EXIT_FAILURE;
 
     if (argv[1]) {
@@ -26,11 +52,6 @@ static int run_exit_builtin(char **argv, shell_env *sh_env) {
 
         if (strcmp(argv[1], "") == 0 || *endptr != '\0') {
             fprintf(stderr, "exit: invalid argument: %s\n", argv[1]);
-            return EXIT_FAILURE;
-        }
-
-        if (argv[2]) {
-            fprintf(stderr, "exit: too many arguments\n");
             return EXIT_FAILURE;
         }
     }
@@ -43,17 +64,9 @@ static int run_exit_builtin(char **argv, shell_env *sh_env) {
     }
 }
 
-static int run_cd_builtin(char **argv, shell_env *sh_env) {
-    (void) sh_env;
-    if (!argv[1]) {
-        fprintf(stderr, "cd: path required\n");
+static int run_cd_builtin(char **argv, shell_env *_) {
+    if (!validate_argc(argv, 1, 1))
         return EXIT_FAILURE;
-    }
-
-    if (argv[2]) {
-        fprintf(stderr, "cd: too many arguments\n");
-        return EXIT_FAILURE;
-    }
 
     if (chdir(argv[1]) == -1) {
         fprintf(stderr, "cd: chdir: %s\n", strerror(errno));
@@ -63,50 +76,35 @@ static int run_cd_builtin(char **argv, shell_env *sh_env) {
     return EXIT_SUCCESS;
 }
 
-bool verify_var_key(const char *key) {
-    for (const char *c = key; *c != '\0'; ++c) {
-        if (!((*c >= 'a' && *c <= 'z') ||
-            (*c >= 'A' && *c <= 'Z') ||
-            (*c >= '0' && *c <= '9') ||
-            *c == '-' || *c == '_'))
+static bool verify_vp_key(const var_pair *vp) {
+    for (const char *c = vp->key; *c != '\0'; ++c) {
+        bool valid_key =
+                ((*c >= 'a' && *c <= 'z') ||
+                (*c >= 'A' && *c <= 'Z') ||
+                (*c >= '0' && *c <= '9') ||
+                *c == '-' || *c == '_');
+
+        if (!valid_key) {
+            fprintf(stderr, "set: invalid key: %s\n", vp->key);
             return false;
+        }
     }
 
     return true;
 }
 
 static int run_set_builtin(char **argv, shell_env *sh_env) {
-    if (!argv[1] || !argv[2]) {
-        fprintf(stderr, "set: not enough arguments\n");
+    if (!validate_argc(argv, 2, 2))
         return EXIT_FAILURE;
-    }
 
-    if (argv[3]) {
-        fprintf(stderr, "set: too many arguments\n");
+    var_pair vp = {0};
+    strncpy(vp.key, argv[1], SHELL_VAR_MAX - 1);
+    strncpy(vp.value, argv[2], SHELL_VAR_MAX - 1);
+
+    if (!verify_vp_key(&vp))
         return EXIT_FAILURE;
-    }
 
-    var_pair var = {0};
-
-    if (strlen(argv[1]) >= SHELL_VAR_MAX) {
-        fprintf(stderr, "set: variable name too long: %s\n", argv[1]);
-        return EXIT_FAILURE;
-    }
-
-    if (strlen(argv[2]) >= SHELL_VAR_MAX) {
-        fprintf(stderr, "set: variable value too long: %s\n", argv[2]);
-        return EXIT_FAILURE;
-    }
-
-    if (!verify_var_key(argv[1])) {
-        fprintf(stderr, "set: invald variable name: %s\n", argv[1]);
-        return EXIT_FAILURE;
-    }
-
-    strcpy(var.key, argv[1]);
-    strcpy(var.value, argv[2]);
-
-    if (add_var(&sh_env->vars, &var) == -1) {
+    if (add_var(&sh_env->vars, &vp) == -1) {
         fprintf(stderr, "set: failed to add variable\n");
         return EXIT_FAILURE;
     }
@@ -115,17 +113,10 @@ static int run_set_builtin(char **argv, shell_env *sh_env) {
 }
 
 static int run_unset_builtin(char **argv, shell_env *sh_env) {
-    if (!argv[1]) {
-        fprintf(stderr, "unset: not enough arguments\n");
+    if (!validate_argc(argv, 1, 1))
         return EXIT_FAILURE;
-    }
 
-    if (argv[2]) {
-        fprintf(stderr, "unset: too many arguments\n");
-        return EXIT_FAILURE;
-    }
-
-    if (strlen(argv[1]) >= SHELL_VAR_MAX) {
+    if (strlen(argv[1]) >= SHELL_VAR_MAX - 1) {
         fprintf(stderr, "set: variable name too long: %s\n", argv[1]);
         return EXIT_FAILURE;
     }
@@ -154,7 +145,7 @@ static sh_builtin *get_builtin(const char *arg) {
 
 bool try_run_builtin(char **argv, int *status) {
     if (!argv || !argv[0]) {
-        LOG_ERR("received invalid argv structure");
+        LOG_ERR("try_run_builtin received bad argv structure");
         fatal("internal error check logs\n");
     }
 
