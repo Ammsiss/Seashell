@@ -1,5 +1,6 @@
 ### Tasks
 
+- [ ] change PSTOPPED etc to JSTOPPED etc
 - [ ] on exec_pline failure, excess pfds in parent should be closed
 - [ ] Add a init_proc function and use da_push_init for da_proc
 - [ ] Change ps_job -> ps_ast
@@ -20,3 +21,4 @@
 3. How should pre-exec subshell unblocking semantics work?
 4. Should we enforce obj_init() failing means its ok to call obj_free()?
 5. How should the new executor testing file look with job control?
+6. Is it ok to call tcsetpgrp and setpgid on a zombie child?

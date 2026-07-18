@@ -1,5 +1,45 @@
 ---------------------------------------------------------------------------------
 
+## 2026-07-19 - <hash>
+
+### Next
+
+### Completed
+
+### Notes
+---------------------------------------------------------------------------------
+
+## 2026-07-18 - N/A
+
+### Next
+
+- [ ] Why does sending SIGCONT to a bg process cause an invalid read error?
+- [ ] jctl should react to sending STOP then CONT to a single proc job
+
+### Notes
+
+Couple of things will make the job control implementation easier to develop.
+
+First, not attempting to do any printing of job control messages and printing
+all info through the logging module will decouple the ui and the semantics of
+the actual job control module. A couple times while debugging I had some janky
+output which made me think it might be a semantic issue but it turned out the
+structure was fine and it was just a printing issue.
+
+Second, handling pipelines first is definitely the play. And or chains are
+essentially just another source of jobs, the new ast and the existing ones
+so simplifying the run function for now to just do pipelines will make it
+much simpler to reason about.
+
+I've been doing the no-no thing where I make like 500 changes and not commit
+any of it but it feels like a really exploratory time. I'm going to start
+transitioning into more concrete changes now though as I feel like my mental
+model of the implementation is starting to form.
+
+Tommorow's plan will be to continue debugging and testing the fg/bg logic.
+
+---------------------------------------------------------------------------------
+
 ## 2026-07-17 - 31211d8
 
 ### Next
