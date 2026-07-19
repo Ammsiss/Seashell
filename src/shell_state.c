@@ -37,8 +37,8 @@ int process_signals(void) {
     }
 
     if (sighup_caught) {
-        /* TODO: propogate sighup to all bg jobs */
-
+        if (sighup_shutdown() == -1)
+            xfatal("sighup_shutdown");
         exit(EXIT_SUCCESS);
     }
 

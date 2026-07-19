@@ -83,6 +83,20 @@ int init_jst(jc_jst *jctl) {
     return 0;
 }
 
+int sighup_shutdown(void) {
+    for (size_t i = 0; i < sh_env.jctl.jobs.size; ++i) {
+        jc_job *job = &sh_env.jctl.jobs.data[i];
+        if (getpgrp() != job->pgrp.pgid)
+            if (xkill(-job->pgrp.pgid, SIGHUP) == -1)
+                err_exit("kill");
+    }
+
+    if (jctl_wait(NULL) == -1)
+        xfatal("jctl_wait");
+
+    return 0;
+}
+
 static job_id identify_proc(pid_t pid, jc_proc** proc) {
     for (size_t i = 0; i < sh_env.jctl.jobs.size; ++i) {
         jc_job *job = &sh_env.jctl.jobs.data[i];
@@ -215,15 +229,22 @@ static int set_job_stat(job_id jid) {
     return 0;
 }
 
-static int proc_exited(pid_t pid, int exit_stat) {
+static int proc_exited(pid_t pid, int wstat) {
     jc_proc *proc;
     job_id jid = identify_proc(pid, &proc);
     if (jid == -1)
         xfatal("identify_proc");
 
-    proc->exit_stat = exit_stat;
+    proc->wstat = wstat;
     proc->stat = PEXITED;
-    LOG_INFO("%d terminated with exit stat %d", pid, exit_stat);
+
+    if (WIFEXITED(wstat)) {
+        LOG_INFO("%d exited with status %d", pid, WEXITSTATUS(wstat));
+    } else if (WIFSIGNALED(wstat)) {
+        LOG_INFO("%d terminated by signal %d (%s)", pid, WTERMSIG(wstat),
+                strsignal(WTERMSIG(wstat)));
+    } else
+        xfatal("unexpected wstat");
 
     if (set_job_stat(jid) == -1)
         xfatal("set_job_stat");
@@ -286,12 +307,8 @@ int jctl_wait(job_id *jid) {
         if (cpid == -1)
             err_exit("waitpid");
 
-        if (WIFEXITED(wstat)) {
-            if (proc_exited(cpid, WEXITSTATUS(wstat)) == -1)
-                xfatal("proc_exited");
-
-        } else if (WIFSIGNALED(wstat)) {
-            if (proc_exited(cpid, 128 + WTERMSIG(wstat)) == -1)
+        if (WIFEXITED(wstat) || WIFSIGNALED(wstat)) {
+            if (proc_exited(cpid, wstat) == -1)
                 xfatal("proc_exited");
 
         } else if (WIFSTOPPED(wstat)) {

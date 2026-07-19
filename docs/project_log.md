@@ -1,12 +1,41 @@
 ---------------------------------------------------------------------------------
 
-## 2026-07-19 - <hash>
+## 2026-07-20 - <hash>
 
 ### Next
 
 ### Completed
 
 ### Notes
+
+---------------------------------------------------------------------------------
+
+## 2026-07-19 - 979f44f
+
+### Next
+
+- [ ] catch all common exit signals (ex, TERM, QUIT)
+
+### Completed
+
+- [x] Initial job control implementation
+- [x] Simple SIGHUP propogation
+
+### Notes
+
+Finally pushed all the changes. Got to a pretty nice spot. Waits are handled
+in a single function. It turned out the only difference between the wait loop
+on a fg job and in response to sigchild is just the break condition. WNOHANG
+for SIGCHLD and the job being stopped or exited for a fg job.
+
+In terms of hooking andor chains back up I think it might actually make sense
+to handle it in the main loop, or a separate module, not in runner.c. The
+runner module really doesn't need to know about the sources of the jobs at all.
+It just needs to somehow communicate with another module that handles the
+current andor index.
+
+See jctl_demo_1.mkv and job_ctrl_demo.png
+
 ---------------------------------------------------------------------------------
 
 ## 2026-07-18 - N/A

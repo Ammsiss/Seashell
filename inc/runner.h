@@ -19,7 +19,7 @@ typedef struct jc_job jc_job;
 struct jc_proc {
     pid_t pid;
     pstat stat;
-    int exit_stat;
+    int wstat;
     jc_pgrp *pgrp;
 };
 
@@ -41,6 +41,8 @@ typedef struct {
 
 int init_jst(jc_jst *jctl);
 void free_jst(jc_jst *jctl);
+
+int sighup_shutdown(void);
 
 int jctl_wait(job_id *jid);
 char *get_pid_string(job_id jid);

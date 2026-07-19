@@ -314,4 +314,12 @@ void log_msg(log_level type, const char *errstr, const char *file, \
         rv; \
     })
 
+#define xkill(pid, sig) \
+    ({ \
+        int rv = kill(pid, sig); \
+        if (rv == -1) \
+            LOG_ERRNO("kill"); \
+        rv; \
+    })
+
 #endif

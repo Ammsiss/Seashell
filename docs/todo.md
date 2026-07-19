@@ -1,5 +1,11 @@
 ### Tasks
 
+- [ ] reuse job ids and start with the smallest available
+- [ ] send kill to a pgrp that is already exited? (ESRCH should be non fatal)
+- [ ] validate pgid value before callign kill
+- [ ] create kill builtin to target entire pgroups
+- [ ] create fg and bg builtins
+
 - [ ] change PSTOPPED etc to JSTOPPED etc
 - [ ] on exec_pline failure, excess pfds in parent should be closed
 - [ ] Add a init_proc function and use da_push_init for da_proc
