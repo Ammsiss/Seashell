@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 #include <valgrind/valgrind.h>
 
+#include "dyn_str.h"
 #include "runner.h"
 #include "builtins.h"
 #include "utils.h"
@@ -25,109 +26,314 @@
 #include "log.h"
 #include "shell_state.h"
 
-static int wait_for_pids(da_pid *pids, int *status) {
-    int wstat;
-    int last_status;
+static void free_pgrp(jc_pgrp *pgrp) {
+    assert(pgrp);
 
-    for (size_t i = 0; i < pids->size; ++i) {
-        pid_t pid = pids->data[i];
+    da_free(&pgrp->procs);
 
-        if (xwaitpid(pid, &wstat, WUNTRACED) == -1)
-            return -1;
+    *pgrp = (jc_pgrp){0};
+}
 
-        if (i == pids->size - 1)
-            last_status = WEXITSTATUS(wstat);
+static void free_job(jc_job *job) {
+    assert(job);
 
-        if (WIFSIGNALED(wstat)) {
-            int signum = WTERMSIG(wstat);
-            LOG_INFO("process %d terminated by signal %d (%s)",
-                    pid, signum, strsignal(signum));
-            last_status = 128 + signum;
-        } else if (WIFSTOPPED(wstat)) {
-            LOG_INFO("seashell: process %d stopped", pid);
-#ifdef WIFCONTINUED
-        } else if (WIFCONTINUED(wstat)) {
-            LOG_INFO("seashell: process %d continued", pid);
-#endif
-        } else if (!WIFEXITED(wstat)) {
-            LOG_ERR("waitpid success but bad wstat");
-            return -1;
-        }
-    }
+    free_pgrp(&job->pgrp);
 
-    *status = last_status;
+    *job = (jc_job){0};
+}
+
+void free_jst(jc_jst *jctl) {
+    assert(jctl);
+
+    for (size_t i = 0; i < jctl->jobs.size; ++i)
+        free_job(&jctl->jobs.data[i]);
+
+    da_free(&jctl->jobs);
+
+    *jctl = (jc_jst){0};
+}
+
+static int init_pgrp(jc_pgrp *pgrp) {
+    assert(pgrp);
+    *pgrp = (jc_pgrp){0};
+
+    if (da_init(&pgrp->procs) == -1)
+        return -1;
+
     return 0;
 }
 
-int wait_for_all(void) {
+static int init_job(jc_job *job) {
+    assert(job);
+    *job = (jc_job){0};
+
+    if (init_pgrp(&job->pgrp) == -1)
+        xfatal("init_pgrp");
+
+    return 0;
+}
+
+int init_jst(jc_jst *jctl) {
+    assert(jctl);
+    *jctl = (jc_jst){0};
+
+    if (da_init(&jctl->jobs) == -1)
+        return -1;
+
+    return 0;
+}
+
+static job_id identify_proc(pid_t pid, jc_proc** proc) {
+    for (size_t i = 0; i < sh_env.jctl.jobs.size; ++i) {
+        jc_job *job = &sh_env.jctl.jobs.data[i];
+
+        for (size_t y = 0; y < job->pgrp.procs.size; ++y) {
+            jc_proc *out = &job->pgrp.procs.data[y];
+
+            if (pid == out->pid) {
+                if (proc)
+                    *proc = out;
+                return job->id;
+            }
+        }
+    }
+
+    return -1;
+}
+
+static jc_job *lookup_job(job_id jid, size_t *index) {
+    for (size_t i = 0; i < sh_env.jctl.jobs.size; ++i) {
+        if (jid == sh_env.jctl.jobs.data[i].id) {
+            if (index)
+                *index = i;
+            return &sh_env.jctl.jobs.data[i];
+        }
+    }
+
+    return NULL;
+}
+
+static job_id create_job_id(void) {
+    static job_id job_id_counter = 1;
+    return job_id_counter++;
+}
+
+static jc_job *create_job(void) {
+    jc_job *job = da_push_init(&sh_env.jctl.jobs, init_job);
+    if (!job)
+        xfatal("da_push_init");
+
+    job->id = create_job_id();
+    job->pgrp.job = job;
+    job->stat = PRUNNING;
+
+    return job;
+}
+
+static int remove_job(job_id jid) {
+    size_t index;
+    jc_job *job = lookup_job(jid, &index);
+    if (!job)
+        xfatal("lookup_job");
+
+    free_job(job);
+
+    if (da_delete(&sh_env.jctl.jobs, index) == -1)
+        xfatal("da_delete");
+
+    return 0;
+}
+
+char *get_pid_string(job_id jid) {
+    jc_job *job = lookup_job(jid, NULL);
+    if (!job)
+        return NULL;
+
+    d_str pid_str;
+    if (d_str_init(&pid_str) == -1)
+        return NULL;
+
+    char buf[4096]; /* surely not longer then this */
+
+    for (size_t i = 0; i < job->pgrp.procs.size; ++i) {
+        jc_proc *proc = &job->pgrp.procs.data[i];
+        snprintf(buf, 4096, "%d ", proc->pid);
+        if (d_strcat(&pid_str, buf) == -1)
+            goto fail;
+    }
+
+    return pid_str.c_str;
+
+fail:
+    d_str_free(&pid_str);
+    return NULL;
+}
+
+int msg_job_start(job_id jid) {
+    char *pid_str = get_pid_string(jid);
+    if (!pid_str)
+        xfatal("get_pid_string");
+
+    LOG_INFO("[%d] %s", jid, pid_str);
+
+    free(pid_str);
+
+    return 0;
+}
+
+static int set_job_stat(job_id jid) {
+    jc_job *job = lookup_job(jid, NULL);
+    if (!job)
+        xfatal("lookup_job");
+
+    bool one_proc_stopped = false;
+
+    for (size_t i = 0; i < job->pgrp.procs.size; ++i) {
+        switch (job->pgrp.procs.data[i].stat) {
+        case PRUNNING:
+            if (job->stat == PSTOPPED)
+                LOG_INFO("[%d] continued", job->id);
+            job->stat = PRUNNING;
+            return 0;
+        case PSTOPPED:
+            one_proc_stopped = true;
+        case PEXITED:
+            continue;
+        }
+    }
+
+    if (one_proc_stopped) {
+        job->stat = PSTOPPED;
+        LOG_INFO("[%d] stopped", job->id);
+    } else {
+        job->stat = PEXITED;
+        LOG_INFO("[%d] done", job->id);
+        if (remove_job(job->id) == -1)
+            xfatal("remove_job");
+    }
+
+    return 0;
+}
+
+static int proc_exited(pid_t pid, int exit_stat) {
+    jc_proc *proc;
+    job_id jid = identify_proc(pid, &proc);
+    if (jid == -1)
+        xfatal("identify_proc");
+
+    proc->exit_stat = exit_stat;
+    proc->stat = PEXITED;
+    LOG_INFO("%d terminated with exit stat %d", pid, exit_stat);
+
+    if (set_job_stat(jid) == -1)
+        xfatal("set_job_stat");
+
+    return 0;
+}
+
+static int proc_stopped(pid_t pid) {
+    jc_proc *proc;
+    job_id jid = identify_proc(pid, &proc);
+    if (jid == -1)
+        xfatal("identify_proc");
+
+    proc->stat = PSTOPPED;
+    LOG_INFO("%d stopped", pid);
+
+    if (set_job_stat(jid) == -1)
+        xfatal("set_job_stat");
+
+    return 0;
+}
+
+static int proc_continued(pid_t pid) {
+    jc_proc *proc;
+    job_id jid = identify_proc(pid, &proc);
+    if (jid == -1)
+        xfatal("identify_proc");
+
+    proc->stat = PRUNNING;
+    LOG_INFO("%d continued", pid);
+
+    if (set_job_stat(jid) == -1)
+        xfatal("set_job_stat");
+
+    return 0;
+}
+
+int jctl_wait(job_id *jid) {
+    bool wait_on_job = jid;
+
     int wstat;
+    int cpid;
+    int wopts = WUNTRACED | WCONTINUED;
 
-    while (true) {
-        int pid = xwaitpid(-1, &wstat, WNOHANG | WUNTRACED | WCONTINUED);
+    jc_job *job = NULL;
 
-        if ((pid == -1 && errno == ECHILD) || pid == 0)
+    if (wait_on_job) {
+        job = lookup_job(*jid, NULL);
+        if (!job)
+            xfatal("lookup_job");
+    } else
+        wopts |= WNOHANG;
+
+    while ((cpid = xwaitpid(-1, &wstat, wopts)) != 0) {
+        if (cpid == -1 && errno == ECHILD) {
+            if (wait_on_job)
+                xfatal("shouldn't get echild here");
             break;
-
-        if (pid == -1)
-            return -1;
-
-        int stat = WEXITSTATUS(wstat);
-        (void) stat;
+        }
+        if (cpid == -1)
+            err_exit("waitpid");
 
         if (WIFEXITED(wstat)) {
-            LOG_INFO("process %d terminated", pid);
+            if (proc_exited(cpid, WEXITSTATUS(wstat)) == -1)
+                xfatal("proc_exited");
+
         } else if (WIFSIGNALED(wstat)) {
-            int signum = WTERMSIG(wstat);
-            LOG_INFO("process %d terminated by signal %d (%s)",
-                    pid, signum, strsignal(signum));
+            if (proc_exited(cpid, 128 + WTERMSIG(wstat)) == -1)
+                xfatal("proc_exited");
+
         } else if (WIFSTOPPED(wstat)) {
-            LOG_INFO("seashell: process %d stopped", pid);
+            if (proc_stopped(cpid) == -1)
+                xfatal("proc_stopped");
+
         } else if (WIFCONTINUED(wstat)) {
-            LOG_INFO("seashell: process %d continued", pid);
+            if (proc_continued(cpid) == -1)
+                xfatal("proc_continued");
+
         } else {
-            LOG_ERR("waitpid success but bad wstat");
-            return -1;
+            xfatal("unexpected wstat value");
         }
+
+        if (wait_on_job && (job->stat == PEXITED || job->stat == PSTOPPED))
+            break;
     }
 
     return 0;
 }
 
-static int run_pline(const ps_pline *pline) {
-    da_pid pids;
-    pid_t pgid;
+void sh_run_job(const ps_pline *pline, bool bg) {
+    if (pline->cmds.size == 1 && !bg)
+        if (try_run_builtin(pline->cmds.data[0].argv, NULL))
+            return;
 
-    if (exec_pline(pline, false, &pids, &pgid) == -1)
-        fatal("exec_pline");
+    jc_job *job = create_job();
+    if (!job)
+        xfatal("failed to create job");
 
-    int stat;
-    if (wait_for_pids(&pids, &stat) == -1)
-        fatal("wait_for_pids");
+    if (exec_pline(pline, bg, &job->pgrp) == -1)
+        xfatal("exec_pline");
 
-    da_free(&pids);
+    if (msg_job_start(job->id) == -1)
+        xfatal("msg_job_start");
+
+    if (bg)
+        return;
+
+    if (jctl_wait(&job->id) == -1)
+        xfatal("wait_for_pids");
 
     if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
         err_exit("tcsetpgrp");
-
-    return stat;
-}
-
-void sh_run(const ps_job *job) {
-    int prev_stat;
-
-    for (size_t i = 0; i < job->andors.size; ++i) {
-        const ps_andor *andor = &job->andors.data[i];
-
-        if (andor->op == PS_OR_IF && prev_stat == EXIT_SUCCESS)
-            continue;
-
-        if (andor->op == PS_AND_IF && prev_stat != EXIT_SUCCESS)
-            continue;
-
-        if (andor->pline.cmds.size == 1)
-            if (try_run_builtin(andor->pline.cmds.data[0].argv, &prev_stat))
-                continue;
-
-        prev_stat = run_pline(&andor->pline);
-    }
 }

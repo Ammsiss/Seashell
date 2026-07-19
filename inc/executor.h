@@ -1,9 +1,9 @@
 #ifndef RUNNER_H
 #define RUNNER_H
 
-#include "dyn_arr.h"
 #include "parser.h"
+#include "runner.h"
 
-int exec_pline(const ps_pline *pline, bool bg, da_pid *pids, pid_t *pgid);
+int exec_pline(const ps_pline *pline, bool bg, jc_pgrp *pgrp);
 
 #endif

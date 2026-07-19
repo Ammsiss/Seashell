@@ -28,7 +28,7 @@ int display_prompt(void) {
     if (d_strcat(&prompt, "> ") == -1)
         goto fail;
 
-    if (write(sh_env.tty_fd, prompt.c_str, prompt.len) != (int) prompt.len) {
+    if (xwrite(sh_env.tty_fd, prompt.c_str, prompt.len) != (int) prompt.len) {
         LOG_ERR("failed/partial write");
         goto fail;
     }

@@ -17,7 +17,7 @@
 
 void run_cmd(const char *line) {
     da_tok toks;
-    ps_job job;
+    ps_ast ast;
 
     lx_status lexer_status = lx_tokenize(line, &toks);
     if (lexer_status != 0) {
@@ -36,47 +36,16 @@ void run_cmd(const char *line) {
         }
     }
 
-    if (!(ps_parse(&toks, &job) == 0 && ex_expand(&job) == 0)) {
+    if (!(ps_parse(&toks, &ast) == 0 && ex_expand(&ast) == 0)) {
         fprintf(stderr, "seashell: syntax error\n");
         exit(EXIT_FAILURE);
     }
 
-    sh_run(&job);
+    /* no andors for now */
+    sh_run_job(&ast.andors.data[0].pline, ast.bg);
 
     lx_free(&toks);
-    ps_free(&job);
-}
-
-static volatile sig_atomic_t sigchld_caught = false;
-void sigchld_handler(int sig) {
-    (void) sig;
-    sigchld_caught = true;
-}
-
-static volatile sig_atomic_t sigint_caught = false;
-void sigint_handler(int sig) {
-    (void) sig;
-    sigint_caught = true;
-}
-
-int process_signals(void) {
-    if (sigchld_caught) {
-        if (wait_for_all() == -1)
-            return -1;
-
-        sigchld_caught = false;
-    }
-
-    if (sigint_caught) {
-        printf("\n");
-
-        if (display_prompt() == -1)
-            return -1;
-
-        sigint_caught = false;
-    }
-
-    return 0;
+    ps_free(&ast);
 }
 
 int main(void) {
@@ -86,22 +55,6 @@ int main(void) {
         fatal("env_init");
 
     LOG_INFO("seashell PID(%d)", getpid());
-
-    /* SIGTTOU */
-    if (set_sig_action(SIGTTOU, SIG_IGN, 0, NULL) == -1)
-        fatal("set_sig_action");
-
-    /* SIGCHLD */
-    if (block_sig(SIGCHLD) == -1)
-        fatal("block_sig");
-    if (set_sig_action(SIGCHLD, sigchld_handler, 0, NULL) == -1)
-        fatal("set_sig_action");
-
-    /* SIGINT */
-    if (block_sig(SIGINT) == -1)
-        fatal("block_sig");
-    if (set_sig_action(SIGINT, sigint_handler, 0, NULL) == -1)
-        fatal("set_sig_action");
 
     struct pollfd events = {
         .events = POLLIN,
@@ -118,7 +71,7 @@ int main(void) {
                 err_exit("poll");
             } else {
                 if (process_signals() == -1)
-                    err_exit("process_signals");
+                    fatal("process_signals");
             }
         }
 

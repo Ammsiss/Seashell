@@ -3,6 +3,6 @@
 
 #include "parser.h"
 
-int ex_expand(ps_job *job);
+int ex_expand(ps_ast *ast);
 
 #endif

@@ -136,11 +136,11 @@ static void free_andor(ps_andor *andor) {
     *andor = (ps_andor){0};
 }
 
-static int init_job(ps_job *job) {
-    assert(job);
+static int init_job(ps_ast *ast) {
+    assert(ast);
 
-    *job = (ps_job){0};
-    if (da_init(&job->andors) == -1)
+    *ast = (ps_ast){0};
+    if (da_init(&ast->andors) == -1)
         return -1;
 
     return 0;
@@ -240,7 +240,7 @@ static int queue_redir(lx_kind kind, int append, ps_scanner *scanner) {
     return 0;
 }
 
-void ps_free(ps_job *job) {
+void ps_free(ps_ast *job) {
     if (!job)
         return;
 
@@ -248,10 +248,10 @@ void ps_free(ps_job *job) {
         free_andor(&job->andors.data[i]);
     da_free(&job->andors);
 
-    *job = (ps_job){0};
+    *job = (ps_ast){0};
 }
 
-int ps_parse(da_tok *tokens, ps_job *job) {
+int ps_parse(da_tok *tokens, ps_ast *job) {
     if (!tokens || !job)
         return -1;
 

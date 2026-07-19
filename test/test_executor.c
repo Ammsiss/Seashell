@@ -34,11 +34,11 @@ void tearDown(void) {}
 void validate_shell_output(const char *shell_cmd, const char *exp_output, \
         size_t exp_msg_size) {
     da_tok tokens = {0};
-    ps_job job = {0};
+    ps_ast ast = {0};
 
     TEST_ASSERT_EQUAL_INT(0, lx_tokenize(shell_cmd, &tokens));
-    TEST_ASSERT_EQUAL_INT(0, ps_parse(&tokens, &job));
-    TEST_ASSERT_EQUAL_INT(0, ex_expand(&job));
+    TEST_ASSERT_EQUAL_INT(0, ps_parse(&tokens, &ast));
+    TEST_ASSERT_EQUAL_INT(0, ex_expand(&ast));
 
     int pfd[2];
     if (pipe(pfd) == -1) {
@@ -46,7 +46,7 @@ void validate_shell_output(const char *shell_cmd, const char *exp_output, \
         TEST_FAIL();
     }
 
-    sh_run(&job);
+    sh_run(&ast);
 
     TEST_ASSERT_EQUAL_INT(0, close(pfd[1]));
 
@@ -67,7 +67,7 @@ void validate_shell_output(const char *shell_cmd, const char *exp_output, \
 
     close(pfd[0]);
     lx_free(&tokens);
-    ps_free(&job);
+    ps_free(&ast);
 }
 
 void test_three_pipeline_cmd(void) {

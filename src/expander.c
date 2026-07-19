@@ -149,9 +149,9 @@ static int create_argv(ps_cmd *cmd) {
     return 0;
 }
 
-int ex_expand(ps_job *job) {
-    for (size_t i = 0; i < job->andors.size; ++i) {
-        ps_andor *andor = &job->andors.data[i];
+int ex_expand(ps_ast *ast) {
+    for (size_t i = 0; i < ast->andors.size; ++i) {
+        ps_andor *andor = &ast->andors.data[i];
         ps_pline *pline = &andor->pline;
 
         for (size_t j = 0; j < pline->cmds.size; ++j) {

@@ -6,16 +6,25 @@
 
 /* Declare any struct types to avoid circular
  * includes. See 2026-07-16 Notes */
+
+/* lexer.h */
 struct lx_part;
 struct lx_tok;
 
+/* parser.h */
 struct ps_segment;
 struct ps_word;
 struct ps_redir;
 struct ps_cmd;
 struct ps_andor;
+struct ps_ast;
 
+/* variable.h */
 struct var_pair;
+
+/* runner.c */
+struct jc_proc;
+struct jc_job;
 
 #define DYN_ARR_TYPES(APPLY, arg) \
     /* lexer */ \
@@ -32,6 +41,9 @@ struct var_pair;
     APPLY(arg, da_pid, pid_t) \
     APPLY(arg, da_vars, struct var_pair) \
     APPLY(arg, da_charp, char *) \
+    APPLY(arg, da_job, struct jc_job) \
+    APPLY(arg, da_proc, struct jc_proc) \
+    APPLY(arg, da_ast, struct ps_ast)
 
 #define DECLARE_DYN_ARR(name, type) \
     typedef struct { \

@@ -60,14 +60,14 @@ struct ps_andor {
 
 typedef struct ps_andor ps_andor;
 
-struct ps_job {
+struct ps_ast {
     da_andor andors;
     bool bg;
 };
 
-typedef struct ps_job ps_job;
+typedef struct ps_ast ps_ast;
 
-void ps_free(ps_job *job);
-int ps_parse(da_tok *tokens, ps_job *job);
+void ps_free(ps_ast *job);
+int ps_parse(da_tok *tokens, ps_ast *job);
 
 #endif

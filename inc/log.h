@@ -78,6 +78,12 @@ PFFORMAT(6, 7)
 void log_msg(log_level type, const char *errstr, const char *file, \
     int line, const char *function, const char *fmt, ...);
 
+#define xfatal(fmt, ...) \
+    do { \
+        LOG_ERR(fmt, __VA_OPT__(,) __VA_ARGS__); \
+        fatal(fmt __VA_OPT__(,) __VA_ARGS__); \
+    } while (false);
+
 #define xpipe(pfd) \
     ({ \
         int rv = pipe(pfd); \
@@ -113,7 +119,7 @@ void log_msg(log_level type, const char *errstr, const char *file, \
 #define xwaitpid(pid, wstat, options) \
     ({ \
         int rv = waitpid(pid, wstat, options); \
-        if (rv == -1) \
+        if (rv == -1 && errno != ECHILD) \
             LOG_ERRNO("waitpid"); \
         rv; \
     })
@@ -121,7 +127,7 @@ void log_msg(log_level type, const char *errstr, const char *file, \
 #define xexecvp(file, argv) \
     ({ \
         int rv = execvp(file, argv); \
-        if (rv == -1) \
+        if (rv == -1 && errno != EACCES) \
             LOG_ERRNO("execvp"); \
         rv; \
     })
@@ -289,6 +295,22 @@ void log_msg(log_level type, const char *errstr, const char *file, \
         void *rv = malloc(size); \
         if (!rv) \
             LOG_ERRNO("malloc"); \
+        rv; \
+    })
+
+#define xgetpgid(pid) \
+    ({ \
+        int rv = getpgid(pid); \
+        if (rv == -1) \
+            LOG_ERRNO("getpgid"); \
+        rv; \
+    })
+
+#define xwrite(fd, buf, size) \
+    ({ \
+        int rv = write(fd, buf, size); \
+        if (rv == -1) \
+            LOG_ERRNO("write"); \
         rv; \
     })
 

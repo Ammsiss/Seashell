@@ -9,9 +9,11 @@
 #include "log.h"
 #include "parser.h"
 #include "utils.h"
+#include "runner.h"
 
 /*
 Job control builtins:
+    jobs -> print current jctl
     bg -> cotinues a suspended bg job (without bringing it to the fg)
     fg -> brings a bg job to the fg and then continues it
     kill -> signal a job
@@ -40,11 +42,47 @@ static bool validate_argc(char **argv, size_t min_argc, size_t max_argc) {
     return true;
 }
 
+static int run_jobs_builtin(char **argv, shell_env *sh_env) {
+    if (!validate_argc(argv, 0, 0))
+        return EXIT_FAILURE;
+
+    for (size_t i = 0; i < sh_env->jctl.jobs.size; ++i) {
+
+        jc_job *job = &sh_env->jctl.jobs.data[i];
+
+        printf("[%d] ", job->id);
+
+        char *pid_str = get_pid_string(job->id);
+        if (!pid_str) {
+            fprintf(stderr, "get_pid_string\n");
+            free(pid_str);
+            return EXIT_FAILURE;
+        }
+
+        printf("%s", pid_str);
+        free(pid_str);
+
+        switch (job->stat) {
+        case PRUNNING:
+            printf("running\n");
+            break;
+        case PSTOPPED:
+            printf("stopped\n");
+            break;
+        case PEXITED:
+            printf("???\n");
+            break;
+        }
+    }
+
+    return 0;
+}
+
 static int run_exit_builtin(char **argv, shell_env *sh_env) {
     if (!validate_argc(argv, 0, 1))
         return EXIT_FAILURE;
 
-    int exit_status = EXIT_FAILURE;
+    int exit_status = EXIT_SUCCESS;
 
     if (argv[1]) {
         char *endptr;
@@ -130,7 +168,8 @@ static sh_builtin builtins[BUILTIN_COUNT] = {
     { .name = "exit", .func = run_exit_builtin },
     { .name = "cd", .func = run_cd_builtin },
     { .name = "set", .func = run_set_builtin },
-    { .name = "unset", .func = run_unset_builtin }
+    { .name = "unset", .func = run_unset_builtin },
+    { .name = "jobs", .func = run_jobs_builtin }
 };
 
 static sh_builtin *get_builtin(const char *arg) {
@@ -151,7 +190,11 @@ bool try_run_builtin(char **argv, int *status) {
 
     sh_builtin *builtin = get_builtin(argv[0]);
     if (builtin) {
-        *status = builtin->func(argv, &sh_env);
+        int out = builtin->func(argv, &sh_env);
+
+        if (status)
+            *status = out;
+
         return true;
     }
 
