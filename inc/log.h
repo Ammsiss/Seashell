@@ -80,7 +80,7 @@ void log_msg(log_level type, const char *errstr, const char *file, \
 
 #define xfatal(fmt, ...) \
     do { \
-        LOG_ERR(fmt, __VA_OPT__(,) __VA_ARGS__); \
+        LOG_ERR(fmt __VA_OPT__(,) __VA_ARGS__); \
         fatal(fmt __VA_OPT__(,) __VA_ARGS__); \
     } while (false);
 

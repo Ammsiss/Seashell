@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "shell_state.h"
 #include "dyn_str.h"
 #include "parser.h" // IWYU pragma: keep
 #include "executor.h"
@@ -150,14 +151,14 @@ static void child_exec(bool first, bool last, int next_pipe[2], \
         if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
             err_exit("tcsetpgrp");
 
-    if (sigprocmask(SIG_SETMASK, &sh_env.og_mask, NULL) == -1)
-        err_exit("sigprocmask");
-
     child_fd_setup(first, last, next_pipe, prev_rfd);
     child_redir_setup(&cur_cmd->redirs);
 
     if (!RUNNING_ON_VALGRIND)
         verify_child_fd_count(first, last);
+
+    if (restore_signals() == -1)
+        xfatal("restore_signals");
 
     int status;
     if (try_run_builtin(cur_cmd->argv, &status))

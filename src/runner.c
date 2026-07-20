@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 
+#include <limits.h>
 #include <assert.h>
 #include <sys/mman.h>
 #include <stdarg.h>
@@ -86,8 +87,12 @@ int init_jst(jc_jst *jctl) {
 int sighup_shutdown(void) {
     for (size_t i = 0; i < sh_env.jctl.jobs.size; ++i) {
         jc_job *job = &sh_env.jctl.jobs.data[i];
-        if (getpgrp() != job->pgrp.pgid)
-            if (xkill(-job->pgrp.pgid, SIGHUP) == -1)
+
+        if (getpgrp() == job->pgrp.pgid || job->pgrp.pgid <= 1)
+            xfatal("unexpected pgid %d", job->pgrp.pgid);
+
+        if (xkill(-job->pgrp.pgid, SIGHUP) == -1)
+            if (errno != ESRCH)
                 err_exit("kill");
     }
 
@@ -128,16 +133,29 @@ static jc_job *lookup_job(job_id jid, size_t *index) {
 }
 
 static job_id create_job_id(void) {
-    static job_id job_id_counter = 1;
-    return job_id_counter++;
+    job_id new_id = 1;
+
+    if (sh_env.jctl.jobs.size == 0)
+        return new_id;
+
+    for (size_t i = 0; i < sh_env.jctl.jobs.size; ++i) {
+        if (new_id == sh_env.jctl.jobs.data[i].id) {
+            ++new_id;
+            continue;
+        }
+    }
+
+    return new_id;
 }
 
 static jc_job *create_job(void) {
+    job_id jid = create_job_id();
+
     jc_job *job = da_push_init(&sh_env.jctl.jobs, init_job);
     if (!job)
         xfatal("da_push_init");
 
-    job->id = create_job_id();
+    job->id = jid;
     job->pgrp.job = job;
     job->stat = PRUNNING;
 
@@ -205,23 +223,32 @@ static int set_job_stat(job_id jid) {
     for (size_t i = 0; i < job->pgrp.procs.size; ++i) {
         switch (job->pgrp.procs.data[i].stat) {
         case PRUNNING:
-            if (job->stat == PSTOPPED)
+            if (job->stat != PRUNNING)
                 LOG_INFO("[%d] continued", job->id);
             job->stat = PRUNNING;
+
             return 0;
         case PSTOPPED:
             one_proc_stopped = true;
+            break;
+
         case PEXITED:
             continue;
         }
     }
 
     if (one_proc_stopped) {
-        job->stat = PSTOPPED;
-        LOG_INFO("[%d] stopped", job->id);
+        if (job->stat != PSTOPPED) {
+            job->stat = PSTOPPED;
+            LOG_INFO("[%d] stopped", job->id);
+        }
     } else {
+        if (job->stat == PEXITED)
+            xfatal("unexpected job status");
+
         job->stat = PEXITED;
         LOG_INFO("[%d] done", job->id);
+
         if (remove_job(job->id) == -1)
             xfatal("remove_job");
     }
@@ -239,10 +266,12 @@ static int proc_exited(pid_t pid, int wstat) {
     proc->stat = PEXITED;
 
     if (WIFEXITED(wstat)) {
-        LOG_INFO("%d exited with status %d", pid, WEXITSTATUS(wstat));
+        LOG_INFO("[%d] %d exited with status %d", jid, pid,
+                WEXITSTATUS(wstat));
+
     } else if (WIFSIGNALED(wstat)) {
-        LOG_INFO("%d terminated by signal %d (%s)", pid, WTERMSIG(wstat),
-                strsignal(WTERMSIG(wstat)));
+        LOG_INFO("[%d] %d terminated by signal %d (%s)", jid, pid,
+                WTERMSIG(wstat), strsignal(WTERMSIG(wstat)));
     } else
         xfatal("unexpected wstat");
 
@@ -259,7 +288,7 @@ static int proc_stopped(pid_t pid) {
         xfatal("identify_proc");
 
     proc->stat = PSTOPPED;
-    LOG_INFO("%d stopped", pid);
+    LOG_INFO("[%d] %d stopped", jid, pid);
 
     if (set_job_stat(jid) == -1)
         xfatal("set_job_stat");
@@ -274,7 +303,7 @@ static int proc_continued(pid_t pid) {
         xfatal("identify_proc");
 
     proc->stat = PRUNNING;
-    LOG_INFO("%d continued", pid);
+    LOG_INFO("[%d] %d continued", jid, pid);
 
     if (set_job_stat(jid) == -1)
         xfatal("set_job_stat");

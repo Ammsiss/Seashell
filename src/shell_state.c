@@ -54,32 +54,53 @@ int process_signals(void) {
     return 0;
 }
 
-int setup_procmask(void) {
-    /* save initial procmask */
+int restore_signals(void) {
+    if (sigprocmask(SIG_SETMASK, &sh_env.og_mask, NULL) == -1)
+        err_exit("sigprocmask");
+
+    if (set_sig_action(SIGTTOU, SIG_DFL, 0, NULL) == -1)
+        xfatal("set_sig_action");
+    if (set_sig_action(SIGTTIN, SIG_DFL, 0, NULL) == -1)
+        xfatal("set_sigaction");
+    if (set_sig_action(SIGTSTP, SIG_DFL, 0, NULL) == -1)
+        xfatal("set_sigaction");
+    if (set_sig_action(SIGQUIT, SIG_DFL, 0, NULL) == -1)
+        xfatal("set_sigaction");
+    if (set_sig_action(SIGTERM, SIG_DFL, 0, NULL) == -1)
+        xfatal("set_sigaction");
+
+    return 0;
+}
+
+int setup_signals(void) {
     if (xsigprocmask(0, NULL, &sh_env.og_mask) == -1)
         err_exit("sigprocmask");
 
-    /* SIGTTOU */
     if (set_sig_action(SIGTTOU, SIG_IGN, 0, NULL) == -1)
-        fatal("set_sig_action");
+        xfatal("set_sig_action");
+    if (set_sig_action(SIGTTIN, SIG_IGN, 0, NULL) == -1)
+        xfatal("set_sigaction");
+    if (set_sig_action(SIGTSTP, SIG_IGN, 0, NULL) == -1)
+        xfatal("set_sigaction");
+    if (set_sig_action(SIGQUIT, SIG_IGN, 0, NULL) == -1)
+        xfatal("set_sigaction");
+    if (set_sig_action(SIGTERM, SIG_IGN, 0, NULL) == -1)
+        xfatal("set_sigaction");
 
-    /* SIGCHLD */
     if (block_sig(SIGCHLD) == -1)
-        fatal("block_sig");
+        xfatal("block_sig");
     if (set_sig_action(SIGCHLD, sigchld_handler, 0, NULL) == -1)
-        fatal("set_sig_action");
+        xfatal("set_sig_action");
 
-    /* SIGHUP */
     if (block_sig(SIGHUP) == -1)
-        fatal("block_sig");
+        xfatal("block_sig");
     if (set_sig_action(SIGHUP, sighup_handler, 0, NULL) == -1)
-        fatal("set_sig_action");
+        xfatal("set_sig_action");
 
-    /* SIGINT */
     if (block_sig(SIGINT) == -1)
-        fatal("block_sig");
+        xfatal("block_sig");
     if (set_sig_action(SIGINT, sigint_handler, 0, NULL) == -1)
-        fatal("set_sig_action");
+        xfatal("set_sig_action");
 
     return 0;
 }
@@ -91,7 +112,7 @@ int env_init(void) {
     if (sh_env.tty_fd == -1)
         err_exit("open");
 
-    if (setup_procmask() == -1)
+    if (setup_signals() == -1)
         xfatal("setup_procmask");
 
     if (da_init(&sh_env.vars) == -1)

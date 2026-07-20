@@ -3,7 +3,6 @@
 #include <poll.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <signal.h>
 #include <wait.h>
 
 #include "input.h"

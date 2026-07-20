@@ -17,6 +17,7 @@ typedef struct {
 
 extern shell_env sh_env;
 
+int restore_signals(void);
 int process_signals(void);
 
 int env_init(void);
