@@ -352,8 +352,12 @@ int jctl_wait(job_id *jid) {
             xfatal("unexpected wstat value");
         }
 
-        if (wait_on_job && (job->stat == PEXITED || job->stat == PSTOPPED))
+        if (wait_on_job && (job->stat == PEXITED || job->stat == PSTOPPED)) {
+            if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
+                err_exit("tcsetpgrp");
+
             break;
+        }
     }
 
     return 0;
@@ -374,12 +378,7 @@ void sh_run_job(const ps_pline *pline, bool bg) {
     if (msg_job_start(job->id) == -1)
         xfatal("msg_job_start");
 
-    if (bg)
-        return;
-
-    if (jctl_wait(&job->id) == -1)
-        xfatal("wait_for_pids");
-
-    if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
-        err_exit("tcsetpgrp");
+    if (!bg)
+        if (jctl_wait(&job->id) == -1)
+            xfatal("wait_for_pids");
 }

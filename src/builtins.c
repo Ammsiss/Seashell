@@ -11,12 +11,6 @@
 #include "utils.h"
 #include "runner.h"
 
-/*
-Job control builtins:
-    bg -> cotinues a suspended bg job (without bringing it to the fg)
-    fg -> brings a bg job to the fg and then continues it
-*/
-
 static bool validate_argc(char **argv, size_t min_argc, size_t max_argc) {
     if (!argv || !argv[0]) {
         LOG_ERR("validate_args: bad argv array");
@@ -38,6 +32,90 @@ static bool validate_argc(char **argv, size_t min_argc, size_t max_argc) {
     }
 
     return true;
+}
+
+static jc_job *arg_to_job(char *name, char *job_arg) {
+    if (job_arg[0] != '%' || job_arg[1] == '\0')
+        goto fail;
+
+    char *endptr;
+    job_id jid = (int) strtol(&job_arg[1], &endptr, 10);
+
+    if (*endptr != '\0')
+        goto fail;
+
+    jc_job *job = lookup_job(jid, NULL);
+    if (!job)
+        goto fail;
+
+    return job;
+
+fail:
+    fprintf(stderr, "%s: job not found: %s\n", name, job_arg);
+    return NULL;
+}
+
+static int run_fg_builtin(char **argv, shell_env *sh_env) {
+    if (sh_env->subshell) {
+        fprintf(stderr, "%s: no job control in this shell\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    if (!validate_argc(argv, 1, 1))
+        return EXIT_FAILURE;
+
+    jc_job *job = arg_to_job(argv[0], argv[1]);
+    if (!job)
+        return EXIT_FAILURE;
+
+    if (xtcsetpgrp(sh_env->tty_fd, job->pgrp.pgid) == -1) {
+        perror(argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    if (job->stat == PSTOPPED) {
+        if (xkill(-job->pgrp.pgid, SIGCONT) == -1 && errno != ESRCH) {
+            perror(argv[0]);
+            return EXIT_FAILURE;
+        }
+    }
+
+    pid_t tcpgrp = xtcgetpgrp(sh_env->tty_fd);
+    if (tcpgrp == -1)
+        err_exit("tcgetpgrp");
+
+    if (getpgrp() != tcpgrp)
+        if (jctl_wait(&job->id) == -1)
+            xfatal("wait_for_pids");
+
+    return EXIT_SUCCESS;
+}
+
+static int run_bg_builtin(char **argv, shell_env *sh_env) {
+    if (sh_env->subshell) {
+        fprintf(stderr, "%s: no job control in this shell\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    if (!validate_argc(argv, 1, 1))
+        return EXIT_FAILURE;
+
+    jc_job *job = arg_to_job(argv[0], argv[1]);
+    if (!job)
+        return EXIT_FAILURE;
+
+    if (job->stat == PSTOPPED) {
+        if (xkill(-job->pgrp.pgid, SIGCONT) == -1 && errno != ESRCH) {
+            perror(argv[0]);
+            return EXIT_FAILURE;
+        }
+    } else {
+        fprintf(stderr, "%s: job %d already in background\n", argv[0],
+                job->id);
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
 }
 
 static int arg_to_sig(char *sig_arg) {
@@ -81,15 +159,21 @@ static int arg_to_sig(char *sig_arg) {
 }
 
 /* default sig is TERM */
-static int run_kill_builtin(char **argv, shell_env *_) {
+static int run_kill_builtin(char **argv, shell_env *sh_env) {
+    if (sh_env->subshell) {
+        fprintf(stderr, "%s: no job control in this shell\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
     if (!validate_argc(argv, 1, 2))
         return EXIT_FAILURE;
 
     int sig = SIGTERM;
-    char *job_arg = NULL;
+    jc_job *job = NULL;
 
     if (!argv[2]) {
-        job_arg = argv[1];
+        if (!(job = arg_to_job(argv[0], argv[1])))
+            return EXIT_FAILURE;
     } else {
         sig = arg_to_sig(argv[1]);
         if (sig == -1) {
@@ -97,21 +181,9 @@ static int run_kill_builtin(char **argv, shell_env *_) {
             return EXIT_FAILURE;
         }
 
-        job_arg = argv[2];
+        if (!(job = arg_to_job(argv[0], argv[2])))
+            return EXIT_FAILURE;
     }
-
-    if (job_arg[0] != '%' || job_arg[1] == '\0')
-        goto bad_job;
-
-    char *endptr;
-    job_id jid = (int) strtol(&job_arg[1], &endptr, 10);
-
-    if (*endptr != '\0')
-        goto bad_job;
-
-    jc_job *job = lookup_job(jid, NULL);
-    if (!job)
-        goto bad_job;
 
     if (xkill(-job->pgrp.pgid, sig) == -1 && errno != ESRCH) {
         perror(argv[0]);
@@ -119,10 +191,6 @@ static int run_kill_builtin(char **argv, shell_env *_) {
     }
 
     return EXIT_SUCCESS;
-
-bad_job:
-    fprintf(stderr, "%s: job not found: %s\n", argv[0], argv[1]);
-    return EXIT_FAILURE;
 }
 
 static int run_jobs_builtin(char **argv, shell_env *sh_env) {
@@ -158,7 +226,7 @@ static int run_jobs_builtin(char **argv, shell_env *sh_env) {
         }
     }
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 static int run_exit_builtin(char **argv, shell_env *sh_env) {
@@ -253,7 +321,9 @@ static sh_builtin builtins[BUILTIN_COUNT] = {
     { .name = "set", .func = run_set_builtin },
     { .name = "unset", .func = run_unset_builtin },
     { .name = "jobs", .func = run_jobs_builtin },
-    { .name = "kill", .func = run_kill_builtin }
+    { .name = "kill", .func = run_kill_builtin },
+    { .name = "fg", .func = run_fg_builtin },
+    { .name = "bg", .func = run_bg_builtin }
 };
 
 static sh_builtin *get_builtin(const char *arg) {
