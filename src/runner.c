@@ -120,7 +120,7 @@ static job_id identify_proc(pid_t pid, jc_proc** proc) {
     return -1;
 }
 
-static jc_job *lookup_job(job_id jid, size_t *index) {
+jc_job *lookup_job(job_id jid, size_t *index) {
     for (size_t i = 0; i < sh_env.jctl.jobs.size; ++i) {
         if (jid == sh_env.jctl.jobs.data[i].id) {
             if (index)

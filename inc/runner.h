@@ -42,6 +42,7 @@ typedef struct {
 int init_jst(jc_jst *jctl);
 void free_jst(jc_jst *jctl);
 
+jc_job *lookup_job(job_id jid, size_t *index);
 int sighup_shutdown(void);
 
 int jctl_wait(job_id *jid);

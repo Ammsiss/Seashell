@@ -13,10 +13,8 @@
 
 /*
 Job control builtins:
-    jobs -> print current jctl
     bg -> cotinues a suspended bg job (without bringing it to the fg)
     fg -> brings a bg job to the fg and then continues it
-    kill -> signal a job
 */
 
 static bool validate_argc(char **argv, size_t min_argc, size_t max_argc) {
@@ -40,6 +38,91 @@ static bool validate_argc(char **argv, size_t min_argc, size_t max_argc) {
     }
 
     return true;
+}
+
+static int arg_to_sig(char *sig_arg) {
+    /* - just to be consistent */
+    if (strcmp("-HUP", sig_arg) == 0)
+        return SIGHUP;
+    if (strcmp("-INT", sig_arg) == 0)
+        return SIGINT;
+    if (strcmp("-QUIT", sig_arg) == 0)
+        return SIGQUIT;
+    if (strcmp("-KILL", sig_arg) == 0)
+        return SIGKILL;
+    if (strcmp("-USR1", sig_arg) == 0)
+        return SIGUSR1;
+    if (strcmp("-SEGV", sig_arg) == 0)
+        return SIGSEGV;
+    if (strcmp("-USR2", sig_arg) == 0)
+        return SIGUSR2;
+    if (strcmp("-PIPE", sig_arg) == 0)
+        return SIGPIPE;
+    if (strcmp("-ALRM", sig_arg) == 0)
+        return SIGALRM;
+    if (strcmp("-TERM", sig_arg) == 0)
+        return SIGTERM;
+    if (strcmp("-CHLD", sig_arg) == 0)
+        return SIGCHLD;
+    if (strcmp("-CONT", sig_arg) == 0)
+        return SIGCONT;
+    if (strcmp("-STOP", sig_arg) == 0)
+        return SIGSTOP;
+    if (strcmp("-TSTP", sig_arg) == 0)
+        return SIGTSTP;
+    if (strcmp("-TTIN", sig_arg) == 0)
+        return SIGTTIN;
+    if (strcmp("-TTOU", sig_arg) == 0)
+        return SIGTTOU;
+    if (strcmp("-WINCH", sig_arg) == 0)
+        return SIGWINCH;
+
+    return -1;
+}
+
+/* default sig is TERM */
+static int run_kill_builtin(char **argv, shell_env *_) {
+    if (!validate_argc(argv, 1, 2))
+        return EXIT_FAILURE;
+
+    int sig = SIGTERM;
+    char *job_arg = NULL;
+
+    if (!argv[2]) {
+        job_arg = argv[1];
+    } else {
+        sig = arg_to_sig(argv[1]);
+        if (sig == -1) {
+            fprintf(stderr, "%s: unknown signal: %s\n", argv[0], argv[1]);
+            return EXIT_FAILURE;
+        }
+
+        job_arg = argv[2];
+    }
+
+    if (job_arg[0] != '%' || job_arg[1] == '\0')
+        goto bad_job;
+
+    char *endptr;
+    job_id jid = (int) strtol(&job_arg[1], &endptr, 10);
+
+    if (*endptr != '\0')
+        goto bad_job;
+
+    jc_job *job = lookup_job(jid, NULL);
+    if (!job)
+        goto bad_job;
+
+    if (xkill(-job->pgrp.pgid, sig) == -1 && errno != ESRCH) {
+        perror(argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+
+bad_job:
+    fprintf(stderr, "%s: job not found: %s\n", argv[0], argv[1]);
+    return EXIT_FAILURE;
 }
 
 static int run_jobs_builtin(char **argv, shell_env *sh_env) {
@@ -169,7 +252,8 @@ static sh_builtin builtins[BUILTIN_COUNT] = {
     { .name = "cd", .func = run_cd_builtin },
     { .name = "set", .func = run_set_builtin },
     { .name = "unset", .func = run_unset_builtin },
-    { .name = "jobs", .func = run_jobs_builtin }
+    { .name = "jobs", .func = run_jobs_builtin },
+    { .name = "kill", .func = run_kill_builtin }
 };
 
 static sh_builtin *get_builtin(const char *arg) {
