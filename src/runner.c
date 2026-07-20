@@ -27,8 +27,19 @@
 #include "log.h"
 #include "shell_state.h"
 
+static void free_proc(jc_proc *proc) {
+    assert(proc);
+
+    d_str_free(&proc->cmd);
+
+    *proc = (jc_proc){0};
+}
+
 static void free_pgrp(jc_pgrp *pgrp) {
     assert(pgrp);
+
+    for (size_t i = 0; i < pgrp->procs.size; ++i)
+        free_proc(&pgrp->procs.data[i]);
 
     da_free(&pgrp->procs);
 
@@ -52,6 +63,15 @@ void free_jst(jc_jst *jctl) {
     da_free(&jctl->jobs);
 
     *jctl = (jc_jst){0};
+}
+
+static int init_proc(jc_proc *proc) {
+    *proc = (jc_proc){0};
+
+    if (d_str_init(&proc->cmd) == -1)
+        return -1;
+
+    return 0;
 }
 
 static int init_pgrp(jc_pgrp *pgrp) {
@@ -82,6 +102,26 @@ int init_jst(jc_jst *jctl) {
         return -1;
 
     return 0;
+}
+
+jc_proc *add_proc(jc_pgrp *pgrp, char **argv) {
+    jc_proc *proc = da_push(&pgrp->procs);
+    if (!proc)
+        return NULL;
+
+    if (init_proc(proc) == -1)
+        return NULL;
+
+    for (char **arg = argv; *arg != NULL; ++arg) {
+        if (arg != argv)
+            if (d_strcat(&proc->cmd, " ") == -1)
+                return NULL;
+
+        if (d_strcat(&proc->cmd, *arg) == -1)
+            return NULL;
+    }
+
+    return proc;
 }
 
 int sighup_shutdown(void) {
@@ -189,7 +229,12 @@ char *get_pid_string(job_id jid) {
 
     for (size_t i = 0; i < job->pgrp.procs.size; ++i) {
         jc_proc *proc = &job->pgrp.procs.data[i];
-        snprintf(buf, 4096, "%d ", proc->pid);
+
+        if (i != 0) {
+            snprintf(buf, 4096, " %d", proc->pid);
+        } else
+            snprintf(buf, 4096, "%d", proc->pid);
+
         if (d_strcat(&pid_str, buf) == -1)
             goto fail;
     }
@@ -201,14 +246,46 @@ fail:
     return NULL;
 }
 
+char *get_cmd_string(job_id jid) {
+    jc_job *job = lookup_job(jid, NULL);
+    if (!job)
+        return NULL;
+
+    d_str cmd_str;
+    if (d_str_init(&cmd_str) == -1)
+        return NULL;
+
+    for (size_t i = 0; i < job->pgrp.procs.size; ++i) {
+        jc_proc *proc = &job->pgrp.procs.data[i];
+
+        if (i != 0)
+            if (d_strcat(&cmd_str, " | ") == -1)
+                goto fail;
+
+        if (d_strcat(&cmd_str, proc->cmd.c_str) == -1)
+            goto fail;
+    }
+
+    return cmd_str.c_str;
+
+fail:
+    d_str_free(&cmd_str);
+    return NULL;
+}
+
 int msg_job_start(job_id jid) {
     char *pid_str = get_pid_string(jid);
     if (!pid_str)
         xfatal("get_pid_string");
 
-    LOG_INFO("[%d] %s", jid, pid_str);
+    char *cmd_str = get_cmd_string(jid);
+    if (!cmd_str)
+        xfatal("get_cmd_string");
+
+    LOG_INFO("[%d] %s \"%s\"", jid, pid_str, cmd_str);
 
     free(pid_str);
+    free(cmd_str);
 
     return 0;
 }

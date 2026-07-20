@@ -3,6 +3,7 @@
 
 #include <assert.h>
 
+#include "dyn_str.h"
 #include "parser.h"
 
 typedef enum {
@@ -21,6 +22,7 @@ struct jc_proc {
     pstat stat;
     int wstat;
     jc_pgrp *pgrp;
+    d_str cmd;
 };
 
 struct jc_pgrp {
@@ -39,6 +41,7 @@ typedef struct {
     da_job jobs;
 } jc_jst;
 
+jc_proc *add_proc(jc_pgrp *pgrp, char **argv);
 int init_jst(jc_jst *jctl);
 void free_jst(jc_jst *jctl);
 
@@ -46,6 +49,7 @@ jc_job *lookup_job(job_id jid, size_t *index);
 int sighup_shutdown(void);
 
 int jctl_wait(job_id *jid);
+char *get_cmd_string(job_id jid);
 char *get_pid_string(job_id jid);
 
 void sh_run_job(const ps_pline *pline, bool bg);

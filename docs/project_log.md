@@ -1,8 +1,6 @@
 ---------------------------------------------------------------------------------
 
-## 2026-07-20 - <hash>
-
-### Next
+## 2026-07-22 - <hash>
 
 ### Completed
 
@@ -10,11 +8,87 @@
 
 ---------------------------------------------------------------------------------
 
+## 2026-07-21 - <hash>
+
+### Completed
+
+### Notes
+
+Started hooking andors back up by setting up a ast manager like I planned.
+Each plan stores the index of the next pline in the ast and with some janky
+communication it works out. But I think there is a much cleaner solution.
+Currently the main shell process manages the posistion in the andor chain
+and handles both background and foreground job continuation by communicating
+with the runner.
+
+I think this current method is overly complex and a simpler solution may be to
+fork a subshell that manages an andor chain. That way the subshell can
+synchrnously sleep on each job in the chain, execing it immediately while the
+main shell treats the entire chain as 1 run time job. The main shell will not
+have to track index positions. It can simply fork when there are multiple andor
+parts, and have the subshell manage the execution path synchrnously.
+
+This also makes the job id assignment problem a non-issue. Currently we would
+have to ensure that we reuse the same job id for each successive job in the
+andor chain, because calling create_job always picks the lowest one which may
+be free by the time the next job needs to be created. With the subshell method
+the job can just be associated with the subshell that will exec each job so the
+job id will naturally be tied to the life time of the andor chain.
+
+A tradeoff with this approach is that we would have to selectively enable
+certain job control features in subshells in order to print job control update
+messages in the subshelll relating to specific parts of the andor chain. Any
+updates to the coordinater subshell could still be reported, but we would not
+have any wstats in regards to the individual pipelines the subshell is
+manageing. Instead of selectively enabling job contrl features we could also
+set up a method of IPC to communicate individual pipeline statuses back to
+the main shell if we need them.
+
+I'm going to implement it to see how it feels but I'm not sure what I'll land
+on. Either seems defensible.
+
+Something im noticing thats causing friction is having to store an id var
+inside arrays in order to find the index to delete them/identify them.
+
+---------------------------------------------------------------------------------
+
+## 2026-07-20 - e2515b3
+
+### Completed
+
+- [x] send kill to a pgrp that is already exited? (ESRCH should be non fatal)
+- [x] validate pgid value before callign kill
+- [x] reuse job ids and start with the smallest available
+- [x] create kill builtin to target entire pgroups
+- [x] create fg and bg builtins
+- [x] add command text in job control messages
+
+### Notes
+
+Realized the issue of a pending TTOU/TTIN and the child unblocking is only
+actually an issue if I block TTOU/TTIN. If I ignore them then they aren't made
+pending so as long as between the time I unignore them and exec I don't call
+anything that could potentially send those signals there isn't any race
+possible.
+
+Also when I eventually add job control update messages back to stdout I will
+need to disable messages when we are waiting on a specific job in jctl_wait. If
+we don't then jctl messages will be written even with an active fg job running
+which probably isn't good.
+
+The command text creation is not optimal. I should probably store a copy while
+lexing with the entirety of the raw text because thats when its naturally
+available instead of reverse engineering it from the ast. For now its fine but
+when I work on the jctl output module I will update the lexer to store the raw
+text instead. Also notice that I didn't even preserve quote info.
+
+---------------------------------------------------------------------------------
+
 ## 2026-07-19 - 979f44f
 
 ### Next
 
-- [ ] catch all common exit signals (ex, TERM, QUIT)
+- [ ] catch all common job control signals (ex, TERM, QUIT, TTIN, TSTP)
 
 ### Completed
 

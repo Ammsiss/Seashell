@@ -80,11 +80,7 @@ static int run_fg_builtin(char **argv, shell_env *sh_env) {
         }
     }
 
-    pid_t tcpgrp = xtcgetpgrp(sh_env->tty_fd);
-    if (tcpgrp == -1)
-        err_exit("tcgetpgrp");
-
-    if (getpgrp() != tcpgrp)
+    if (getpgrp() != job->pgrp.pgid)
         if (jctl_wait(&job->id) == -1)
             xfatal("wait_for_pids");
 
@@ -203,27 +199,33 @@ static int run_jobs_builtin(char **argv, shell_env *sh_env) {
 
         printf("[%d] ", job->id);
 
-        char *pid_str = get_pid_string(job->id);
-        if (!pid_str) {
-            fprintf(stderr, "get_pid_string\n");
-            free(pid_str);
-            return EXIT_FAILURE;
-        }
-
-        printf("%s", pid_str);
-        free(pid_str);
+        /* TODO: Make option -p for this */
+        // char *pid_str = get_pid_string(job->id);
+        // if (!pid_str) {
+        //     fprintf(stderr, "get_pid_string\n");
+        //     return EXIT_FAILURE;
+        // }
 
         switch (job->stat) {
         case PRUNNING:
-            printf("running\n");
+            printf("running");
             break;
         case PSTOPPED:
-            printf("stopped\n");
+            printf("stopped");
             break;
         case PEXITED:
-            printf("???\n");
+            printf("???");
             break;
         }
+
+        char *cmd_str = get_cmd_string(job->id);
+        if (!cmd_str) {
+            fprintf(stderr, "get_cmd_string\n");
+            return EXIT_FAILURE;
+        }
+
+        printf("   %s\n", cmd_str);
+        free(cmd_str);
     }
 
     return EXIT_SUCCESS;

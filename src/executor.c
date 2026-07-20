@@ -221,11 +221,10 @@ int exec_pline(const ps_pline *pline, bool bg, jc_pgrp *pgrp) {
                 goto fail;
         }
 
-        jc_proc *proc = da_push(&pgrp->procs);
+        jc_proc *proc = add_proc(pgrp, cur_cmd->argv);
         if (!proc)
             goto fail;
 
-        *proc = (jc_proc){0};
         proc->pid = child_pid;
         proc->pgrp = pgrp;
         proc->stat = PRUNNING;
