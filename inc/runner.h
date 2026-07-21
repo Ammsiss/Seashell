@@ -20,7 +20,8 @@ typedef struct jc_job jc_job;
 struct jc_proc {
     pid_t pid;
     pstat stat;
-    int wstat;
+    bool exit_stat;
+    bool success;
     jc_pgrp *pgrp;
     d_str cmd;
 };
@@ -52,7 +53,6 @@ int jctl_wait(job_id *jid);
 char *get_cmd_string(job_id jid);
 char *get_pid_string(job_id jid);
 
-void sh_run_job(const ps_pline *pline, bool bg);
-void sh_run(const ps_ast *ast);
+pstat sh_run_job(const ps_pline *pline, bool bg, job_id *jid);
 
 #endif

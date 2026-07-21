@@ -13,6 +13,7 @@ typedef struct {
     sigset_t og_mask;
     da_vars vars;
     jc_jst jctl;
+    da_plan job_plans;
 } shell_env;
 
 extern shell_env sh_env;

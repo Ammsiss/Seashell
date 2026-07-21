@@ -26,6 +26,9 @@ struct var_pair;
 struct jc_proc;
 struct jc_job;
 
+/* ast_man.h */
+struct job_plan;
+
 #define DYN_ARR_TYPES(APPLY, arg) \
     /* lexer */ \
     APPLY(arg, da_part, struct lx_part) \
@@ -43,7 +46,7 @@ struct jc_job;
     APPLY(arg, da_charp, char *) \
     APPLY(arg, da_job, struct jc_job) \
     APPLY(arg, da_proc, struct jc_proc) \
-    APPLY(arg, da_ast, struct ps_ast)
+    APPLY(arg, da_plan, struct job_plan)
 
 #define DECLARE_DYN_ARR(name, type) \
     typedef struct { \

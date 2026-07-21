@@ -18,6 +18,7 @@
 #include <sys/stat.h>
 #include <valgrind/valgrind.h>
 
+#include "ast_man.h"
 #include "dyn_str.h"
 #include "runner.h"
 #include "builtins.h"
@@ -326,8 +327,13 @@ static int set_job_stat(job_id jid) {
         job->stat = PEXITED;
         LOG_INFO("[%d] done", job->id);
 
+        job_id jid = job->id;
+        bool success = job->pgrp.procs.data[job->pgrp.procs.size - 1].success;
+
         if (remove_job(job->id) == -1)
             xfatal("remove_job");
+
+        run_next_if_more(jid, success);
     }
 
     return 0;
@@ -339,18 +345,23 @@ static int proc_exited(pid_t pid, int wstat) {
     if (jid == -1)
         xfatal("identify_proc");
 
-    proc->wstat = wstat;
     proc->stat = PEXITED;
 
     if (WIFEXITED(wstat)) {
+        proc->exit_stat = WEXITSTATUS(wstat);
+
         LOG_INFO("[%d] %d exited with status %d", jid, pid,
                 WEXITSTATUS(wstat));
 
     } else if (WIFSIGNALED(wstat)) {
+        proc->exit_stat = WTERMSIG(wstat) + 128;
+
         LOG_INFO("[%d] %d terminated by signal %d (%s)", jid, pid,
                 WTERMSIG(wstat), strsignal(WTERMSIG(wstat)));
     } else
         xfatal("unexpected wstat");
+
+    proc->success = (proc->exit_stat == EXIT_SUCCESS);
 
     if (set_job_stat(jid) == -1)
         xfatal("set_job_stat");
@@ -440,14 +451,18 @@ int jctl_wait(job_id *jid) {
     return 0;
 }
 
-void sh_run_job(const ps_pline *pline, bool bg) {
+pstat sh_run_job(const ps_pline *pline, bool bg, job_id *jid) {
+    assert(pline && jid);
+
     if (pline->cmds.size == 1 && !bg)
         if (try_run_builtin(pline->cmds.data[0].argv, NULL))
-            return;
+            return PEXITED;
 
     jc_job *job = create_job();
     if (!job)
         xfatal("failed to create job");
+
+    *jid = job->id;
 
     if (exec_pline(pline, bg, &job->pgrp) == -1)
         xfatal("exec_pline");
@@ -455,7 +470,12 @@ void sh_run_job(const ps_pline *pline, bool bg) {
     if (msg_job_start(job->id) == -1)
         xfatal("msg_job_start");
 
-    if (!bg)
+    if (!bg) {
         if (jctl_wait(&job->id) == -1)
             xfatal("wait_for_pids");
+
+        return job->stat;
+    }
+
+    return job->stat;
 }

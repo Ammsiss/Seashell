@@ -6,6 +6,7 @@
 #include <fcntl.h>
 
 #include "input.h"
+#include "ast_man.h"
 #include "utils.h"
 #include "shell_state.h"
 #include "log.h"
@@ -121,6 +122,8 @@ int env_init(void) {
     if (init_jst(&sh_env.jctl) == -1)
         xfatal("init_jst");
 
+    init_job_plans(&sh_env.job_plans);
+
     return 0;
 }
 
@@ -128,5 +131,6 @@ void env_free(void) {
     xclose(sh_env.tty_fd);
     da_free(&sh_env.vars);
     free_jst(&sh_env.jctl);
+    free_job_plans(&sh_env.job_plans);
     sh_env = (shell_env){0};
 }

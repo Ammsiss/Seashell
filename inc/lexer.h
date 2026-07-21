@@ -32,11 +32,6 @@ typedef enum {
     LX_ERREMPTYESC
 } lx_status;
 
-struct lx_errinfo {
-    int line;
-    char *msg;
-};
-
 typedef enum {
     LX_M_NORMAL,
     LX_M_DOUBLEQ,
@@ -57,6 +52,7 @@ struct lx_tok {
 
 typedef struct lx_tok lx_tok;
 
+char *lx_errstr(lx_status stat);
 void lx_free(da_tok *tokens);
 int lx_tokenize(const char *cmd, da_tok *tokens);
 
