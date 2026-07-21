@@ -8,9 +8,20 @@
 
 ---------------------------------------------------------------------------------
 
-## 2026-07-21 - <hash>
+## 2026-07-21 - 4a5f82f (andor_plan)
+
+### Next
+
+- [ ] Implement subshell style andor chains
+
+There are definitely routines that can be reused, for example the controlling
+termianl set up, with pgid. Also we will need a version of exec_pline that does
+not believe it is setting up a job. That means no pgrp filling out. It will
+still need to return pids so the subshell can reap them though.
 
 ### Completed
+
+- [x] Implement job-plan style implementation for andor chains
 
 ### Notes
 

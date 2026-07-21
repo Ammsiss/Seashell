@@ -42,16 +42,14 @@ fail:
 }
 
 input_status get_line(char **line) {
-    do {
-        int num_read = xread(sh_env.tty_fd, input_line, LINE_BUF - 1);
-        if (num_read == -1)
-            return INPUT_ERR;
+    int num_read = xread(sh_env.tty_fd, input_line, LINE_BUF - 1);
+    if (num_read == -1)
+        return INPUT_ERR;
 
-        if (num_read == 0)
-            return INPUT_EOF;
+    if (num_read == 0)
+        return INPUT_EOF;
 
-        input_line[num_read - 1] = '\0';
-    } while (strlen(input_line) == 0);
+    input_line[num_read - 1] = '\0';
 
     *line = input_line;
     return INPUT_OK;

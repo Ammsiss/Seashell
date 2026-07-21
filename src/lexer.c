@@ -16,6 +16,21 @@ typedef struct {
     const char *cur_char;
 } lx_scanner;
 
+char *lx_errstr(lx_status stat) {
+    switch (stat) {
+    case LX_ERRMEM:
+        return "malloc failure";
+    case LX_ERRNOENDQUOTE:
+        return "unterminated quote";
+    case LX_ERREMPTYESC:
+        return "empty escape";
+    case LX_ERRINPUT:
+        return "bad input";
+    default:
+        return "???";
+    }
+}
+
 static int init_part(lx_part *part) {
     assert(part);
 

@@ -15,32 +15,23 @@
 #include "runner.h"
 
 void run_cmd(const char *line) {
+    if (*line == '\0')
+        return;
+
     da_tok toks;
-    ps_ast ast;
 
     lx_status lexer_status = lx_tokenize(line, &toks);
-    if (lexer_status != 0) {
-        switch (lexer_status) {
-        case LX_ERRMEM:
-            fatal("seashell: lexer: malloc failure\n");
-        case LX_ERRNOENDQUOTE:
-            fatal("seashell: lexer: unterminated quote\n");
-        case LX_ERREMPTYESC:
-            fatal("seashell: lexer: empty escape\n");
-        case LX_ERRINPUT:
-            fatal("seashell: bad input\n");
-        default:
-            LOG_ERR("unknown lx_status case");
-            exit(EXIT_FAILURE);
-        }
-    }
+    if (lexer_status != 0)
+        xfatal("%s", lx_errstr(lexer_status));
 
-    if (!(ps_parse(&toks, &ast) == 0 && ex_expand(&ast) == 0)) {
-        fprintf(stderr, "seashell: syntax error\n");
-        exit(EXIT_FAILURE);
-    }
+    ps_ast ast;
 
-    /* no andors for now */
+    if (ps_parse(&toks, &ast) != 0)
+        xfatal("parse error");
+
+    if (ex_expand(&ast) != 0)
+        xfatal("expand error");
+
     sh_run_job(&ast.andors.data[0].pline, ast.bg);
 
     lx_free(&toks);
