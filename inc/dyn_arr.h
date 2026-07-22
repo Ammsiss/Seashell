@@ -22,8 +22,10 @@ struct ps_ast;
 /* variable.h */
 struct var_pair;
 
+/* executor */
+struct ex_proc;
+
 /* runner.c */
-struct jc_proc;
 struct jc_job;
 
 #define DYN_ARR_TYPES(APPLY, arg) \
@@ -42,7 +44,7 @@ struct jc_job;
     APPLY(arg, da_vars, struct var_pair) \
     APPLY(arg, da_charp, char *) \
     APPLY(arg, da_job, struct jc_job) \
-    APPLY(arg, da_proc, struct jc_proc) \
+    APPLY(arg, da_procs, struct ex_proc) \
     APPLY(arg, da_ast, struct ps_ast)
 
 #define DECLARE_DYN_ARR(name, type) \

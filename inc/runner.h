@@ -3,7 +3,6 @@
 
 #include <assert.h>
 
-#include "dyn_str.h"
 #include "parser.h"
 
 typedef enum {
@@ -13,46 +12,28 @@ typedef enum {
 } pstat;
 
 typedef int job_id;
-typedef struct jc_proc jc_proc;
-typedef struct jc_pgrp jc_pgrp;
-typedef struct jc_job jc_job;
-
-struct jc_proc {
-    pid_t pid;
-    pstat stat;
-    int wstat;
-    jc_pgrp *pgrp;
-    d_str cmd;
-};
-
-struct jc_pgrp {
-    da_proc procs;
-    pid_t pgid;
-    jc_job *job;
-};
 
 struct jc_job {
-    jc_pgrp pgrp;
+    pid_t pgid;
     job_id id;
     pstat stat;
 };
 
-typedef struct {
+typedef struct jc_job jc_job;
+
+struct jc_jst {
     da_job jobs;
-} jc_jst;
+};
 
-jc_proc *add_proc(jc_pgrp *pgrp, char **argv);
-int init_jst(jc_jst *jctl);
-void free_jst(jc_jst *jctl);
+typedef struct jc_jst jc_jst;
 
-jc_job *lookup_job(job_id jid, size_t *index);
+void jc_init(jc_jst *jctl);
+void jc_free(jc_jst *jctl);
+
+jc_job *lookup_job_by_id(job_id jid);
 int sighup_shutdown(void);
 
-int jctl_wait(job_id *jid);
-char *get_cmd_string(job_id jid);
-char *get_pid_string(job_id jid);
-
-void sh_run_job(const ps_pline *pline, bool bg);
+int jc_wait(void);
 void sh_run(const ps_ast *ast);
 
 #endif

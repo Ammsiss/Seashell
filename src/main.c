@@ -1,7 +1,6 @@
 #define _GNU_SOURCE
 
 #include <poll.h>
-#include <stdio.h>
 #include <unistd.h>
 #include <wait.h>
 
@@ -32,7 +31,7 @@ void run_cmd(const char *line) {
     if (ex_expand(&ast) != 0)
         xfatal("expand error");
 
-    sh_run_job(&ast.andors.data[0].pline, ast.bg);
+    sh_run(&ast);
 
     lx_free(&toks);
     ps_free(&ast);

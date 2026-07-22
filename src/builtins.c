@@ -44,7 +44,7 @@ static jc_job *arg_to_job(char *name, char *job_arg) {
     if (*endptr != '\0')
         goto fail;
 
-    jc_job *job = lookup_job(jid, NULL);
+    jc_job *job = lookup_job_by_id(jid);
     if (!job)
         goto fail;
 
@@ -68,20 +68,20 @@ static int run_fg_builtin(char **argv, shell_env *sh_env) {
     if (!job)
         return EXIT_FAILURE;
 
-    if (xtcsetpgrp(sh_env->tty_fd, job->pgrp.pgid) == -1) {
+    if (xtcsetpgrp(sh_env->tty_fd, job->pgid) == -1) {
         perror(argv[0]);
         return EXIT_FAILURE;
     }
 
     if (job->stat == PSTOPPED) {
-        if (xkill(-job->pgrp.pgid, SIGCONT) == -1 && errno != ESRCH) {
+        if (xkill(-job->pgid, SIGCONT) == -1 && errno != ESRCH) {
             perror(argv[0]);
             return EXIT_FAILURE;
         }
     }
 
-    if (getpgrp() != job->pgrp.pgid)
-        if (jctl_wait(&job->id) == -1)
+    if (getpgrp() != job->pgid)
+        if (jc_wait() == -1)
             xfatal("wait_for_pids");
 
     return EXIT_SUCCESS;
@@ -101,7 +101,7 @@ static int run_bg_builtin(char **argv, shell_env *sh_env) {
         return EXIT_FAILURE;
 
     if (job->stat == PSTOPPED) {
-        if (xkill(-job->pgrp.pgid, SIGCONT) == -1 && errno != ESRCH) {
+        if (xkill(-job->pgid, SIGCONT) == -1 && errno != ESRCH) {
             perror(argv[0]);
             return EXIT_FAILURE;
         }
@@ -181,7 +181,7 @@ static int run_kill_builtin(char **argv, shell_env *sh_env) {
             return EXIT_FAILURE;
     }
 
-    if (xkill(-job->pgrp.pgid, sig) == -1 && errno != ESRCH) {
+    if (xkill(-job->pgid, sig) == -1 && errno != ESRCH) {
         perror(argv[0]);
         return EXIT_FAILURE;
     }
@@ -190,6 +190,11 @@ static int run_kill_builtin(char **argv, shell_env *sh_env) {
 }
 
 static int run_jobs_builtin(char **argv, shell_env *sh_env) {
+    if (sh_env->subshell) {
+        fprintf(stderr, "%s: no job control in this shell\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
     if (!validate_argc(argv, 0, 0))
         return EXIT_FAILURE;
 
@@ -217,15 +222,6 @@ static int run_jobs_builtin(char **argv, shell_env *sh_env) {
             printf("???");
             break;
         }
-
-        char *cmd_str = get_cmd_string(job->id);
-        if (!cmd_str) {
-            fprintf(stderr, "get_cmd_string\n");
-            return EXIT_FAILURE;
-        }
-
-        printf("   %s\n", cmd_str);
-        free(cmd_str);
     }
 
     return EXIT_SUCCESS;

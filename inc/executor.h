@@ -1,9 +1,19 @@
 #ifndef RUNNER_H
 #define RUNNER_H
 
+#include <stdnoreturn.h>
+
 #include "parser.h"
 #include "runner.h"
 
-int exec_pline(const ps_pline *pline, bool bg, jc_pgrp *pgrp);
+struct ex_proc {
+    pid_t pid;
+    int exit_stat;
+    pstat stat;
+};
+
+typedef struct ex_proc ex_proc;
+
+noreturn void ex_exec(const ps_ast *ast);
 
 #endif

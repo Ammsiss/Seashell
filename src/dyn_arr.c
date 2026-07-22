@@ -8,6 +8,7 @@
 #include "parser.h" // IWYU pragma: keep
 #include "shell_state.h" // IWYU pragma: keep
 #include "runner.h" // IWYU pragma: keep
+#include "executor.h" // IWYU pragma: keep
 
 #define DEFINE_DYN_ARR(name, type) \
     int name##_init(name *arr) { \

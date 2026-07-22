@@ -30,7 +30,7 @@ void sigint_handler(int _) {
 
 int process_signals(void) {
     if (sigchld_caught) {
-        if (jctl_wait(NULL) == -1)
+        if (jc_wait() == -1)
             return -1;
 
         sigchld_caught = false;
@@ -118,8 +118,7 @@ int env_init(void) {
     if (da_init(&sh_env.vars) == -1)
         xfatal("da_init");
 
-    if (init_jst(&sh_env.jctl) == -1)
-        xfatal("init_jst");
+    jc_init(&sh_env.jctl);
 
     return 0;
 }
@@ -127,6 +126,6 @@ int env_init(void) {
 void env_free(void) {
     xclose(sh_env.tty_fd);
     da_free(&sh_env.vars);
-    free_jst(&sh_env.jctl);
+    jc_free(&sh_env.jctl);
     sh_env = (shell_env){0};
 }
