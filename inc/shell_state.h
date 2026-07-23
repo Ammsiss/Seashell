@@ -5,13 +5,14 @@
 #include <unistd.h>
 
 #include "dyn_arr.h"
+#include "map.h"
 #include "runner.h"
 
 typedef struct {
     bool subshell;
     int tty_fd;
     sigset_t og_mask;
-    da_vars vars;
+    map_t vars;
     jc_jst jctl;
     da_plan job_plans;
 } shell_env;

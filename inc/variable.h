@@ -1,19 +1,18 @@
 #ifndef VARIABLE_H
 #define VARIABLE_H
 
-#define SHELL_VAR_MAX 4096
+#define VAR_KEY_SIZE 4096
 
-#include "dyn_arr.h"
+#include "map.h"
 
-struct var_pair {
-    char key[SHELL_VAR_MAX];
-    char value[SHELL_VAR_MAX];
-};
+typedef enum {
+    VAR_OK,
+    VAR_ERR_KEY,
+} var_err;
 
-typedef struct var_pair var_pair;
-
-char *lookup_var(da_vars *vars, char *key);
-int add_var(da_vars *vars, var_pair *var);
-int delete_var(da_vars *vars, char *key);
+char *var_errstr(var_err err);
+char *lookup_var(map_t *vars, char *key);
+int add_var(map_t *vars, char *key, char *value);
+int delete_var(map_t *vars, char *key);
 
 #endif

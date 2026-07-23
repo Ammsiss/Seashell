@@ -267,36 +267,14 @@ static int run_cd_builtin(char **argv, shell_env *_) {
     return EXIT_SUCCESS;
 }
 
-static bool verify_vp_key(const var_pair *vp) {
-    for (const char *c = vp->key; *c != '\0'; ++c) {
-        bool valid_key =
-                ((*c >= 'a' && *c <= 'z') ||
-                (*c >= 'A' && *c <= 'Z') ||
-                (*c >= '0' && *c <= '9') ||
-                *c == '-' || *c == '_');
-
-        if (!valid_key) {
-            fprintf(stderr, "set: invalid key: %s\n", vp->key);
-            return false;
-        }
-    }
-
-    return true;
-}
-
 static int run_set_builtin(char **argv, shell_env *sh_env) {
     if (!validate_argc(argv, 2, 2))
         return EXIT_FAILURE;
 
-    var_pair vp = {0};
-    strncpy(vp.key, argv[1], SHELL_VAR_MAX - 1);
-    strncpy(vp.value, argv[2], SHELL_VAR_MAX - 1);
+    var_err err = add_var(&sh_env->vars, argv[1], argv[2]);
 
-    if (!verify_vp_key(&vp))
-        return EXIT_FAILURE;
-
-    if (add_var(&sh_env->vars, &vp) == -1) {
-        fprintf(stderr, "set: failed to add variable\n");
+    if (err != 0) {
+        fprintf(stderr, "%s: %s\n", argv[0], var_errstr(err));
         return EXIT_FAILURE;
     }
 
@@ -307,12 +285,12 @@ static int run_unset_builtin(char **argv, shell_env *sh_env) {
     if (!validate_argc(argv, 1, 1))
         return EXIT_FAILURE;
 
-    if (strlen(argv[1]) >= SHELL_VAR_MAX - 1) {
-        fprintf(stderr, "set: variable name too long: %s\n", argv[1]);
+    var_err err = delete_var(&sh_env->vars, argv[1]);
+
+    if (err != VAR_OK) {
+        fprintf(stderr, "%s: %s\n", argv[0], var_errstr(err));
         return EXIT_FAILURE;
     }
-
-    delete_var(&sh_env->vars, argv[1]);
 
     return EXIT_SUCCESS;
 }

@@ -5,11 +5,13 @@
 #include <assert.h>
 #include <fcntl.h>
 
+#include "variable.h"
 #include "input.h"
 #include "ast_man.h"
 #include "utils.h"
 #include "shell_state.h"
 #include "log.h"
+#include "map.h"
 
 shell_env sh_env = {0};
 
@@ -116,8 +118,8 @@ int env_init(void) {
     if (setup_signals() == -1)
         xfatal("setup_procmask");
 
-    if (da_init(&sh_env.vars) == -1)
-        xfatal("da_init");
+    if (mp_init(&sh_env.vars, VAR_KEY_SIZE) == -1)
+        xfatal("mp_init");
 
     if (init_jst(&sh_env.jctl) == -1)
         xfatal("init_jst");
@@ -129,7 +131,7 @@ int env_init(void) {
 
 void env_free(void) {
     xclose(sh_env.tty_fd);
-    da_free(&sh_env.vars);
+    mp_free(&sh_env.vars);
     free_jst(&sh_env.jctl);
     free_job_plans(&sh_env.job_plans);
     sh_env = (shell_env){0};
