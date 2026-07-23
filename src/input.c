@@ -41,7 +41,7 @@ fail:
     return -1;
 }
 
-input_status get_line(char **line) {
+input_stat get_line(char **line) {
     int num_read = xread(sh_env.tty_fd, input_line, LINE_BUF - 1);
     if (num_read == -1)
         return INPUT_ERR;

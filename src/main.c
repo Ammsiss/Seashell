@@ -39,15 +39,22 @@ int main(void) {
 
         if (ready == 1) {
             char *line;
-            switch (get_line(&line)) {
-            case INPUT_ERR: fatal("failed to read from terminal");
-            case INPUT_OK:  add_ast(line); break;
-            case INPUT_EOF: goto done;
-            }
+            input_stat iostat = get_line(&line);
+
+            if (iostat == INPUT_ERR)
+                xfatal("failed to read from terminal");
+
+            if (iostat == INPUT_EOF)
+                break;
+
+            job_plan *plan = register_plan(line);
+            if (!plan)
+                xfatal("register_plan");
+
+            run_next(plan, true);
         }
     }
 
-done:
     env_free();
     log_free();
 

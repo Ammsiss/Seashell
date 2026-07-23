@@ -1,5 +1,8 @@
 ### Tasks
 
+- [ ] add an events field to jctl so logs/notis happen after jctl_wait returns
+- [ ] Expand asts as needed; simplifies expander and more efficient
+- [ ] add a test file for the map structure
 - [ ] make all da_delete and other mem failures fatal
 - [ ] add -p option to show pids of job members in jobs builtin
 - [ ] change PSTOPPED etc to JSTOPPED etc
@@ -25,3 +28,4 @@
 5. How should the new executor testing file look with job control?
 6. Is it ok to call tcsetpgrp and setpgid on a zombie child?
 7. Can we manage array lookups without redoing id logic for each type?
+8. On function failure after da_push, should we pop the element before return?

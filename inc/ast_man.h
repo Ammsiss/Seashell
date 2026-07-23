@@ -18,6 +18,9 @@ typedef struct job_plan job_plan;
 void free_job_plans(da_plan *job_plans);
 int init_job_plans(da_plan *job_plans);
 void run_next_if_more(job_id jid, bool success);
-void add_ast(const char *line);
+
+job_plan *lookup_plan_by_jid(job_id jid);
+job_plan *register_plan(const char *line);
+void run_next(job_plan *plan, bool success);
 
 #endif

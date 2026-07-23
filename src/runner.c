@@ -153,7 +153,7 @@ static job_id identify_proc(pid_t pid, jc_proc** proc) {
             if (pid == out->pid) {
                 if (proc)
                     *proc = out;
-                return job->id;
+                return job->jid;
             }
         }
     }
@@ -163,7 +163,7 @@ static job_id identify_proc(pid_t pid, jc_proc** proc) {
 
 jc_job *lookup_job(job_id jid, size_t *index) {
     for (size_t i = 0; i < sh_env.jctl.jobs.size; ++i) {
-        if (jid == sh_env.jctl.jobs.data[i].id) {
+        if (jid == sh_env.jctl.jobs.data[i].jid) {
             if (index)
                 *index = i;
             return &sh_env.jctl.jobs.data[i];
@@ -180,7 +180,7 @@ static job_id create_job_id(void) {
         return new_id;
 
     for (size_t i = 0; i < sh_env.jctl.jobs.size; ++i) {
-        if (new_id == sh_env.jctl.jobs.data[i].id) {
+        if (new_id == sh_env.jctl.jobs.data[i].jid) {
             ++new_id;
             continue;
         }
@@ -196,7 +196,7 @@ static jc_job *create_job(void) {
     if (!job)
         xfatal("da_push_init");
 
-    job->id = jid;
+    job->jid = jid;
     job->pgrp.job = job;
     job->stat = PRUNNING;
 
@@ -302,7 +302,7 @@ static int set_job_stat(job_id jid) {
         switch (job->pgrp.procs.data[i].stat) {
         case PRUNNING:
             if (job->stat != PRUNNING)
-                LOG_INFO("[%d] continued", job->id);
+                LOG_INFO("[%d] continued", job->jid);
             job->stat = PRUNNING;
 
             return 0;
@@ -318,19 +318,19 @@ static int set_job_stat(job_id jid) {
     if (one_proc_stopped) {
         if (job->stat != PSTOPPED) {
             job->stat = PSTOPPED;
-            LOG_INFO("[%d] stopped", job->id);
+            LOG_INFO("[%d] stopped", job->jid);
         }
     } else {
         if (job->stat == PEXITED)
             xfatal("unexpected job status");
 
         job->stat = PEXITED;
-        LOG_INFO("[%d] done", job->id);
+        LOG_INFO("[%d] done", job->jid);
 
-        job_id jid = job->id;
+        job_id jid = job->jid;
         bool success = job->pgrp.procs.data[job->pgrp.procs.size - 1].success;
 
-        if (remove_job(job->id) == -1)
+        if (remove_job(job->jid) == -1)
             xfatal("remove_job");
 
         run_next_if_more(jid, success);
@@ -462,16 +462,16 @@ pstat sh_run_job(const ps_pline *pline, bool bg, job_id *jid) {
     if (!job)
         xfatal("failed to create job");
 
-    *jid = job->id;
+    *jid = job->jid;
 
     if (exec_pline(pline, bg, &job->pgrp) == -1)
         xfatal("exec_pline");
 
-    if (msg_job_start(job->id) == -1)
+    if (msg_job_start(job->jid) == -1)
         xfatal("msg_job_start");
 
     if (!bg) {
-        if (jctl_wait(&job->id) == -1)
+        if (jctl_wait(&job->jid) == -1)
             xfatal("wait_for_pids");
 
         return job->stat;

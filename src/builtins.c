@@ -7,7 +7,6 @@
 #include "variable.h"
 #include "builtins.h"
 #include "log.h"
-#include "parser.h"
 #include "utils.h"
 #include "runner.h"
 
@@ -81,7 +80,7 @@ static int run_fg_builtin(char **argv, shell_env *sh_env) {
     }
 
     if (getpgrp() != job->pgrp.pgid)
-        if (jctl_wait(&job->id) == -1)
+        if (jctl_wait(&job->jid) == -1)
             xfatal("wait_for_pids");
 
     return EXIT_SUCCESS;
@@ -107,7 +106,7 @@ static int run_bg_builtin(char **argv, shell_env *sh_env) {
         }
     } else {
         fprintf(stderr, "%s: job %d already in background\n", argv[0],
-                job->id);
+                job->jid);
         return EXIT_FAILURE;
     }
 
@@ -197,7 +196,7 @@ static int run_jobs_builtin(char **argv, shell_env *sh_env) {
 
         jc_job *job = &sh_env->jctl.jobs.data[i];
 
-        printf("[%d] ", job->id);
+        printf("[%d] ", job->jid);
 
         /* TODO: Make option -p for this */
         // char *pid_str = get_pid_string(job->id);
@@ -218,7 +217,7 @@ static int run_jobs_builtin(char **argv, shell_env *sh_env) {
             break;
         }
 
-        char *cmd_str = get_cmd_string(job->id);
+        char *cmd_str = get_cmd_string(job->jid);
         if (!cmd_str) {
             fprintf(stderr, "get_cmd_string\n");
             return EXIT_FAILURE;

@@ -3,6 +3,8 @@
 
 #include "map.h"
 
+typedef void *(* key_func)(map_t *, void *);
+
 int mp_init(map_t *map, size_t key_size) {
     *map = (map_t){0};
 
@@ -38,40 +40,8 @@ static void *lookup_index(map_t *map, void *key, size_t *index) {
     return NULL;
 }
 
-static char *str_canon_key(map_t *map, char *key) {
-    assert(map && key && strlen(key) < map->key_size);
-
-    char *canon_key = calloc(map->key_size, 1);
-    if (!canon_key)
-        return NULL;
-
-    strcpy(canon_key, key);
-
-    return canon_key;
-}
-
-int mp_str_lookup(map_t *map, char *key, void **value) {
-    assert(map && key && value);
-
-    char *canon_key = str_canon_key(map, key);
-    if (!canon_key)
-        return -1;
-
-    void *map_value = lookup_index(map, canon_key, NULL);
-    if (!map_value) {
-        free(canon_key);
-        *value = NULL;
-        return 0;
-    }
-
-    *value = map_value;
-    free(canon_key);
-
-    return 0;
-}
-
-int mp_str_add(map_t *map, char *key, void *value) {
-    char *canon_key = str_canon_key(map, key);
+static int mp_add(map_t *map, void *key, void *value, key_func func) {
+    char *canon_key = func(map, key);
     if (!canon_key)
         goto fail;
 
@@ -99,8 +69,28 @@ fail:
     return -1;
 }
 
-int mp_str_delete(map_t *map, char *key) {
-    char *canon_key = str_canon_key(map, key);
+static int mp_lookup(map_t *map, void *key, void **value, key_func func) {
+    assert(map && key && value);
+
+    void *canon_key = func(map, key);
+    if (!canon_key)
+        return -1;
+
+    void *map_value = lookup_index(map, canon_key, NULL);
+    if (!map_value) {
+        free(canon_key);
+        *value = NULL;
+        return 0;
+    }
+
+    *value = map_value;
+    free(canon_key);
+
+    return 0;
+}
+
+static int mp_delete(map_t *map, void *key, key_func func) {
+    void *canon_key = func(map, key);
     if (!canon_key)
         goto fail;
 
@@ -120,4 +110,70 @@ int mp_str_delete(map_t *map, char *key) {
 fail:
     free(canon_key);
     return -1;
+}
+
+static void *str_canon_key(map_t *map, void *key) {
+    assert(map && key && strlen(key) < map->key_size);
+
+    void *canon_key = calloc(map->key_size, 1);
+    if (!canon_key)
+        return NULL;
+
+    strcpy(canon_key, key);
+
+    return canon_key;
+}
+
+int mp_str_add(map_t *map, char *key, void *value) {
+    if (mp_add(map, key, value, str_canon_key) == -1)
+        return -1;
+
+    return 0;
+}
+
+int mp_str_lookup(map_t *map, char *key, void **value) {
+    if (mp_lookup(map, key, value, str_canon_key) == -1)
+        return -1;
+
+    return 0;
+}
+
+int mp_str_delete(map_t *map, char *key) {
+    if (mp_delete(map, key, str_canon_key) == -1)
+        return -1;
+
+    return 0;
+}
+
+static void *num_canon_key(map_t *map, void *key) {
+    assert(map && key);
+
+    int *canon_key = calloc(map->key_size, 1);
+    if (!canon_key)
+        return NULL;
+
+    *canon_key = *(int *)key;
+
+    return canon_key;
+}
+
+int mp_num_add(map_t *map, int key, void *value) {
+    if (mp_add(map, &key, value, num_canon_key) == -1)
+        return -1;
+
+    return 0;
+}
+
+int mp_num_lookup(map_t *map, int key, void **value) {
+    if (mp_lookup(map, &key, value, num_canon_key) == -1)
+        return -1;
+
+    return 0;
+}
+
+int mp_num_delete(map_t *map, int key) {
+    if (mp_delete(map, &key, num_canon_key) == -1)
+        return -1;
+
+    return 0;
 }

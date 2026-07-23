@@ -7,9 +7,9 @@ typedef enum {
     INPUT_EOF,
     INPUT_ERR,
     INPUT_OK
-} input_status;
+} input_stat;
 
-input_status get_line(char **line);
+input_stat get_line(char **line);
 int display_prompt(void);
 
 #endif

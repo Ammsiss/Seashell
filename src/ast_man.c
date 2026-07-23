@@ -32,7 +32,7 @@ int init_job_plans(da_plan *job_plans) {
     return 0;
 }
 
-static job_plan *register_plan(const char *line) {
+job_plan *register_plan(const char *line) {
     if (line && *line == '\0')
         return NULL;
 
@@ -87,7 +87,7 @@ static int remove_plan(int plan_id) {
     return -1;
 }
 
-static void run_next(job_plan *plan, bool success) {
+void run_next(job_plan *plan, bool success) {
     if (plan->index < plan->job_n) {
         if (plan->index == 0) {
             LOG_INFO("[plan new] running at index=%ld", plan->index);
@@ -126,14 +126,4 @@ void run_next_if_more(job_id jid, bool success) {
         return;
 
     run_next(plan, success);
-}
-
-void add_ast(const char *line) {
-    job_plan *plan = register_plan(line);
-    if (!plan)
-        return;
-
-    run_next(plan, true);
-
-    return;
 }

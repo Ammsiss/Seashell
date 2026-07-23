@@ -27,14 +27,14 @@ struct jc_proc {
 };
 
 struct jc_pgrp {
-    da_proc procs;
     pid_t pgid;
+    da_proc procs;
     jc_job *job;
 };
 
 struct jc_job {
+    job_id jid;
     jc_pgrp pgrp;
-    job_id id;
     pstat stat;
 };
 
