@@ -291,112 +291,54 @@ int msg_job_start(job_id jid) {
     return 0;
 }
 
-static int set_job_stat(job_id jid) {
+// TODO: change name of PRUNNING etc
+// TODO: this should return jstat
+static pstat calc_job_stat(jc_job *job) {
+    bool stopped = false;
+
+    da_proc *procs = &job->pgrp.procs;
+
+    for (size_t i = 0; i < procs->size; ++i) {
+
+        if (procs->data[i].stat == PRUNNING)
+            return PRUNNING;
+
+        if (procs->data[i].stat == PSTOPPED)
+            stopped = true;
+    }
+
+    return stopped ? PSTOPPED : PEXITED;
+}
+
+static void set_job_stat(job_id jid) {
     jc_job *job = lookup_job(jid, NULL);
     if (!job)
         xfatal("lookup_job");
 
-    bool one_proc_stopped = false;
+    pstat stat = calc_job_stat(job);
 
-    for (size_t i = 0; i < job->pgrp.procs.size; ++i) {
-        switch (job->pgrp.procs.data[i].stat) {
-        case PRUNNING:
-            if (job->stat != PRUNNING)
-                LOG_INFO("[%d] continued", job->jid);
-            job->stat = PRUNNING;
+    if (job->stat == PRUNNING && stat == PSTOPPED) {
+        job->ev |= JSTOPPED;
+        LOG_INFO("[%d] stopped", job->jid);
 
-            return 0;
-        case PSTOPPED:
-            one_proc_stopped = true;
-            break;
-
-        case PEXITED:
-            continue;
-        }
+    } else if (job->stat == PSTOPPED && stat == PRUNNING) {
+        job->ev |= JRESUMED;
+        LOG_INFO("[%d] resumed", job->jid);
     }
 
-    if (one_proc_stopped) {
-        if (job->stat != PSTOPPED) {
-            job->stat = PSTOPPED;
-            LOG_INFO("[%d] stopped", job->jid);
-        }
-    } else {
-        if (job->stat == PEXITED)
-            xfatal("unexpected job status");
+    job->stat = stat;
 
-        job->stat = PEXITED;
-        LOG_INFO("[%d] done", job->jid);
-
+    if (job->stat == PEXITED) {
         job_id jid = job->jid;
         bool success = job->pgrp.procs.data[job->pgrp.procs.size - 1].success;
+
+        LOG_INFO("[%d] done", jid);
 
         if (remove_job(job->jid) == -1)
             xfatal("remove_job");
 
         run_next_if_more(jid, success);
     }
-
-    return 0;
-}
-
-static int proc_exited(pid_t pid, int wstat) {
-    jc_proc *proc;
-    job_id jid = identify_proc(pid, &proc);
-    if (jid == -1)
-        xfatal("identify_proc");
-
-    proc->stat = PEXITED;
-
-    if (WIFEXITED(wstat)) {
-        proc->exit_stat = WEXITSTATUS(wstat);
-
-        LOG_INFO("[%d] %d exited with status %d", jid, pid,
-                WEXITSTATUS(wstat));
-
-    } else if (WIFSIGNALED(wstat)) {
-        proc->exit_stat = WTERMSIG(wstat) + 128;
-
-        LOG_INFO("[%d] %d terminated by signal %d (%s)", jid, pid,
-                WTERMSIG(wstat), strsignal(WTERMSIG(wstat)));
-    } else
-        xfatal("unexpected wstat");
-
-    proc->success = (proc->exit_stat == EXIT_SUCCESS);
-
-    if (set_job_stat(jid) == -1)
-        xfatal("set_job_stat");
-
-    return 0;
-}
-
-static int proc_stopped(pid_t pid) {
-    jc_proc *proc;
-    job_id jid = identify_proc(pid, &proc);
-    if (jid == -1)
-        xfatal("identify_proc");
-
-    proc->stat = PSTOPPED;
-    LOG_INFO("[%d] %d stopped", jid, pid);
-
-    if (set_job_stat(jid) == -1)
-        xfatal("set_job_stat");
-
-    return 0;
-}
-
-static int proc_continued(pid_t pid) {
-    jc_proc *proc;
-    job_id jid = identify_proc(pid, &proc);
-    if (jid == -1)
-        xfatal("identify_proc");
-
-    proc->stat = PRUNNING;
-    LOG_INFO("[%d] %d continued", jid, pid);
-
-    if (set_job_stat(jid) == -1)
-        xfatal("set_job_stat");
-
-    return 0;
 }
 
 int jctl_wait(job_id *jid) {
@@ -405,6 +347,7 @@ int jctl_wait(job_id *jid) {
     int wstat;
     int cpid;
     int wopts = WUNTRACED | WCONTINUED;
+    jc_proc *proc;
 
     jc_job *job = NULL;
 
@@ -421,24 +364,46 @@ int jctl_wait(job_id *jid) {
                 xfatal("shouldn't get echild here");
             break;
         }
+
         if (cpid == -1)
             err_exit("waitpid");
 
-        if (WIFEXITED(wstat) || WIFSIGNALED(wstat)) {
-            if (proc_exited(cpid, wstat) == -1)
-                xfatal("proc_exited");
+        int cjid;
+
+        if ((cjid = identify_proc(cpid, &proc)) == -1)
+            xfatal("identify_proc");
+
+        if (WIFEXITED(wstat)) {
+            proc->stat = PEXITED;
+            proc->exit_stat = WEXITSTATUS(wstat);
+            proc->success = proc->exit_stat == EXIT_SUCCESS;
+
+            LOG_INFO("[%d] %d exited with status %d", cjid, cpid,
+                    WEXITSTATUS(wstat));
+
+        } else if (WIFSIGNALED(wstat)) {
+            proc->stat = PEXITED;
+            proc->exit_stat = WTERMSIG(wstat) + 128;
+            proc->success = false;
+
+            LOG_INFO("[%d] %d terminated by signal %d (%s)", cjid, cpid,
+                    WTERMSIG(wstat), strsignal(WTERMSIG(wstat)));
 
         } else if (WIFSTOPPED(wstat)) {
-            if (proc_stopped(cpid) == -1)
-                xfatal("proc_stopped");
+            proc->stat = PSTOPPED;
+
+            LOG_INFO("[%d] %d stopped", cjid, cpid);
 
         } else if (WIFCONTINUED(wstat)) {
-            if (proc_continued(cpid) == -1)
-                xfatal("proc_continued");
+            proc->stat = PRUNNING;
+
+            LOG_INFO("[%d] %d continued", cjid, cpid);
 
         } else {
             xfatal("unexpected wstat value");
         }
+
+        set_job_stat(cjid);
 
         if (wait_on_job && (job->stat == PEXITED || job->stat == PSTOPPED)) {
             if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)

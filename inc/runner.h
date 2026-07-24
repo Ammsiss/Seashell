@@ -6,6 +6,9 @@
 #include "dyn_str.h"
 #include "parser.h"
 
+#define JRESUMED 1
+#define JSTOPPED 2
+
 typedef enum {
     PEXITED,
     PSTOPPED,
@@ -36,6 +39,7 @@ struct jc_job {
     job_id jid;
     jc_pgrp pgrp;
     pstat stat;
+    unsigned ev;
 };
 
 typedef struct {
