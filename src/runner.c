@@ -198,7 +198,7 @@ static jc_job *create_job(void) {
 
     job->jid = jid;
     job->pgrp.job = job;
-    job->stat = PRUNNING;
+    job->stat = PRUN;
 
     return job;
 }
@@ -300,14 +300,14 @@ static pstat calc_job_stat(jc_job *job) {
 
     for (size_t i = 0; i < procs->size; ++i) {
 
-        if (procs->data[i].stat == PRUNNING)
-            return PRUNNING;
+        if (procs->data[i].stat == PRUN)
+            return PRUN;
 
-        if (procs->data[i].stat == PSTOPPED)
+        if (procs->data[i].stat == PSTOP)
             stopped = true;
     }
 
-    return stopped ? PSTOPPED : PEXITED;
+    return stopped ? PSTOP : PEXIT;
 }
 
 static void set_job_stat(job_id jid) {
@@ -317,18 +317,18 @@ static void set_job_stat(job_id jid) {
 
     pstat stat = calc_job_stat(job);
 
-    if (job->stat == PRUNNING && stat == PSTOPPED) {
+    if (job->stat == PRUN && stat == PSTOP) {
         job->ev |= JSTOPPED;
         LOG_INFO("[%d] stopped", job->jid);
 
-    } else if (job->stat == PSTOPPED && stat == PRUNNING) {
+    } else if (job->stat == PSTOP && stat == PRUN) {
         job->ev |= JRESUMED;
         LOG_INFO("[%d] resumed", job->jid);
     }
 
     job->stat = stat;
 
-    if (job->stat == PEXITED) {
+    if (job->stat == PEXIT) {
         job_id jid = job->jid;
         bool success = job->pgrp.procs.data[job->pgrp.procs.size - 1].success;
 
@@ -374,7 +374,7 @@ int jctl_wait(job_id *jid) {
             xfatal("identify_proc");
 
         if (WIFEXITED(wstat)) {
-            proc->stat = PEXITED;
+            proc->stat = PEXIT;
             proc->exit_stat = WEXITSTATUS(wstat);
             proc->success = proc->exit_stat == EXIT_SUCCESS;
 
@@ -382,7 +382,7 @@ int jctl_wait(job_id *jid) {
                     WEXITSTATUS(wstat));
 
         } else if (WIFSIGNALED(wstat)) {
-            proc->stat = PEXITED;
+            proc->stat = PEXIT;
             proc->exit_stat = WTERMSIG(wstat) + 128;
             proc->success = false;
 
@@ -390,12 +390,12 @@ int jctl_wait(job_id *jid) {
                     WTERMSIG(wstat), strsignal(WTERMSIG(wstat)));
 
         } else if (WIFSTOPPED(wstat)) {
-            proc->stat = PSTOPPED;
+            proc->stat = PSTOP;
 
             LOG_INFO("[%d] %d stopped", cjid, cpid);
 
         } else if (WIFCONTINUED(wstat)) {
-            proc->stat = PRUNNING;
+            proc->stat = PRUN;
 
             LOG_INFO("[%d] %d continued", cjid, cpid);
 
@@ -405,7 +405,7 @@ int jctl_wait(job_id *jid) {
 
         set_job_stat(cjid);
 
-        if (wait_on_job && (job->stat == PEXITED || job->stat == PSTOPPED)) {
+        if (wait_on_job && (job->stat == PEXIT || job->stat == PSTOP)) {
             if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
                 err_exit("tcsetpgrp");
 
@@ -421,7 +421,7 @@ pstat sh_run_job(const ps_pline *pline, bool bg, job_id *jid) {
 
     if (pline->cmds.size == 1 && !bg)
         if (try_run_builtin(pline->cmds.data[0].argv, NULL))
-            return PEXITED;
+            return PEXIT;
 
     jc_job *job = create_job();
     if (!job)

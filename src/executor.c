@@ -227,7 +227,7 @@ int exec_pline(const ps_pline *pline, bool bg, jc_pgrp *pgrp) {
 
         proc->pid = child_pid;
         proc->pgrp = pgrp;
-        proc->stat = PRUNNING;
+        proc->stat = PRUN;
     }
 
     if (!RUNNING_ON_VALGRIND)

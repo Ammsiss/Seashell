@@ -72,7 +72,7 @@ static int run_fg_builtin(char **argv, shell_env *sh_env) {
         return EXIT_FAILURE;
     }
 
-    if (job->stat == PSTOPPED) {
+    if (job->stat == PSTOP) {
         if (xkill(-job->pgrp.pgid, SIGCONT) == -1 && errno != ESRCH) {
             perror(argv[0]);
             return EXIT_FAILURE;
@@ -99,7 +99,7 @@ static int run_bg_builtin(char **argv, shell_env *sh_env) {
     if (!job)
         return EXIT_FAILURE;
 
-    if (job->stat == PSTOPPED) {
+    if (job->stat == PSTOP) {
         if (xkill(-job->pgrp.pgid, SIGCONT) == -1 && errno != ESRCH) {
             perror(argv[0]);
             return EXIT_FAILURE;
@@ -206,13 +206,13 @@ static int run_jobs_builtin(char **argv, shell_env *sh_env) {
         // }
 
         switch (job->stat) {
-        case PRUNNING:
+        case PRUN:
             printf("running");
             break;
-        case PSTOPPED:
+        case PSTOP:
             printf("stopped");
             break;
-        case PEXITED:
+        case PEXIT:
             printf("???");
             break;
         }
