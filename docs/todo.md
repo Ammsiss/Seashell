@@ -1,5 +1,6 @@
 ### Tasks
 
+- [ ] should we do the same meme with job->ev with procs? so like proc->ev
 - [ ] add an events field to jctl so logs/notis happen after jctl_wait returns
 - [ ] Expand asts as needed; simplifies expander and more efficient
 - [ ] add a test file for the map structure
@@ -21,6 +22,9 @@
 
 ### Unresolved
 
+0. should we make jctl_wait() call happen no matter what at the end of the main
+   loop? that was anything that changes fgroup doesn't need to wait personally
+   just set a flag.
 1. Should failed pline child pids be destroyed or added to jctl?
 2. figure out way to automate test file seeing new modules
 3. How should pre-exec subshell unblocking semantics work?

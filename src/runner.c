@@ -336,12 +336,12 @@ int jctl_wait(job_id *jid) {
     return 0;
 }
 
-pstat sh_run_job(const ps_pline *pline, bool bg, job_id *jid) {
+void sh_run_job(const ps_pline *pline, bool bg, job_id *jid) {
     assert(pline && jid);
 
     if (pline->cmds.size == 1 && !bg)
         if (try_run_builtin(pline->cmds.data[0].argv, NULL))
-            return PEXIT;
+            return;
 
     jc_job *job = create_job();
     if (!job)
@@ -352,12 +352,6 @@ pstat sh_run_job(const ps_pline *pline, bool bg, job_id *jid) {
     if (exec_pline(pline, bg, &job->pgrp) == -1)
         xfatal("exec_pline");
 
-    if (!bg) {
-        if (jctl_wait(&job->jid) == -1)
-            xfatal("wait_for_pids");
-
-        return job->stat;
-    }
-
-    return job->stat;
+    if (!bg && jctl_wait(&job->jid) == -1)
+        xfatal("wait_for_pids");
 }

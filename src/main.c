@@ -1,6 +1,5 @@
 #define _GNU_SOURCE
 
-#include <stdio.h>
 #include <poll.h>
 #include <unistd.h>
 #include <wait.h>

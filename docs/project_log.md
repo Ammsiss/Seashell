@@ -1,3 +1,39 @@
+## 2026-07-25 - 1e31bf1
+
+### Next
+
+
+### Completed
+
+- [ ] Move remove_job calls to outside of the state change function
+
+### Notes
+
+What if, isntead of unconditionally making a job and then handling
+notifications based on if its appropriate (like in the bg) we lazily
+create jobs? Basically if its a fg job we don't automatically add
+a job structure, only when it is sent to the bg do we create it.
+
+---------------------------------------------------------------------------------
+## 2026-07-24 - 1e31bf1
+
+### Next
+
+- [ ] Move remove_job calls to outside of the state change function
+
+### Completed
+
+- [x] update the set_job_stat function to make use of a calc_job_stat function.
+      This makes it much more readable and makes future events easier to add
+      because you can react to changes based on the calculated stat but then
+      at the end just simply assign it. No weird branching logic.
+- [x] change PSTOPPED etc to JSTOPPED etc
+- [x] add notification module and job event system
+
+### Notes
+
+Job notifcations moved out of the state mutation area.
+
 ---------------------------------------------------------------------------------
 
 ## 2026-07-23 - 118508d

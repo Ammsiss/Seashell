@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 
+#include <time.h>
 #include <stdio.h>
 #include <signal.h>
 #include <assert.h>
@@ -40,9 +41,17 @@ void process_sigchild(void) {
 
 void reap_pending_sigchild(void) {
     sigset_t oldset;
+    struct timespec ts = { 0, 5000000 };
+
+    /* sleep to make job update notis more consistent */
+    int err = clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, NULL);
+
+    if (err != 0 && err != EINTR)
+        err_exit("clock_nanosleep");
 
     if (xsigprocmask(SIG_SETMASK, &sh_env.og_mask, &oldset) == -1)
         err_exit("sigprocmask");
+
     if (xsigprocmask(SIG_SETMASK, &oldset, NULL) == -1)
         err_exit("sigprocmask");
 

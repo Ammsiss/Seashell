@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -260,6 +261,8 @@ static int run_exit_builtin(char **argv, shell_env *sh_env) {
     if (sh_env->subshell) {
         _exit(exit_status);
     } else {
+        sighup_shutdown();
+
         printf("exit\n");
         exit(exit_status);
     }

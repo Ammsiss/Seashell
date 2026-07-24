@@ -70,17 +70,17 @@ void noti_job_start(job_id jid, const char *pid_str, const char *cmd_str) {
 }
 
 void noti_job_stop(job_id jid,  const char *cmd_str) {
-    printf("[%d] stopped %s\n", jid, cmd_str);
+    printf("[%d] stopped  %s\n", jid, cmd_str);
     LOG_INFO("[%d] stopped  %s", jid, cmd_str);
 }
 
 void noti_job_done(job_id jid, const char *cmd_str) {
-    printf("[%d] done %s\n", jid, cmd_str);
+    printf("[%d] done  %s\n", jid, cmd_str);
     LOG_INFO("[%d] done  %s", jid, cmd_str);
 }
 
 void noti_job_resume(job_id jid, const char *cmd_str) {
-    printf("[%d] %s\n", jid, cmd_str);
+    printf("[%d] resumed  %s\n", jid, cmd_str);
     LOG_INFO("[%d] resumed  %s", jid, cmd_str);
 }
 
@@ -115,14 +115,14 @@ bool noti_jobs(jc_jst *jctl, bool from_sig) {
         if (JRESUMED & jobs->data[i].ev) {
             if (from_sig)
                 printf("\n");
-            noti_job_resume(jobs->data[i].jid, pid_str);
+            noti_job_resume(jobs->data[i].jid, cmd_str);
             jobs->data[i].ev &= ~JRESUMED;
         }
 
         if (JSTOPPED & jobs->data[i].ev) {
             if (from_sig)
                 printf("\n");
-            noti_job_stop(jobs->data[i].jid, pid_str);
+            noti_job_stop(jobs->data[i].jid, cmd_str);
             jobs->data[i].ev &= ~JSTOPPED;
         }
 
@@ -130,7 +130,7 @@ bool noti_jobs(jc_jst *jctl, bool from_sig) {
         if (jobs->data[i].stat == PEXIT) {
             if (from_sig)
                 printf("\n");
-            noti_job_done(jobs->data[i].jid, pid_str);
+            noti_job_done(jobs->data[i].jid, cmd_str);
             sent_msg = true;
         }
 

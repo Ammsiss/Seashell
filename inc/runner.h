@@ -58,6 +58,6 @@ int jctl_wait(job_id *jid);
 char *get_cmd_string(job_id jid);
 char *get_pid_string(job_id jid);
 
-pstat sh_run_job(const ps_pline *pline, bool bg, job_id *jid);
+void sh_run_job(const ps_pline *pline, bool bg, job_id *jid);
 
 #endif
