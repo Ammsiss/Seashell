@@ -8,6 +8,7 @@
 
 #define JRESUMED 1
 #define JSTOPPED 2
+#define JSTARTED 4
 
 typedef enum {
     PEXIT,

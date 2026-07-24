@@ -89,10 +89,10 @@ static int remove_plan(int plan_id) {
 
 void run_next(job_plan *plan, bool success) {
     if (plan->index < plan->job_n) {
-        if (plan->index == 0) {
-            LOG_INFO("[plan new] running at index=%ld", plan->index);
-        } else
-            LOG_INFO("[plan %d] running at index=%ld", plan->jid, plan->index);
+        // if (plan->index == 0) {
+        //     LOG_INFO("[plan new] running at index=%ld", plan->index);
+        // } else
+        //     LOG_INFO("[plan %d] running at index=%ld", plan->jid, plan->index);
 
         ps_andor *andor = &plan->ast.andors.data[plan->index];
         ++plan->index;
@@ -106,7 +106,7 @@ void run_next(job_plan *plan, bool success) {
 
     } else {
         remove_plan(plan->jid);
-        LOG_INFO("[plan %d] removed with index=%ld", plan->jid, plan->index);
+        // LOG_INFO("[plan %d] removed with index=%ld", plan->jid, plan->index);
     }
 }
 
@@ -119,7 +119,7 @@ job_plan *lookup_plan_by_jid(job_id jid) {
 }
 
 void run_next_if_more(job_id jid, bool success) {
-    LOG_INFO("looking up [plan %d]", jid);
+    // LOG_INFO("looking up [plan %d]", jid);
 
     job_plan *plan = lookup_plan_by_jid(jid);
     if (!plan)

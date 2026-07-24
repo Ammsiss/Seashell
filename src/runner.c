@@ -132,9 +132,11 @@ int sighup_shutdown(void) {
         if (getpgrp() == job->pgrp.pgid || job->pgrp.pgid <= 1)
             xfatal("unexpected pgid %d", job->pgrp.pgid);
 
-        if (xkill(-job->pgrp.pgid, SIGHUP) == -1)
-            if (errno != ESRCH)
-                err_exit("kill");
+        if (xkill(-job->pgrp.pgid, SIGHUP) == -1 && errno != ESRCH)
+            err_exit("kill");
+
+        if (xkill(-job->pgrp.pgid, SIGCONT) == -1 && errno != ESRCH)
+            err_exit("kill");
     }
 
     if (jctl_wait(NULL) == -1)
@@ -199,6 +201,7 @@ static jc_job *create_job(void) {
     job->jid = jid;
     job->pgrp.job = job;
     job->stat = PRUN;
+    job->ev = JSTARTED;
 
     return job;
 }
@@ -213,80 +216,6 @@ static int remove_job(job_id jid) {
 
     if (da_delete(&sh_env.jctl.jobs, index) == -1)
         xfatal("da_delete");
-
-    return 0;
-}
-
-char *get_pid_string(job_id jid) {
-    jc_job *job = lookup_job(jid, NULL);
-    if (!job)
-        return NULL;
-
-    d_str pid_str;
-    if (d_str_init(&pid_str) == -1)
-        return NULL;
-
-    char buf[4096]; /* surely not longer then this */
-
-    for (size_t i = 0; i < job->pgrp.procs.size; ++i) {
-        jc_proc *proc = &job->pgrp.procs.data[i];
-
-        if (i != 0) {
-            snprintf(buf, 4096, " %d", proc->pid);
-        } else
-            snprintf(buf, 4096, "%d", proc->pid);
-
-        if (d_strcat(&pid_str, buf) == -1)
-            goto fail;
-    }
-
-    return pid_str.c_str;
-
-fail:
-    d_str_free(&pid_str);
-    return NULL;
-}
-
-char *get_cmd_string(job_id jid) {
-    jc_job *job = lookup_job(jid, NULL);
-    if (!job)
-        return NULL;
-
-    d_str cmd_str;
-    if (d_str_init(&cmd_str) == -1)
-        return NULL;
-
-    for (size_t i = 0; i < job->pgrp.procs.size; ++i) {
-        jc_proc *proc = &job->pgrp.procs.data[i];
-
-        if (i != 0)
-            if (d_strcat(&cmd_str, " | ") == -1)
-                goto fail;
-
-        if (d_strcat(&cmd_str, proc->cmd.c_str) == -1)
-            goto fail;
-    }
-
-    return cmd_str.c_str;
-
-fail:
-    d_str_free(&cmd_str);
-    return NULL;
-}
-
-int msg_job_start(job_id jid) {
-    char *pid_str = get_pid_string(jid);
-    if (!pid_str)
-        xfatal("get_pid_string");
-
-    char *cmd_str = get_cmd_string(jid);
-    if (!cmd_str)
-        xfatal("get_cmd_string");
-
-    LOG_INFO("[%d] %s \"%s\"", jid, pid_str, cmd_str);
-
-    free(pid_str);
-    free(cmd_str);
 
     return 0;
 }
@@ -317,22 +246,17 @@ static void set_job_stat(job_id jid) {
 
     pstat stat = calc_job_stat(job);
 
-    if (job->stat == PRUN && stat == PSTOP) {
+    if (job->stat == PRUN && stat == PSTOP)
         job->ev |= JSTOPPED;
-        LOG_INFO("[%d] stopped", job->jid);
 
-    } else if (job->stat == PSTOP && stat == PRUN) {
+    if (job->stat == PSTOP && stat == PRUN)
         job->ev |= JRESUMED;
-        LOG_INFO("[%d] resumed", job->jid);
-    }
 
     job->stat = stat;
 
     if (job->stat == PEXIT) {
         job_id jid = job->jid;
         bool success = job->pgrp.procs.data[job->pgrp.procs.size - 1].success;
-
-        LOG_INFO("[%d] done", jid);
 
         if (remove_job(job->jid) == -1)
             xfatal("remove_job");
@@ -377,7 +301,6 @@ int jctl_wait(job_id *jid) {
             proc->stat = PEXIT;
             proc->exit_stat = WEXITSTATUS(wstat);
             proc->success = proc->exit_stat == EXIT_SUCCESS;
-
             LOG_INFO("[%d] %d exited with status %d", cjid, cpid,
                     WEXITSTATUS(wstat));
 
@@ -385,18 +308,15 @@ int jctl_wait(job_id *jid) {
             proc->stat = PEXIT;
             proc->exit_stat = WTERMSIG(wstat) + 128;
             proc->success = false;
-
             LOG_INFO("[%d] %d terminated by signal %d (%s)", cjid, cpid,
                     WTERMSIG(wstat), strsignal(WTERMSIG(wstat)));
 
         } else if (WIFSTOPPED(wstat)) {
             proc->stat = PSTOP;
-
             LOG_INFO("[%d] %d stopped", cjid, cpid);
 
         } else if (WIFCONTINUED(wstat)) {
             proc->stat = PRUN;
-
             LOG_INFO("[%d] %d continued", cjid, cpid);
 
         } else {
@@ -431,9 +351,6 @@ pstat sh_run_job(const ps_pline *pline, bool bg, job_id *jid) {
 
     if (exec_pline(pline, bg, &job->pgrp) == -1)
         xfatal("exec_pline");
-
-    if (msg_job_start(job->jid) == -1)
-        xfatal("msg_job_start");
 
     if (!bg) {
         if (jctl_wait(&job->jid) == -1)

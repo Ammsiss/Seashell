@@ -31,13 +31,27 @@ void sigint_handler(int _) {
     sigint_caught = true;
 }
 
-int process_signals(void) {
-    if (sigchld_caught) {
-        if (jctl_wait(NULL) == -1)
-            return -1;
+void process_sigchild(void) {
+    if (jctl_wait(NULL) == -1)
+        xfatal("jctl_wait");
 
-        sigchld_caught = false;
-    }
+    sigchld_caught = false;
+}
+
+void reap_pending_sigchild(void) {
+    sigset_t oldset;
+
+    if (xsigprocmask(SIG_SETMASK, &sh_env.og_mask, &oldset) == -1)
+        err_exit("sigprocmask");
+    if (xsigprocmask(SIG_SETMASK, &oldset, NULL) == -1)
+        err_exit("sigprocmask");
+
+    process_sigchild();
+}
+
+int process_signals(void) {
+    if (sigchld_caught)
+        process_sigchild();
 
     if (sighup_caught) {
         if (sighup_shutdown() == -1)
@@ -58,7 +72,7 @@ int process_signals(void) {
 }
 
 int restore_signals(void) {
-    if (sigprocmask(SIG_SETMASK, &sh_env.og_mask, NULL) == -1)
+    if (xsigprocmask(SIG_SETMASK, &sh_env.og_mask, NULL) == -1)
         err_exit("sigprocmask");
 
     if (set_sig_action(SIGTTOU, SIG_DFL, 0, NULL) == -1)

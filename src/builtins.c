@@ -4,11 +4,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "shell_state.h"
 #include "variable.h"
 #include "builtins.h"
 #include "log.h"
 #include "utils.h"
-#include "runner.h"
+#include "noti.h"
 
 static bool validate_argc(char **argv, size_t min_argc, size_t max_argc) {
     if (!argv || !argv[0]) {
@@ -77,6 +78,9 @@ static int run_fg_builtin(char **argv, shell_env *sh_env) {
             perror(argv[0]);
             return EXIT_FAILURE;
         }
+
+        reap_pending_sigchild();
+        noti_jobs(&sh_env->jctl, false);
     }
 
     if (getpgrp() != job->pgrp.pgid)
@@ -104,6 +108,10 @@ static int run_bg_builtin(char **argv, shell_env *sh_env) {
             perror(argv[0]);
             return EXIT_FAILURE;
         }
+
+        reap_pending_sigchild();
+        noti_jobs(&sh_env->jctl, false);
+
     } else {
         fprintf(stderr, "%s: job %d already in background\n", argv[0],
                 job->jid);
@@ -184,6 +192,9 @@ static int run_kill_builtin(char **argv, shell_env *sh_env) {
         perror(argv[0]);
         return EXIT_FAILURE;
     }
+
+    reap_pending_sigchild();
+    noti_jobs(&sh_env->jctl, false);
 
     return EXIT_SUCCESS;
 }

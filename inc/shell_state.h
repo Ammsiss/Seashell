@@ -19,6 +19,7 @@ typedef struct {
 
 extern shell_env sh_env;
 
+void reap_pending_sigchild(void);
 int restore_signals(void);
 int process_signals(void);
 

@@ -1,9 +1,11 @@
 #define _GNU_SOURCE
 
+#include <stdio.h>
 #include <poll.h>
 #include <unistd.h>
 #include <wait.h>
 
+#include "noti.h"
 #include "ast_man.h"
 #include "input.h"
 #include "shell_state.h"
@@ -23,21 +25,27 @@ int main(void) {
         .fd = sh_env.tty_fd
     };
 
-    while (true) {
-        if (display_prompt() == -1)
-            fatal("display_prompt");
+    if (display_prompt() == -1)
+        fatal("display_prompt");
 
-        int ready;
-        while ((ready = xppoll(&events, 1, 0, &sh_env.og_mask)) == -1) {
-            if (errno != EINTR) {
-                err_exit("poll");
-            } else {
-                if (process_signals() == -1)
-                    fatal("process_signals");
-            }
+    while (true) {
+        int ready = xppoll(&events, 1, 0, &sh_env.og_mask);
+
+        if (ready == -1) {
+            if (errno != EINTR)
+                xfatal("ppoll");
+
+            if (process_signals() == -1)
+                fatal("process_signals");
+
+            if (noti_jobs(&sh_env.jctl, true))
+                if (display_prompt() == -1)
+                    xfatal("display_prompt");
+
+            // TODO: remove all exited jobs here */
         }
 
-        if (ready == 1) {
+        else if (ready == 1) {
             char *line;
             input_stat iostat = get_line(&line);
 
@@ -52,6 +60,12 @@ int main(void) {
                 xfatal("register_plan");
 
             run_next(plan, true);
+            noti_jobs(&sh_env.jctl, false);
+
+            // TODO: remove all exited jobs here */
+
+            if (display_prompt() == -1)
+                fatal("display_prompt");
         }
     }
 
