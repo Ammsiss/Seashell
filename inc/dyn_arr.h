@@ -22,6 +22,15 @@ struct ps_ast;
 /* map */
 struct mpair;
 
+/* waitstat.h */
+struct wait_event;
+
+/* job_state.h */
+struct jc_proc;
+struct jc_pgrp;
+struct jc_job;
+struct job_event;
+
 #define DYN_ARR_TYPES(APPLY, arg) \
     /* lexer */ \
     APPLY(arg, da_part, struct lx_part) \
@@ -36,7 +45,12 @@ struct mpair;
     APPLY(arg, da_int, int) \
     APPLY(arg, da_pid, pid_t) \
     APPLY(arg, da_charp, char *) \
-    APPLY(arg, da_mpair, struct mpair)
+    APPLY(arg, da_mpair, struct mpair) \
+    APPLY(arg, da_wevent, struct wait_event) \
+    APPLY(arg, da_proc, struct jc_proc) \
+    APPLY(arg, da_pgrp, struct jc_pgrp) \
+    APPLY(arg, da_job, struct jc_job) \
+    APPLY(arg, da_jevent, struct job_event)
 
 #define DECLARE_DYN_ARR(name, type) \
     typedef struct { \

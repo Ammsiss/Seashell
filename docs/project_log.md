@@ -2,18 +2,19 @@
 
 ### Next
 
-
-### Completed
-
-- [ ] Move remove_job calls to outside of the state change function
+- [ ] Re-wrap the wait statuses so job_state doesn't see them. Job state should
+      be purely logical.
 
 ### Notes
 
-What if, isntead of unconditionally making a job and then handling
-notifications based on if its appropriate (like in the bg) we lazily
-create jobs? Basically if its a fg job we don't automatically add
-a job structure, only when it is sent to the bg do we create it.
+Dual logs from different branches. Wacky. Probably shouldn't track the logs
+with git. Makes branching time travely.
 
+After thinking about it for a while, decided to start clean implementing
+the main shell logic. Got too tangled and hard to reason about. Going to
+design the job table as logically as possible and hopefully with tests
+before even touching any linux calls. We'll see how it goes.
+ 
 ---------------------------------------------------------------------------------
 ## 2026-07-24 - 1e31bf1
 

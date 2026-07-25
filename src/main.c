@@ -175,10 +175,10 @@ int main(void) {
         .fd = sh_env.tty_fd
     };
 
-    if (display_prompt() == -1)
-        fatal("display_prompt");
-
     while (true) {
+        if (display_prompt() == -1)
+            xfatal("display_prompt");
+
         int ready = xppoll(&events, 1, 0, &sh_env.og_mask);
 
         if (ready == -1) {
@@ -198,9 +198,6 @@ int main(void) {
 
             if (iostat == INPUT_EOF)
                 break;
-
-            if (display_prompt() == -1)
-                fatal("display_prompt");
         }
     }
 
