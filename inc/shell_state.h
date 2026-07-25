@@ -4,24 +4,13 @@
 #include <bits/types/sigset_t.h>
 #include <unistd.h>
 
-#include "dyn_arr.h"
-#include "map.h"
-#include "runner.h"
-
 typedef struct {
     bool subshell;
     int tty_fd;
     sigset_t og_mask;
-    map_t vars;
-    jc_jst jctl;
-    da_plan job_plans;
 } shell_env;
 
 extern shell_env sh_env;
-
-void reap_pending_sigchild(void);
-int restore_signals(void);
-int process_signals(void);
 
 int env_init(void);
 void env_free(void);

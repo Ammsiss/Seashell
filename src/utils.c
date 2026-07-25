@@ -1,5 +1,3 @@
-#define _GNU_SOURCE
-
 #include <errno.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -7,7 +5,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "log.h"
 #include "utils.h"
 #include "shell_state.h"
 
@@ -80,73 +77,4 @@ void usage_err(const char *fmt, ...) {
     fprintf(stderr, "\n");
     fflush(stderr);
     exit(EXIT_FAILURE);
-}
-
-/* signal functions */
-
-int set_sig_action(int sig, sighandler_t handler, int flags, sigset_t *mask) {
-    struct sigaction sa;
-    sa.sa_flags = flags;
-    sa.sa_handler = handler;
-
-    if (mask) {
-        sa.sa_mask = *mask;
-    } else {
-        if (xsigemptyset(&sa.sa_mask) == -1)
-            return -1;
-    }
-
-    if (xsigaction(sig, &sa, &old_sa) == -1)
-        return -1;
-
-    return 0;
-}
-
-int procmask_add(int sig, int how) {
-    sigset_t set;
-
-    if (xsigemptyset(&set) == -1)
-        return -1;
-    if (xsigaddset(&set, sig) == -1)
-        return -1;
-
-    if (xsigprocmask(how, &set, &old_set) == -1)
-        return -1;
-
-    return 0;
-}
-
-int block_sig(int sig) {
-    if (procmask_add(sig, SIG_BLOCK) == -1)
-        return -1;
-
-    return 0;
-}
-
-int unblock_sig(int sig) {
-    if (procmask_add(sig, SIG_UNBLOCK) == -1)
-        return -1;
-
-    return 0;
-}
-
-int make_sigset(int sigs[], sigset_t *set, bool start_empty) {
-    if (start_empty) {
-        if (sigemptyset(set) == -1)
-            return -1;
-        for (int *sig = sigs; *sig != -1; ++ sig) {
-            if (sigaddset(set, *sig) == -1)
-                return -1;
-        }
-    } else {
-        if (sigfillset(set) == -1)
-            return -1;
-        for (int *sig = sigs; *sig != -1; ++ sig) {
-            if (sigdelset(set, *sig) == -1)
-                return -1;
-        }
-    }
-
-
-    return 0;
 }

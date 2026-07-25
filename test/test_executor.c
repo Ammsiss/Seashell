@@ -10,7 +10,6 @@
 
 #include "log.h"
 #include "dyn_arr.h"
-#include "runner.h"
 #include "lexer.h"
 #include "parser.h"
 #include "expander.h"

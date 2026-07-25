@@ -10,6 +10,8 @@
 #include <errno.h>
 #include <string.h>
 
+#include "utils.h" // IWYU pragma: export
+
 #define STR_IMP(x) #x
 #define STR(x) STR_IMP(x)
 

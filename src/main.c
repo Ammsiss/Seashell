@@ -1,21 +1,172 @@
 #define _GNU_SOURCE
 
+#include <stdlib.h>
 #include <poll.h>
 #include <unistd.h>
 #include <wait.h>
 
-#include "noti.h"
-#include "ast_man.h"
 #include "input.h"
 #include "shell_state.h"
 #include "utils.h"
 #include "log.h"
+
+int set_sig_action(int sig, sighandler_t handler, int flags, sigset_t *mask) {
+    struct sigaction sa;
+    sa.sa_flags = flags;
+    sa.sa_handler = handler;
+
+    if (mask) {
+        sa.sa_mask = *mask;
+    } else {
+        if (xsigemptyset(&sa.sa_mask) == -1)
+            return -1;
+    }
+
+    if (xsigaction(sig, &sa, NULL) == -1)
+        return -1;
+
+    return 0;
+}
+
+int procmask_add(int sig, int how) {
+    sigset_t set;
+
+    if (xsigemptyset(&set) == -1)
+        return -1;
+    if (xsigaddset(&set, sig) == -1)
+        return -1;
+
+    if (xsigprocmask(how, &set, NULL) == -1)
+        return -1;
+
+    return 0;
+}
+
+int block_sig(int sig) {
+    if (procmask_add(sig, SIG_BLOCK) == -1)
+        return -1;
+
+    return 0;
+}
+
+int unblock_sig(int sig) {
+    if (procmask_add(sig, SIG_UNBLOCK) == -1)
+        return -1;
+
+    return 0;
+}
+
+int make_sigset(int sigs[], sigset_t *set, bool start_empty) {
+    if (start_empty) {
+        if (sigemptyset(set) == -1)
+            return -1;
+        for (int *sig = sigs; *sig != -1; ++ sig) {
+            if (sigaddset(set, *sig) == -1)
+                return -1;
+        }
+    } else {
+        if (sigfillset(set) == -1)
+            return -1;
+        for (int *sig = sigs; *sig != -1; ++ sig) {
+            if (sigdelset(set, *sig) == -1)
+                return -1;
+        }
+    }
+
+
+    return 0;
+}
+
+static volatile sig_atomic_t sigchld_caught = false;
+static volatile sig_atomic_t sighup_caught = false;
+static volatile sig_atomic_t sigint_caught = false;
+
+void sigchld_handler(int _) {
+    sigchld_caught = true;
+}
+
+void sighup_handler(int _) {
+    sighup_caught = true;
+}
+
+void sigint_handler(int _) {
+    sigint_caught = true;
+}
+
+int process_signals(void) {
+    if (sigchld_caught) {
+        sigchld_caught = false;
+    }
+
+    if (sighup_caught) {
+        sighup_caught = false;
+    }
+
+    if (sigint_caught) {
+        sigint_caught = false;
+    }
+
+    return 0;
+}
+
+int sig_restore(void) {
+    if (xsigprocmask(SIG_SETMASK, &sh_env.og_mask, NULL) == -1)
+        err_exit("sigprocmask");
+
+    if (set_sig_action(SIGTTOU, SIG_DFL, 0, NULL) == -1)
+        xfatal("set_sig_action");
+    if (set_sig_action(SIGTTIN, SIG_DFL, 0, NULL) == -1)
+        xfatal("set_sigaction");
+    if (set_sig_action(SIGTSTP, SIG_DFL, 0, NULL) == -1)
+        xfatal("set_sigaction");
+    if (set_sig_action(SIGQUIT, SIG_DFL, 0, NULL) == -1)
+        xfatal("set_sigaction");
+    if (set_sig_action(SIGTERM, SIG_DFL, 0, NULL) == -1)
+        xfatal("set_sigaction");
+
+    return 0;
+}
+
+int sig_setup(void) {
+    if (xsigprocmask(0, NULL, &sh_env.og_mask) == -1)
+        err_exit("sigprocmask");
+
+    if (set_sig_action(SIGTTOU, SIG_IGN, 0, NULL) == -1)
+        xfatal("set_sig_action");
+    if (set_sig_action(SIGTTIN, SIG_IGN, 0, NULL) == -1)
+        xfatal("set_sigaction");
+    if (set_sig_action(SIGTSTP, SIG_IGN, 0, NULL) == -1)
+        xfatal("set_sigaction");
+    if (set_sig_action(SIGQUIT, SIG_IGN, 0, NULL) == -1)
+        xfatal("set_sigaction");
+    if (set_sig_action(SIGTERM, SIG_IGN, 0, NULL) == -1)
+        xfatal("set_sigaction");
+
+    if (block_sig(SIGCHLD) == -1)
+        xfatal("block_sig");
+    if (set_sig_action(SIGCHLD, sigchld_handler, 0, NULL) == -1)
+        xfatal("set_sig_action");
+
+    if (block_sig(SIGHUP) == -1)
+        xfatal("block_sig");
+    if (set_sig_action(SIGHUP, sighup_handler, 0, NULL) == -1)
+        xfatal("set_sig_action");
+
+    if (block_sig(SIGINT) == -1)
+        xfatal("block_sig");
+    if (set_sig_action(SIGINT, sigint_handler, 0, NULL) == -1)
+        xfatal("set_sig_action");
+
+    return 0;
+}
 
 int main(void) {
     if (log_init() == -1)
         fatal("log_init");
     if (env_init() == -1)
         fatal("env_init");
+    if (sig_setup() == -1)
+        xfatal("setup_procmask");
 
     LOG_INFO("seashell PID(%d)", getpid());
 
@@ -36,12 +187,6 @@ int main(void) {
 
             if (process_signals() == -1)
                 fatal("process_signals");
-
-            if (noti_jobs(&sh_env.jctl, true))
-                if (display_prompt() == -1)
-                    xfatal("display_prompt");
-
-            // TODO: remove all exited jobs here */
         }
 
         else if (ready == 1) {
@@ -54,22 +199,10 @@ int main(void) {
             if (iostat == INPUT_EOF)
                 break;
 
-            job_plan *plan = register_plan(line);
-            if (!plan)
-                xfatal("register_plan");
-
-            run_next(plan, true);
-            noti_jobs(&sh_env.jctl, false);
-
-            // TODO: remove all exited jobs here */
-
             if (display_prompt() == -1)
                 fatal("display_prompt");
         }
     }
-
-    env_free();
-    log_free();
 
     return EXIT_SUCCESS;
 }
