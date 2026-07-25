@@ -20,7 +20,8 @@ typedef struct jc_job jc_job;
 struct jc_proc {
     pid_t pid;
     pstat stat;
-    int wstat;
+    int exit_stat;
+    int success;
     jc_pgrp *pgrp;
     d_str cmd;
 };
