@@ -1,16 +1,155 @@
----------------------------------------------------------------------------------
+## 2026-07-25 - 1e31bf1
 
-## 2026-07-22 - <hash>
+### Next
+
+- [ ] Use map_t structure for shell variables.
+- [ ] Add test functions for map_t structure
 
 ### Completed
+
+- [x] Add some of the good changes from the andor_plan branch to this one
 
 ### Notes
 
----------------------------------------------------------------------------------
+Rough day today. Lots of movement, then regression, movement then regression.
+Pretty rough! Ended up reverting back to before the andor plan implementation
 
-## 2026-07-21 - <hash>
+Going to try and go slower, mark out deliberate small changes and slowly improve
+the system. I think I need to figure out a way to visualize the control flow of
+the program becuase making changes ad hoc has not been working out. Some sort
+of diagram or flow chart might help. Slow and steady.
+
+A immediate goal must be to figure out a way to test the shell. I hate spamming
+commands and having to think every time I make a change. I can't regression test
+it as nicely as something like the lexer or parser but I can still do behaviour
+tests and valgrind tests.
+
+Thats a top priority.
+
+---------------------------------------------------------------------------------
+## 2026-07-24 - 1e31bf1
+
+### Next
+
+- [ ] Move remove_job calls to outside of the state change function
 
 ### Completed
+
+- [x] update the set_job_stat function to make use of a calc_job_stat function.
+      This makes it much more readable and makes future events easier to add
+      because you can react to changes based on the calculated stat but then
+      at the end just simply assign it. No weird branching logic.
+- [x] change PSTOPPED etc to JSTOPPED etc
+- [x] add notification module and job event system
+
+### Notes
+
+Job notifcations moved out of the state mutation area.
+
+---------------------------------------------------------------------------------
+
+## 2026-07-23 - 118508d
+
+### Next
+- [ ] update the set_job_stat function to make use of a calc_job_stat function.
+      This makes it much more readable and makes future events easier to add
+      because you can react to changes based on the calculated stat but then
+      at the end just simply assign it. No weird branching logic.
+- [ ] change PSTOPPED etc to JSTOPPED etc
+- [ ] separate state change from responses to them (events for notis)
+
+### Completed
+
+- [x] make a map data structure. no more ids/keys in the array of structs
+- [ ] (Removed) bring over the job_updated, job_toggled, and job_exited funcs
+
+### Notes
+
+Kinda wonky day today. Tried to do some huge refactors that ended up being
+too big of a change to quick so I ended up reverting it all. Need to go
+slower and just focus on smaller actionable changes.
+
+Architecturallly I'm moving toward a more event queue style loop. I already
+have a pretty good model for it with the ppoll loop waiting for signals and
+sigchild I just need to separate state changes from the responses to those
+state changes so everything doesn't feel as nested. For example the recursive
+descent of handling ast chains feels gross. Likewise handling, logging, state
+changes, and user facing notifications all in the set_job_state function makes
+it much harder to reason about.
+
+So a good start for the event style loop is starting with notis/logs. Instead
+of logging messages while im updating the job stat (in reponse to wstats) I can
+just add an event to the job. Such as JSTOPPED or JRESUMED, then after
+jctl_wait returns a notification module can react to those events specifically
+and clear them.
+
+I'm going to enforce an invarient that every consumer will have their own event
+queue. Even if multiple consumers react to the same event, for example, a job
+transitioning from a stopped to running state, they should all have their own
+event to consume. No worrying about if all the modules that need to see it
+have, or when to clear it. Each one owns their own event queue and after
+consuming an event its cleared.
+
+A problem I encountered implementing non recursive job launches was looping
+over the job list while launching new ones. Looping over the jobs after
+jctl_wait and seeing which ones exited was easy enough but how do you manage
+adding new jobs to the end of the array? You also need to remove the old ones
+after wards. So it seems I need some sort of queue for launching jobs that is
+separate from the list of jobs.
+
+Another smal refactor I will attempt is the waitpid reaping logic. That should
+be able to just reap the statuses and update the jctl structure without having
+to repond to every implication of those changes. Later down the pipeline things
+can react to the new job state.
+
+---------------------------------------------------------------------------------
+
+## 2026-07-22 - (subshell_plan)
+
+### Next
+
+- [ ] make a map data structure. no more ids/keys in the array of structs
+- [ ] bring over the job_updated, job_toggled, and job_exited funcs
+- [ ] change PSTOPPED etc to JSTOPPED etc
+
+### Completed
+
+- [x] Implement subshell style implementation for andor chains
+
+### Notes
+
+It felt really intuitive at first but I feel like this implementation
+has some pretty big draw backs. Communication is the main thing. You
+would have to set up some pretty extensive back and fourth ipc between
+the subshell and the main shell. How dou get pids to display in jctl
+messages? How do you report per process wtats?
+
+Another issue is builtins. If you want to be able to run builtins like
+builtin && builtin, you can't just execute it in the main shell without
+writing custom andor builtin execution logic. But even thats brittle
+because what if you have something like builtin && cmd? You would need
+to somehoe communicate from the subshell that a builtin needs to be run
+in the main shell.
+
+I'm not abandoning this implementation entirely but I'm leaning towards
+my initial plan style implementation.
+
+---------------------------------------------------------------------------------
+
+## 2026-07-21 - 4a5f82f (andor_plan)
+
+### Next
+
+- [ ] Implement subshell style andor chains
+
+There are definitely routines that can be reused, for example the controlling
+termianl set up, with pgid. Also we will need a version of exec_pline that does
+not believe it is setting up a job. That means no pgrp filling out. It will
+still need to return pids so the subshell can reap them though.
+
+### Completed
+
+- [x] Implement job-plan style implementation for andor chains
 
 ### Notes
 
@@ -49,6 +188,8 @@ on. Either seems defensible.
 
 Something im noticing thats causing friction is having to store an id var
 inside arrays in order to find the index to delete them/identify them.
+
+---------------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------------
 

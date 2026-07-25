@@ -142,22 +142,27 @@ int sighup_shutdown(void) {
     return 0;
 }
 
-static job_id identify_proc(pid_t pid, jc_proc** proc) {
+static bool identify_proc(pid_t pid, jc_job **job, jc_proc **proc) {
     for (size_t i = 0; i < sh_env.jctl.jobs.size; ++i) {
-        jc_job *job = &sh_env.jctl.jobs.data[i];
+        jc_job *out_job = &sh_env.jctl.jobs.data[i];
 
-        for (size_t y = 0; y < job->pgrp.procs.size; ++y) {
-            jc_proc *out = &job->pgrp.procs.data[y];
+        for (size_t y = 0; y < out_job->pgrp.procs.size; ++y) {
+            jc_proc *out_proc = &out_job->pgrp.procs.data[y];
 
-            if (pid == out->pid) {
+            if (pid == out_proc->pid) {
+
+                if (job)
+                    *job = out_job;
+
                 if (proc)
-                    *proc = out;
-                return job->id;
+                    *proc = out_proc;
+
+                return true;
             }
         }
     }
 
-    return -1;
+    return false;
 }
 
 jc_job *lookup_job(job_id jid, size_t *index) {
@@ -307,11 +312,7 @@ static int calc_job_stat(jc_job *job) {
     return stopped ? PSTOP : PEXIT;
 }
 
-static int set_job_stat(job_id jid) {
-    jc_job *job = lookup_job(jid, NULL);
-    if (!job)
-        xfatal("lookup_job");
-
+static void set_job_stat(jc_job *job) {
     pstat stat = calc_job_stat(job);
 
     if (job->stat == PRUN && stat == PSTOP)
@@ -328,8 +329,6 @@ static int set_job_stat(job_id jid) {
         if (remove_job(job->id) == -1)
             xfatal("remove_job");
     }
-
-    return 0;
 }
 
 int jctl_wait(job_id *jid) {
@@ -359,40 +358,39 @@ int jctl_wait(job_id *jid) {
         if (cpid == -1)
             err_exit("waitpid");
 
-        jc_proc *proc;
+        jc_proc *cproc;
+        jc_job *cjob;
 
-        job_id jid = identify_proc(cpid, &proc);
-        if (jid == -1)
+        if (!identify_proc(cpid, &cjob, &cproc))
             xfatal("identify_proc");
 
         if (WIFEXITED(wstat) || WIFSIGNALED(wstat)) {
-            proc->stat = PEXIT;
-            proc->exit_stat = WEXITSTATUS(wstat);
-            proc->success = proc->exit_stat == EXIT_SUCCESS;
-            LOG_INFO("[%d] %d exited with status %d", jid, cpid,
+            cproc->stat = PEXIT;
+            cproc->exit_stat = WEXITSTATUS(wstat);
+            cproc->success = cproc->exit_stat == EXIT_SUCCESS;
+            LOG_INFO("[%d] %d exited with status %d", cjob->id, cpid,
                     WEXITSTATUS(wstat));
 
         } else if (WIFSIGNALED(wstat)) {
-            proc->stat = PEXIT;
-            proc->exit_stat = WTERMSIG(wstat) + 128;
-            proc->success = proc->exit_stat == EXIT_SUCCESS;
-            LOG_INFO("[%d] %d terminated by signal %d (%s)", jid, cpid,
+            cproc->stat = PEXIT;
+            cproc->exit_stat = WTERMSIG(wstat) + 128;
+            cproc->success = cproc->exit_stat == EXIT_SUCCESS;
+            LOG_INFO("[%d] %d terminated by signal %d (%s)", cjob->id, cpid,
                     WTERMSIG(wstat), strsignal(WTERMSIG(wstat)));
 
         } else if (WIFSTOPPED(wstat)) {
-            proc->stat = PSTOP;
-            LOG_INFO("[%d] %d stopped", jid, cpid);
+            cproc->stat = PSTOP;
+            LOG_INFO("[%d] %d stopped", cjob->id, cpid);
 
         } else if (WIFCONTINUED(wstat)) {
-            proc->stat = PRUN;
-            LOG_INFO("[%d] %d continued", jid, cpid);
+            cproc->stat = PRUN;
+            LOG_INFO("[%d] %d continued", cjob->id, cpid);
 
         } else {
             xfatal("unexpected wstat value");
         }
 
-        if (set_job_stat(jid) == -1)
-            xfatal("set_job_stat");
+        set_job_stat(cjob);
 
         if (wait_on_job && (job->stat == PEXIT || job->stat == PSTOP)) {
             if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
