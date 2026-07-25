@@ -7,9 +7,9 @@
 #include "parser.h"
 
 typedef enum {
-    PEXITED,
-    PSTOPPED,
-    PRUNNING,
+    PEXIT,
+    PSTOP,
+    PRUN,
 } pstat;
 
 typedef int job_id;
