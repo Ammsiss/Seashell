@@ -98,10 +98,9 @@ void sigint_handler(int _) {
     sigint_caught = true;
 }
 
-int process_signals(void) {
+void process_signals(void) {
     if (sigchld_caught) {
         update_job_table();
-        print_job_events();
         sigchld_caught = false;
     }
 
@@ -112,8 +111,6 @@ int process_signals(void) {
     if (sigint_caught) {
         sigint_caught = false;
     }
-
-    return 0;
 }
 
 void sig_restore(void) {
@@ -317,6 +314,23 @@ pid_t exec_pline(const ps_pline *pline, bool bg) {
     return jid;
 }
 
+void log_job_event(job_event *jev) {
+    switch (jev->type) {
+    case JEXITED:
+        LOG_INFO("[%d] exited", jev->jid);
+        break;
+    case JSTOPPED:
+        LOG_INFO("[%d] stopped", jev->jid);
+        break;
+    case JCONTINUED:
+        LOG_INFO("[%d] continued", jev->jid);
+        break;
+    case JSTARTED:
+        LOG_INFO("[%d] started", jev->jid);
+        break;
+    }
+}
+
 void run_line(const char *line) {
     da_tok toks = {0};
     ps_ast ast = {0};
@@ -333,13 +347,25 @@ void run_line(const char *line) {
     pid_t jid = exec_pline(&ast.andors.data[0].pline, ast.bg);
 
     if (!ast.bg) {
-        while (!job_exited(jid)) {
+
+        job_event *jev;
+        bool job_done = false;
+
+        while (!job_done) {
             sigsuspend(&sh_env.og_mask); /* always returns -1 */
 
             if (errno != EINTR)
                 err_exit("sigsuspend");
 
             process_signals();
+
+            while ((jev = pop_job_event())) {
+
+                log_job_event(jev);
+
+                if (jid == jev->jid && jev->type == JEXITED)
+                    job_done = true;
+            }
         }
 
         if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
@@ -363,17 +389,20 @@ int main(void) {
         .fd = sh_env.tty_fd
     };
 
-    while (true) {
-        display_prompt();
+    display_prompt();
 
+    while (true) {
         int ready = xppoll(&events, 1, 0, &sh_env.og_mask);
 
         if (ready == -1) {
             if (errno != EINTR)
                 xfatal("ppoll");
 
-            if (process_signals() == -1)
-                fatal("process_signals");
+            process_signals();
+
+            job_event *jev;
+            while ((jev = pop_job_event()))
+                log_job_event(jev);
         }
 
         else if (ready == 1) {
@@ -387,6 +416,8 @@ int main(void) {
                 break;
 
             run_line(line);
+
+            display_prompt();
         }
     }
 

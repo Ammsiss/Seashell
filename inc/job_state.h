@@ -59,6 +59,7 @@ struct job_event {
 bool job_exited(pid_t jid);
 void print_job_events(void);
 
+job_event *pop_job_event(void);
 void update_job_table(void);
 pid_t add_job(da_pid *pids, pid_t pgid);
 

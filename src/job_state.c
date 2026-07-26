@@ -16,10 +16,10 @@ static void init_job(jc_job *job) {
         xfatal("da_init");
 }
 
-// static void free_job(jc_job *job) {
-//     da_free(&job->pgrp.procs);
-//     *job = (jc_job){0};
-// }
+static void free_job(jc_job *job) {
+    da_free(&job->pgrp.procs);
+    *job = (jc_job){0};
+}
 
 static pid_t create_job_id(void) {
     pid_t jid = 1;
@@ -75,28 +75,45 @@ static bool identify_proc(pid_t pid, jc_job **job, jc_proc** proc) {
     return false;
 }
 
-void print_job_events(void) {
-    for (size_t i = 0; i < jevs.size; ++i) {
-        switch (jevs.data[i].type) {
-        case JEXITED:
-            LOG_INFO("[%d] exited", jevs.data[i].jid);
-        case JSTOPPED:
-            LOG_INFO("[%d] stopped", jevs.data[i].jid);
-        case JCONTINUED:
-            LOG_INFO("[%d] continued", jevs.data[i].jid);
-        case JSTARTED:
-            LOG_INFO("[%d] started", jevs.data[i].jid);
-        }
-    }
+size_t get_job_index(pid_t jid) {
+    for (size_t i = 0; i < jctl.jobs.size; ++i)
+        if (jid == jctl.jobs.data[i].jid)
+            return i;
+
+    return (size_t) -1;
 }
 
-bool job_exited(pid_t jid) {
-    for (size_t i = 0; i < jctl.jobs.size; ++i) {
-        if (jid == jctl.jobs.data[i].jid)
-            return jctl.jobs.data[i].stat == JOB_EXIT;
-    }
+static void remove_job(pid_t jid) {
+    size_t i = get_job_index(jid);
+    if (i == (size_t) -1)
+        xfatal("tried to remove job that didn't exist");
 
-    return false;
+    free_job(&jctl.jobs.data[i]);
+
+    if (da_delete(&jctl.jobs, i) == -1)
+        xfatal("da_delete");
+
+    job_event *jev = da_push(&jevs);
+    if (!jev)
+        xfatal("da_push");
+
+    jev->jid = jid;
+    jev->type = JEXITED;
+}
+
+job_event *pop_job_event(void) {
+    static job_event jev;
+
+    if (jevs.size == 0)
+        return NULL;
+
+    jev.jid = jevs.data[0].jid;
+    jev.type = jevs.data[0].type;
+
+    if (da_delete(&jevs, 0) == -1)
+        xfatal("da_delete");
+
+    return &jev;
 }
 
 void update_job_table(void) {
@@ -145,6 +162,9 @@ void update_job_table(void) {
         }
 
         job->stat = stat;
+
+        if (job->stat == JOB_EXIT)
+            remove_job(job->jid);
     }
 
     da_free(&wevs);
