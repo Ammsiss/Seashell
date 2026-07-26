@@ -56,6 +56,8 @@ struct job_event {
     job_event_type type;
 };
 
+job_table *get_jctl(void);
+
 bool job_exited(pid_t jid);
 void print_job_events(void);
 

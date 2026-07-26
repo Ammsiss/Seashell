@@ -75,6 +75,10 @@ static bool identify_proc(pid_t pid, jc_job **job, jc_proc** proc) {
     return false;
 }
 
+job_table *get_jctl(void) {
+    return &jctl;
+}
+
 size_t get_job_index(pid_t jid) {
     for (size_t i = 0; i < jctl.jobs.size; ++i)
         if (jid == jctl.jobs.data[i].jid)
