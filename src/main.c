@@ -331,6 +331,35 @@ void log_job_event(job_event *jev) {
     }
 }
 
+void drain_job_events_until_finished(pid_t jid) {
+    bool job_done = false;
+
+    while (!job_done) {
+        sigsuspend(&sh_env.og_mask); /* always returns -1 */
+
+        if (errno != EINTR)
+            err_exit("sigsuspend");
+
+        process_signals();
+
+        job_event *jev;
+
+        while ((jev = pop_job_event())) {
+            log_job_event(jev);
+
+            if (jid == jev->jid && jev->type == JEXITED)
+                job_done = true;
+        }
+    }
+}
+
+void drain_job_events(void) {
+    job_event *jev;
+
+    while ((jev = pop_job_event()))
+        log_job_event(jev);
+}
+
 void run_line(const char *line) {
     da_tok toks = {0};
     ps_ast ast = {0};
@@ -347,26 +376,7 @@ void run_line(const char *line) {
     pid_t jid = exec_pline(&ast.andors.data[0].pline, ast.bg);
 
     if (!ast.bg) {
-
-        job_event *jev;
-        bool job_done = false;
-
-        while (!job_done) {
-            sigsuspend(&sh_env.og_mask); /* always returns -1 */
-
-            if (errno != EINTR)
-                err_exit("sigsuspend");
-
-            process_signals();
-
-            while ((jev = pop_job_event())) {
-
-                log_job_event(jev);
-
-                if (jid == jev->jid && jev->type == JEXITED)
-                    job_done = true;
-            }
-        }
+        drain_job_events_until_finished(jid);
 
         if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
             err_exit("tcsetpgrp");
@@ -400,12 +410,9 @@ int main(void) {
 
             process_signals();
 
-            job_event *jev;
-            while ((jev = pop_job_event()))
-                log_job_event(jev);
-        }
+            drain_job_events();
 
-        else if (ready == 1) {
+        } else if (ready == 1) {
             char *line;
             input_stat iostat = get_line(&line);
 
