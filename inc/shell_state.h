@@ -12,7 +12,7 @@ typedef struct {
 
 extern shell_env sh_env;
 
-int env_init(void);
+void env_init(void);
 void env_free(void);
 
 #endif

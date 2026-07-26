@@ -12,9 +12,14 @@
 
 static int log_output_fd;
 
-int log_init() {
+void log_init() {
     time_t t = time(NULL);
+    if (t == ((time_t) -1))
+        err_exit("time");
+
     struct tm *time = localtime(&t);
+    if (!time)
+        err_exit("localtime");
 
     char date[50];
     strftime(date, sizeof(date), "%d-%m-%y_%H:%M:%S", time);
@@ -27,20 +32,15 @@ int log_init() {
     strcpy(fullpath, "/home/juta/Projects/Seashell/logs/");
     strcat(fullpath, filename);
 
-    log_output_fd = open(fullpath, O_CREAT | O_RDWR, 0600);
-    if (log_output_fd == -1) {
-        perror("in log_init: open");
-        return -1;
-    }
+    log_output_fd = xopen(fullpath, O_CREAT | O_RDWR, 0600);
+    if (log_output_fd == -1)
+        err_exit("open");
 
-    unlink("/home/juta/Projects/Seashell/logs/latest");
+    if (xunlink("/home/juta/Projects/Seashell/logs/latest") == -1)
+        err_exit("unlink");
 
-    if (symlink(filename, "/home/juta/Projects/Seashell/logs/latest") == -1) {
-        perror("in logsinit: symlink");
-        return -1;
-    }
-
-    return 0;
+    if (xsymlink(filename, "/home/juta/Projects/Seashell/logs/latest") == -1)
+        err_exit("symlink");
 }
 
 void log_free() {

@@ -23,7 +23,21 @@ void get_wstats(da_wevent *wevs) {
             xfatal("da_push");
 
         wev->pid = cpid;
-        wev->wstat = wstat;
+
+        if (WIFEXITED(wstat)) {
+            wev->type = PEXITED;
+            wev->exit_stat = WEXITSTATUS(wstat);
+
+        } else if (WIFSIGNALED(wstat)) {
+            wev->type = PSIGNALED;
+            wev->exit_stat = WTERMSIG(wstat);
+
+        } else if (WIFSTOPPED(wstat)) {
+            wev->type = PSTOPPED;
+
+        } else if (WIFCONTINUED(wstat)) {
+            wev->type = PCONTINUED;
+        }
     }
 
     if (cpid == -1 && errno != ECHILD)

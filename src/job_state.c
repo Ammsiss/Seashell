@@ -1,10 +1,41 @@
 #define _GNU_SOURCE
 
+#include <stdio.h>
+
 #include "log.h"
 #include "job_state.h"
 #include "wait_stat.h"
 
-static job_table jctl;
+static job_table jctl = {0};
+static da_jevent jevs = {0};
+
+static void init_job(jc_job *job) {
+    *job = (jc_job){0};
+
+    if (da_init(&job->pgrp.procs) == -1)
+        xfatal("da_init");
+}
+
+// static void free_job(jc_job *job) {
+//     da_free(&job->pgrp.procs);
+//     *job = (jc_job){0};
+// }
+
+static pid_t create_job_id(void) {
+    pid_t jid = 1;
+
+    if (jctl.jobs.size == 0)
+        return jid;
+
+    for (size_t i = 0; i < jctl.jobs.size; ++i) {
+        if (jid == jctl.jobs.data[i].jid) {
+            ++jid;
+            continue;
+        }
+    }
+
+    return jid;
+}
 
 static job_stat calc_job_stat(jc_job *job) {
     bool stopped = false;
@@ -44,10 +75,31 @@ static bool identify_proc(pid_t pid, jc_job **job, jc_proc** proc) {
     return false;
 }
 
-void get_job_events(da_jevent *jevs) {
+void print_job_events(void) {
+    for (size_t i = 0; i < jevs.size; ++i) {
+        switch (jevs.data[i].type) {
+        case JEXITED:
+            LOG_INFO("[%d] exited", jevs.data[i].jid);
+        case JSTOPPED:
+            LOG_INFO("[%d] stopped", jevs.data[i].jid);
+        case JCONTINUED:
+            LOG_INFO("[%d] continued", jevs.data[i].jid);
+        case JSTARTED:
+            LOG_INFO("[%d] started", jevs.data[i].jid);
+        }
+    }
+}
 
-    if (da_init(jevs) == -1)
-        xfatal("da_init");
+bool job_exited(pid_t jid) {
+    for (size_t i = 0; i < jctl.jobs.size; ++i) {
+        if (jid == jctl.jobs.data[i].jid)
+            return jctl.jobs.data[i].stat == JOB_EXIT;
+    }
+
+    return false;
+}
+
+void update_job_table(void) {
 
     da_wevent wevs;
     get_wstats(&wevs);
@@ -61,41 +113,72 @@ void get_job_events(da_jevent *jevs) {
 
         identify_proc(wev->pid, &job, &proc);
 
-        proc->wstat = wev->wstat;
-
-        if (WIFEXITED(wev->wstat) || WIFSIGNALED(wev->wstat)) {
+        if (wev->type == PEXITED || wev->type == PSIGNALED) {
             proc->stat = PROC_EXIT;
         }
 
-        else if (WIFSTOPPED(wev->wstat)) {
+        else if (wev->type == PSTOPPED) {
             proc->stat = PROC_STOP;
         }
 
-        else if (WIFCONTINUED(wev->wstat)) {
+        else if (wev->type == PCONTINUED) {
             proc->stat = PROC_RUN;
         }
 
         job_stat stat = calc_job_stat(job);
 
         if (job->stat == JOB_RUN && stat == JOB_STOP) {
-            jev = da_push(jevs);
+            jev = da_push(&jevs);
             if (!jev)
                 xfatal("da_push");
 
             jev->jid = job->jid;
-            jev->type = JOB_STOPPED;
+            jev->type = JSTOPPED;
 
         } else if (job->stat == JOB_STOP && stat == JOB_RUN) {
-            jev = da_push(jevs);
+            jev = da_push(&jevs);
             if (!jev)
                 xfatal("da_push");
 
             jev->jid = job->jid;
-            jev->type = JOB_CONTINUED;
+            jev->type = JCONTINUED;
         }
 
         job->stat = stat;
     }
 
     da_free(&wevs);
+}
+
+pid_t add_job(da_pid *pids, pid_t pgid) {
+    jc_job *job = da_push(&jctl.jobs);
+    if (!job)
+        xfatal("da_push");
+
+    init_job(job);
+
+    job->jid = create_job_id();
+    job->stat = JOB_RUN;
+    job->pgrp.pgid = pgid;
+
+    for (size_t i = 0; i < pids->size; ++i) {
+        jc_proc *proc = da_push(&job->pgrp.procs);
+        if (!proc)
+            xfatal("da_push");
+
+        proc->pid = pids->data[i];
+        proc->stat = PROC_RUN;
+
+        if (i == pids->size - 1)
+            job->last = proc;
+    }
+
+    job_event *jev = da_push(&jevs);
+    if (!jev)
+        xfatal("da_push");
+
+    jev->jid = job->jid;
+    jev->type = JSTARTED;
+
+    return job->jid;
 }

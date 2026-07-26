@@ -5,9 +5,21 @@
 
 #include "dyn_arr.h"
 
+typedef enum {
+    PEXITED,
+    PSIGNALED,
+    PSTOPPED,
+    PCONTINUED,
+} wait_type;
+
 struct wait_event {
     pid_t pid;
-    int wstat;
+    wait_type type;
+
+    union {
+        int term_sig;
+        int exit_stat;
+    };
 };
 
 typedef struct wait_event wait_event;

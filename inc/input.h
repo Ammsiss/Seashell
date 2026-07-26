@@ -10,6 +10,6 @@ typedef enum {
 } input_stat;
 
 input_stat get_line(char **line);
-int display_prompt(void);
+void display_prompt(void);
 
 #endif

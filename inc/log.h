@@ -73,7 +73,7 @@ typedef enum {
     L_ERR,
 } log_level;
 
-int log_init();
+void log_init();
 void log_free();
 
 PFFORMAT(6, 7)
@@ -84,7 +84,7 @@ void log_msg(log_level type, const char *errstr, const char *file, \
     do { \
         LOG_ERR(fmt __VA_OPT__(,) __VA_ARGS__); \
         fatal(fmt __VA_OPT__(,) __VA_ARGS__); \
-    } while (false);
+    } while (false)
 
 #define xpipe(pfd) \
     ({ \
@@ -321,6 +321,22 @@ void log_msg(log_level type, const char *errstr, const char *file, \
         int rv = kill(pid, sig); \
         if (rv == -1) \
             LOG_ERRNO("kill"); \
+        rv; \
+    })
+
+#define xsymlink(from, to) \
+    ({ \
+        int rv = symlink(from, to); \
+        if (rv == -1) \
+            LOG_ERRNO("symlink"); \
+        rv; \
+    })
+
+#define xunlink(name) \
+    ({ \
+        int rv = unlink(name); \
+        if (rv == -1) \
+            LOG_ERRNO("unlink"); \
         rv; \
     })
 

@@ -12,33 +12,29 @@
 
 static char input_line[LINE_BUF];
 
-int display_prompt(void) {
+void display_prompt(void) {
     d_str prompt;
+
     if (d_str_init(&prompt) == -1)
-        return -1;
+        xfatal("d_str_init");
 
     static char cwd_str[PATH_MAX];
+
     char *cwd = xgetcwd(cwd_str, PATH_MAX);
     if (!cwd)
-        goto fail;
+        err_exit("getcwd");
+
     char *cwd_base = basename(cwd);
 
     if (d_strcat(&prompt, cwd_base) == -1)
-        goto fail;
+        xfatal("d_strcat");
     if (d_strcat(&prompt, "> ") == -1)
-        goto fail;
+        xfatal("d_strcat");
 
-    if (xwrite(sh_env.tty_fd, prompt.c_str, prompt.len) != (int) prompt.len) {
-        LOG_ERR("failed/partial write");
-        goto fail;
-    }
+    if (xwrite(sh_env.tty_fd, prompt.c_str, prompt.len) != (int) prompt.len)
+        err_exit("write");
 
     d_str_free(&prompt);
-    return 0;
-
-fail:
-    d_str_free(&prompt);
-    return -1;
 }
 
 input_stat get_line(char **line) {

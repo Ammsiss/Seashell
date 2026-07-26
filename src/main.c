@@ -5,6 +5,11 @@
 #include <unistd.h>
 #include <wait.h>
 
+#include "expander.h"
+#include "job_state.h"
+#include "builtins.h"
+#include "parser.h"
+#include "lexer.h"
 #include "input.h"
 #include "shell_state.h"
 #include "utils.h"
@@ -95,6 +100,8 @@ void sigint_handler(int _) {
 
 int process_signals(void) {
     if (sigchld_caught) {
+        update_job_table();
+        print_job_events();
         sigchld_caught = false;
     }
 
@@ -109,7 +116,7 @@ int process_signals(void) {
     return 0;
 }
 
-int sig_restore(void) {
+void sig_restore(void) {
     if (xsigprocmask(SIG_SETMASK, &sh_env.og_mask, NULL) == -1)
         err_exit("sigprocmask");
 
@@ -123,11 +130,9 @@ int sig_restore(void) {
         xfatal("set_sigaction");
     if (set_sig_action(SIGTERM, SIG_DFL, 0, NULL) == -1)
         xfatal("set_sigaction");
-
-    return 0;
 }
 
-int sig_setup(void) {
+void sig_setup(void) {
     if (xsigprocmask(0, NULL, &sh_env.og_mask) == -1)
         err_exit("sigprocmask");
 
@@ -156,17 +161,200 @@ int sig_setup(void) {
         xfatal("block_sig");
     if (set_sig_action(SIGINT, sigint_handler, 0, NULL) == -1)
         xfatal("set_sig_action");
+}
 
-    return 0;
+static void move_fd(int fd1, int fd2) {
+    if (fd1 == fd2)
+        return;
+
+    if (xdup2(fd1, fd2) == -1)
+        err_exit("dup2");
+
+    if (xclose(fd1) == -1)
+        err_exit("close");
+}
+
+static void child_fd_setup(bool first, bool last, int next_pipe[2], \
+        int prev_rfd) {
+    /* Set up file descriptors */
+    if (!first)
+        move_fd(prev_rfd, STDIN_FILENO);
+
+    if (!last) {
+        move_fd(next_pipe[1], STDOUT_FILENO);
+
+        if (close(next_pipe[0]) == -1) /* why here? */
+            err_exit("close");
+    }
+
+}
+
+void child_redir_setup(da_redir *redirs) {
+    for (size_t i = 0; i < redirs->size; ++i) {
+        ps_redir *redir = &redirs->data[i];
+        const char *arg = redir->target.arg;
+
+        int rfd;
+
+        if (redir->io_num == STDIN_FILENO) {
+            rfd = open(arg, O_RDONLY);
+            if (rfd == -1)
+                err_exit("open");
+        } else {
+            if (redir->append) {
+                rfd = open(arg, O_WRONLY | O_CREAT | O_EXCL, 0600);
+                if (rfd == -1) {
+                    if (errno == EEXIST) {
+                        rfd = open(arg, O_WRONLY | O_APPEND);
+                        if (rfd == -1)
+                            err_exit("open");
+                    } else
+                        err_exit("open");
+                }
+            } else {
+                rfd = open(arg, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+                if (rfd == -1)
+                    err_exit("open");
+            }
+        }
+
+        move_fd(rfd, redir->io_num);
+    }
+}
+
+pid_t exec_pline(const ps_pline *pline, bool bg) {
+    if (!pline)
+        assert(pline);
+
+    int next_pipe[2];
+    int prev_rfd;
+    int pgid;
+
+    da_pid pids = {0};
+
+    for (size_t i = 0; i < pline->cmds.size; ++i) {
+        ps_cmd *cur_cmd = &pline->cmds.data[i];
+        bool first = (i == 0);
+        bool last = (i == pline->cmds.size - 1);
+
+        if (!last)
+            if (xpipe(next_pipe) == -1)
+                err_exit("pipe");
+
+        int cpid = xfork();
+        if (cpid == -1)
+            err_exit("fork");
+
+        if (first)
+            pgid = cpid;
+
+        if (cpid == 0) {
+
+            sh_env.subshell = true;
+
+            /* subshell set up */
+
+            if (xsetpgid(0, pgid) == -1)
+                err_exit("setpgid");
+
+            if (!bg && first)
+                if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
+                    err_exit("tcsetpgrp");
+
+            child_fd_setup(first, last, next_pipe, prev_rfd);
+            child_redir_setup(&cur_cmd->redirs);
+
+            sig_restore();
+
+            /* is it a builtin? */
+
+            int status;
+            if (try_run_builtin(cur_cmd->argv, &status))
+                _exit(status);
+
+            /* exec program */
+
+            xexecvp(cur_cmd->argv[0], cur_cmd->argv);
+
+            if (errno == ENOENT) {
+                err_msg("command not found: %s", cur_cmd->argv[0]);
+                _exit(127);
+            } else {
+                err_exit("execvp");
+            }
+
+            _exit(EXIT_FAILURE);
+        }
+
+        if (xsetpgid(cpid, pgid) == -1 && errno != EACCES)
+            err_exit("setpgid");
+
+        if (!bg && first)
+            if (xtcsetpgrp(sh_env.tty_fd, pgid) == -1)
+                err_exit("tcsetpgrp");
+
+        if (!first)
+            if (xclose(prev_rfd) == -1)
+                err_exit("close");
+
+        if (!last) {
+            prev_rfd = next_pipe[0];
+            if (xclose(next_pipe[1]) == -1)
+                err_exit("close");
+        }
+
+        pid_t *pid = da_push(&pids);
+        if (!pid)
+            xfatal("da_push");
+
+        *pid = cpid;
+    }
+
+    pid_t jid = add_job(&pids, pgid);
+
+    da_free(&pids);
+
+    return jid;
+}
+
+void run_line(const char *line) {
+    da_tok toks = {0};
+    ps_ast ast = {0};
+
+    if (lx_tokenize(line, &toks) == -1)
+        xfatal("lx_tokenize");
+
+    if (ps_parse(&toks, &ast) == -1)
+        xfatal("lx_tokenize");
+
+    if (ex_expand(&ast) == -1)
+        xfatal("lx_tokenize");
+
+    pid_t jid = exec_pline(&ast.andors.data[0].pline, ast.bg);
+
+    if (!ast.bg) {
+        while (!job_exited(jid)) {
+            sigsuspend(&sh_env.og_mask); /* always returns -1 */
+
+            if (errno != EINTR)
+                err_exit("sigsuspend");
+
+            process_signals();
+        }
+
+        if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
+            err_exit("tcsetpgrp");
+    }
+
+    lx_free(&toks);
+    ps_free(&ast);
 }
 
 int main(void) {
-    if (log_init() == -1)
-        fatal("log_init");
-    if (env_init() == -1)
-        fatal("env_init");
-    if (sig_setup() == -1)
-        xfatal("setup_procmask");
+    log_init();
+    env_init();
+
+    sig_setup();
 
     LOG_INFO("seashell PID(%d)", getpid());
 
@@ -176,8 +364,7 @@ int main(void) {
     };
 
     while (true) {
-        if (display_prompt() == -1)
-            xfatal("display_prompt");
+        display_prompt();
 
         int ready = xppoll(&events, 1, 0, &sh_env.og_mask);
 
@@ -198,6 +385,8 @@ int main(void) {
 
             if (iostat == INPUT_EOF)
                 break;
+
+            run_line(line);
         }
     }
 

@@ -220,7 +220,7 @@ void validate_andors(const exp_da_andor *exp, const da_andor *andors) {
     }
 }
 
-void validate_job(const exp_job *exp, const ps_job *job) {
+void validate_job(const exp_job *exp, const ps_ast *job) {
     TEST_ASSERT_EQUAL_INT(exp->bg, job->bg);
     validate_andors(&exp->andors, &job->andors);
 }
@@ -229,7 +229,7 @@ void validate(const char *shell_cmd, const exp_job *exp) {
     da_tok tokens = {0};
     TEST_ASSERT_NOT_EQUAL_INT(-1, lx_tokenize(shell_cmd, &tokens));
 
-    ps_job job = {0};
+    ps_ast job = {0};
     TEST_ASSERT_NOT_EQUAL_INT(-1, ps_parse(&tokens, &job));
 
     validate_job(exp, &job);
@@ -244,7 +244,7 @@ void test_bg_not_final_token_should_fail(void) {
     da_tok tokens;  /* Start with 'a' so we don't short circuit */
     TEST_ASSERT_EQUAL_INT(0, lx_tokenize("a & b", &tokens));
 
-    ps_job job;
+    ps_ast job;
     TEST_ASSERT_EQUAL_INT(-1, ps_parse(&tokens, &job));
 
     lx_free(&tokens);
@@ -254,7 +254,7 @@ void test_redirect_with_no_target_fails(void) {
     da_tok tokens;
     TEST_ASSERT_EQUAL_INT(0, lx_tokenize("echo hi >", &tokens));
 
-    ps_job job;
+    ps_ast job;
     TEST_ASSERT_EQUAL_INT(-1, ps_parse(&tokens, &job));
 
     lx_free(&tokens);
@@ -264,7 +264,7 @@ void test_pipe_is_final_token_should_fail(void) {
     da_tok tokens;
     TEST_ASSERT_EQUAL_INT(0, lx_tokenize("cmd |", &tokens));
 
-    ps_job job;
+    ps_ast job;
     TEST_ASSERT_EQUAL_INT(-1, ps_parse(&tokens, &job));
 
     lx_free(&tokens);
@@ -274,7 +274,7 @@ void test_andif_is_final_token_should_fail(void) {
     da_tok tokens;
     TEST_ASSERT_EQUAL_INT(0, lx_tokenize("cmd &&", &tokens));
 
-    ps_job job;
+    ps_ast job;
     TEST_ASSERT_EQUAL_INT(-1, ps_parse(&tokens, &job));
 
     lx_free(&tokens);
@@ -284,7 +284,7 @@ void test_orif_is_final_token_should_fail(void) {
     da_tok tokens;
     TEST_ASSERT_EQUAL_INT(0, lx_tokenize("cmd ||", &tokens));
 
-    ps_job job;
+    ps_ast job;
     TEST_ASSERT_EQUAL_INT(-1, ps_parse(&tokens, &job));
 
     lx_free(&tokens);
@@ -294,8 +294,8 @@ void test_no_cmd_redir_should_fail(void) {
     da_tok tokens = {0};
     TEST_ASSERT_EQUAL_INT(0, lx_tokenize("echo > |", &tokens));
 
-    ps_job job = {0};
-    TEST_ASSERT_EQUAL_INT(-1, ps_parse(&tokens, &job));
+    ps_ast ast = {0};
+    TEST_ASSERT_EQUAL_INT(-1, ps_parse(&tokens, &ast));
 
     lx_free(&tokens);
 }

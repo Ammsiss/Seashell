@@ -1,6 +1,8 @@
 #ifndef JOB_STATE_H
 #define JOB_STATE_H
 
+#include <stdio.h>
+
 #include "dyn_arr.h"
 
 typedef enum {
@@ -16,9 +18,10 @@ typedef enum {
 } proc_stat;
 
 typedef enum {
-    JOB_EXITED,
-    JOB_STOPPED,
-    JOB_CONTINUED,
+    JEXITED,
+    JSTARTED,
+    JSTOPPED,
+    JCONTINUED,
 } job_event_type;
 
 typedef struct jc_proc jc_proc;
@@ -30,7 +33,6 @@ typedef struct job_event job_event;
 struct jc_proc {
     pid_t pid;
     proc_stat stat;
-    int wstat;
 };
 
 struct jc_pgrp {
@@ -42,6 +44,7 @@ struct jc_job {
     pid_t jid;
     jc_pgrp pgrp;
     job_stat stat;
+    jc_proc *last;
 };
 
 struct job_table {
@@ -53,6 +56,10 @@ struct job_event {
     job_event_type type;
 };
 
-void get_job_events(da_jevent *jevs);
+bool job_exited(pid_t jid);
+void print_job_events(void);
+
+void update_job_table(void);
+pid_t add_job(da_pid *pids, pid_t pgid);
 
 #endif

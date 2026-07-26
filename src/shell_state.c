@@ -9,14 +9,12 @@
 
 shell_env sh_env = {0};
 
-int env_init(void) {
+void env_init(void) {
     sh_env.subshell = false;
 
     sh_env.tty_fd = xopen("/dev/tty", O_RDWR | O_CLOEXEC);
     if (sh_env.tty_fd == -1)
         err_exit("open");
-
-    return 0;
 }
 
 void env_free(void) {
