@@ -80,25 +80,43 @@ size_t get_job_index(pid_t jid) {
         if (jid == jctl.jobs.data[i].jid)
             return i;
 
-    return (size_t) -1;
+    xfatal("tried to get job index of non-existant job\n");
 }
 
-static void remove_job(pid_t jid) {
-    size_t i = get_job_index(jid);
-    if (i == (size_t) -1)
-        xfatal("tried to remove job that didn't exist");
-
-    free_job(&jctl.jobs.data[i]);
-
-    if (da_delete(&jctl.jobs, i) == -1)
-        xfatal("da_delete");
-
+void push_job_exit_event(pid_t jid) {
     job_event *jev = da_push(&jevs);
     if (!jev)
         xfatal("da_push");
 
     jev->jid = jid;
     jev->type = JEXITED;
+}
+
+void push_job_start_event(pid_t jid) {
+    job_event *jev = da_push(&jevs);
+    if (!jev)
+        xfatal("da_push");
+
+    jev->jid = jid;
+    jev->type = JSTARTED;
+}
+
+void push_job_stop_event(pid_t jid) {
+    job_event *jev = da_push(&jevs);
+    if (!jev)
+        xfatal("da_push");
+
+    jev->jid = jid;
+    jev->type = JSTOPPED;
+}
+
+void push_job_cont_event(pid_t jid) {
+    job_event *jev = da_push(&jevs);
+    if (!jev)
+        xfatal("da_push");
+
+    jev->jid = jid;
+    jev->type = JCONTINUED;
 }
 
 job_event *pop_job_event(void) {
@@ -123,7 +141,6 @@ void update_job_table(void) {
 
     jc_job *job;
     jc_proc *proc;
-    job_event *jev;
 
     for (size_t i = 0; i < wevs.size; ++i) {
         wait_event *wev = &wevs.data[i];
@@ -145,26 +162,24 @@ void update_job_table(void) {
         job_stat stat = calc_job_stat(job);
 
         if (job->stat == JOB_RUN && stat == JOB_STOP) {
-            jev = da_push(&jevs);
-            if (!jev)
-                xfatal("da_push");
-
-            jev->jid = job->jid;
-            jev->type = JSTOPPED;
+            push_job_stop_event(job->jid);
+            job->stat = stat;
 
         } else if (job->stat == JOB_STOP && stat == JOB_RUN) {
-            jev = da_push(&jevs);
-            if (!jev)
-                xfatal("da_push");
+            push_job_cont_event(job->jid);
+            job->stat = stat;
 
-            jev->jid = job->jid;
-            jev->type = JCONTINUED;
+        } else if (stat == JOB_EXIT) {
+            push_job_exit_event(job->jid);
+            job->stat = stat;
+
+            size_t i = get_job_index(job->jid);
+
+            free_job(&jctl.jobs.data[i]);
+
+            if (da_delete(&jctl.jobs, i) == -1)
+                xfatal("da_delete");
         }
-
-        job->stat = stat;
-
-        if (job->stat == JOB_EXIT)
-            remove_job(job->jid);
     }
 
     da_free(&wevs);
