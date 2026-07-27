@@ -1,8 +1,6 @@
 #ifndef JOB_STATE_H
 #define JOB_STATE_H
 
-#include <stdio.h>
-
 #include "dyn_arr.h"
 
 typedef enum {
@@ -19,7 +17,6 @@ typedef enum {
 
 typedef enum {
     JEXITED,
-    JSTARTED,
     JSTOPPED,
     JCONTINUED,
 } job_event_type;
@@ -58,11 +55,9 @@ struct job_event {
 
 job_table *get_jctl(void);
 
-bool job_exited(pid_t jid);
-void print_job_events(void);
-
 job_event *pop_job_event(void);
 void update_job_table(void);
+
 pid_t add_job(da_pid *pids, pid_t pgid);
 
 #endif

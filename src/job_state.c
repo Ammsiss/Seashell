@@ -94,15 +94,8 @@ void push_job_exit_event(pid_t jid) {
 
     jev->jid = jid;
     jev->type = JEXITED;
-}
 
-void push_job_start_event(pid_t jid) {
-    job_event *jev = da_push(&jevs);
-    if (!jev)
-        xfatal("da_push");
-
-    jev->jid = jid;
-    jev->type = JSTARTED;
+    LOG_INFO("[%d] exited", jid);
 }
 
 void push_job_stop_event(pid_t jid) {
@@ -112,6 +105,8 @@ void push_job_stop_event(pid_t jid) {
 
     jev->jid = jid;
     jev->type = JSTOPPED;
+
+    LOG_INFO("[%d] stopped", jid);
 }
 
 void push_job_cont_event(pid_t jid) {
@@ -121,6 +116,8 @@ void push_job_cont_event(pid_t jid) {
 
     jev->jid = jid;
     jev->type = JCONTINUED;
+
+    LOG_INFO("[%d] continued", jid);
 }
 
 job_event *pop_job_event(void) {
@@ -212,12 +209,7 @@ pid_t add_job(da_pid *pids, pid_t pgid) {
             job->last = proc;
     }
 
-    job_event *jev = da_push(&jevs);
-    if (!jev)
-        xfatal("da_push");
-
-    jev->jid = job->jid;
-    jev->type = JSTARTED;
+    LOG_INFO("[%d] started", job->jid);
 
     return job->jid;
 }

@@ -1,12 +1,12 @@
 #define _GNU_SOURCE
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <poll.h>
 #include <unistd.h>
 #include <wait.h>
 
 #include "expander.h"
-#include "job_state.h"
 #include "builtins.h"
 #include "parser.h"
 #include "lexer.h"
@@ -15,7 +15,8 @@
 #include "utils.h"
 #include "log.h"
 
-static void drain_job_events(void);
+#include "job_state.h"
+#include "wait_stat.h"
 
 static volatile sig_atomic_t sigchld_caught = false;
 static volatile sig_atomic_t sighup_caught = false;
@@ -86,6 +87,9 @@ static int send_bg_jobs_hup(void) {
             err_exit("kill");
     }
 
+    da_wevent wevs;
+    get_wstats(&wevs);
+
     return 0;
 }
 
@@ -98,7 +102,6 @@ static void process_signals(void) {
     if (sighup_caught) {
         send_bg_jobs_hup();
         exit(EXIT_SUCCESS);
-        sighup_caught = false;
     }
 
     if (sigint_caught) {
@@ -331,19 +334,16 @@ static pline_data exec_pline(const ps_pline *pline, bool bg) {
     return pld;
 }
 
-static void log_job_event(job_event *jev) {
+static void print_job_event(job_event *jev) {
     switch (jev->type) {
     case JEXITED:
-        LOG_INFO("[%d] exited", jev->jid);
+        printf("[%d] exited\n", jev->jid);
         break;
     case JSTOPPED:
-        LOG_INFO("[%d] stopped", jev->jid);
+        printf("[%d] stopped\n", jev->jid);
         break;
     case JCONTINUED:
-        LOG_INFO("[%d] continued", jev->jid);
-        break;
-    case JSTARTED:
-        LOG_INFO("[%d] started", jev->jid);
+        printf("[%d] continued\n", jev->jid);
         break;
     }
 }
@@ -362,49 +362,36 @@ static void drain_job_events_until_finished(pid_t fg_jid) {
         job_event *jev;
 
         while ((jev = pop_job_event())) {
-            log_job_event(jev);
+            if (fg_jid != jev->jid) {
+                print_job_event(jev);
 
-            if (fg_jid == jev->jid && jev->type == JEXITED)
-                job_done = true;
+            } else {
+                if (jev->type == JEXITED) {
+                    job_done = true;
+
+                } else if (jev->type == JSTOPPED) {
+                    printf("\n");
+                    print_job_event(jev);
+                    job_done = true;
+                }
+            }
         }
     }
 }
 
-static void drain_job_events(void) {
-    job_event *jev;
-
-    while ((jev = pop_job_event())) {
-        log_job_event(jev);
-    }
-}
-
-static void run_line(const char *line) {
+static void line_to_ast(const char *line, ps_ast *ast) {
     da_tok toks = {0};
-    ps_ast ast = {0};
 
     if (lx_tokenize(line, &toks) == -1)
         xfatal("lx_tokenize");
 
-    if (ps_parse(&toks, &ast) == -1)
+    if (ps_parse(&toks, ast) == -1)
         xfatal("lx_tokenize");
 
-    if (ex_expand(&ast) == -1)
+    if (ex_expand(ast) == -1)
         xfatal("lx_tokenize");
-
-    pline_data pld = exec_pline(&ast.andors.data[0].pline, ast.bg);
-    int jid = add_job(pld.pids, pld.pgid);
-    free_pline_data(&pld);
-
-    if (!ast.bg) {
-        drain_job_events_until_finished(jid);
-
-        if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
-            err_exit("tcsetpgrp");
-
-    }
 
     lx_free(&toks);
-    ps_free(&ast);
 }
 
 int main(void) {
@@ -429,7 +416,13 @@ int main(void) {
                 xfatal("ppoll");
 
             process_signals();
-            drain_job_events();
+
+            job_event *jev;
+            while ((jev = pop_job_event())) {
+                printf("\n");
+                print_job_event(jev);
+                display_prompt();
+            }
 
         } else if (ready == 1) {
             char *line;
@@ -441,8 +434,26 @@ int main(void) {
             if (iostat == INPUT_EOF)
                 break;
 
-            run_line(line);
-            drain_job_events();
+            ps_ast ast;
+            line_to_ast(line, &ast);
+
+            pline_data pld = exec_pline(&ast.andors.data[0].pline, ast.bg);
+            pid_t jid = add_job(pld.pids, pld.pgid);
+
+            if (!ast.bg) {
+                drain_job_events_until_finished(jid);
+
+                if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
+                    err_exit("tcsetpgrp");
+            }
+
+            if (ast.bg) {
+                printf("[%d] started\n", jid);
+            }
+
+            free_pline_data(&pld);
+            ps_free(&ast);
+
             display_prompt();
         }
     }
