@@ -212,15 +212,43 @@ static void child_redir_setup(da_redir *redirs) {
     }
 }
 
-static pid_t exec_pline(const ps_pline *pline, bool bg) {
+struct pline_data {
+    pid_t pgid;
+    da_pid *pids;
+};
+
+typedef struct pline_data pline_data;
+
+static void free_pline_data(pline_data *pld) {
+    da_free(pld->pids);
+
+    free(pld->pids);
+
+    *pld = (pline_data){0};
+}
+
+static void init_pline_data(pline_data *pld) {
+    *pld = (pline_data){0};
+
+    da_pid *pids = xmalloc(sizeof(da_pid));
+    if (!pids)
+        err_exit("malloc");
+
+    if (da_init(pids) == -1)
+        xfatal("da_init");
+
+    pld->pids = pids;
+}
+
+static pline_data exec_pline(const ps_pline *pline, bool bg) {
     if (!pline)
         assert(pline);
 
     int next_pipe[2];
     int prev_rfd;
-    int pgid;
 
-    da_pid pids = {0};
+    pline_data pld = {0};
+    init_pline_data(&pld);
 
     for (size_t i = 0; i < pline->cmds.size; ++i) {
         ps_cmd *cur_cmd = &pline->cmds.data[i];
@@ -236,7 +264,7 @@ static pid_t exec_pline(const ps_pline *pline, bool bg) {
             err_exit("fork");
 
         if (first)
-            pgid = cpid;
+            pld.pgid = cpid;
 
         if (cpid == 0) {
 
@@ -244,7 +272,7 @@ static pid_t exec_pline(const ps_pline *pline, bool bg) {
 
             /* subshell set up */
 
-            if (xsetpgid(0, pgid) == -1)
+            if (xsetpgid(0, pld.pgid) == -1)
                 err_exit("setpgid");
 
             if (!bg && first)
@@ -276,11 +304,11 @@ static pid_t exec_pline(const ps_pline *pline, bool bg) {
             _exit(EXIT_FAILURE);
         }
 
-        if (xsetpgid(cpid, pgid) == -1 && errno != EACCES)
+        if (xsetpgid(cpid, pld.pgid) == -1 && errno != EACCES)
             err_exit("setpgid");
 
         if (!bg && first)
-            if (xtcsetpgrp(sh_env.tty_fd, pgid) == -1)
+            if (xtcsetpgrp(sh_env.tty_fd, pld.pgid) == -1)
                 err_exit("tcsetpgrp");
 
         if (!first)
@@ -293,18 +321,14 @@ static pid_t exec_pline(const ps_pline *pline, bool bg) {
                 err_exit("close");
         }
 
-        pid_t *pid = da_push(&pids);
+        pid_t *pid = da_push(pld.pids);
         if (!pid)
             xfatal("da_push");
 
         *pid = cpid;
     }
 
-    pid_t jid = add_job(&pids, pgid);
-
-    da_free(&pids);
-
-    return jid;
+    return pld;
 }
 
 static void log_job_event(job_event *jev) {
@@ -367,7 +391,9 @@ static void run_line(const char *line) {
     if (ex_expand(&ast) == -1)
         xfatal("lx_tokenize");
 
-    pid_t jid = exec_pline(&ast.andors.data[0].pline, ast.bg);
+    pline_data pld = exec_pline(&ast.andors.data[0].pline, ast.bg);
+    int jid = add_job(pld.pids, pld.pgid);
+    free_pline_data(&pld);
 
     if (!ast.bg) {
         drain_job_events_until_finished(jid);
