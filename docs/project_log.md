@@ -1,3 +1,42 @@
+## 2026-07-27 - e492054
+
+### Next
+
+- [ ] Write expected behaviour and regression tests
+
+### Completed
+
+- [x] bundle processing of signals with the waiting (ppoll, sigsuspend, etc)
+- [ ] (Removed) replace all dyn array init calls with = {0};
+
+### Notes
+
+Not going to make the same mistake as last time and just keep pushing features.
+It feels more expandable but its already getting to the point where I'm having
+to verify stuff a lot so I'm going to start writing tests. Going to have to
+figure out how to write them but I think the main way is just having scripted
+input sequences, then verifying the expected job control state. Will be a bit
+wacky becuase of timing stuff.
+
+---------------------------------------------------------------------------------
+
+## 2026-07-26 - baa1497
+
+### Next
+
+- [ ] replace all dyn array init calls with = {0};
+
+### Complete
+
+- [x] pline exec added
+- [x] Sighup propogation exit handler
+
+### Notes
+
+The new project state feels good, starting to add back the core functionality.
+
+---------------------------------------------------------------------------------
+
 ## 2026-07-25 - 1e31bf1
 
 ### Next
@@ -14,7 +53,7 @@ After thinking about it for a while, decided to start clean implementing
 the main shell logic. Got too tangled and hard to reason about. Going to
 design the job table as logically as possible and hopefully with tests
 before even touching any linux calls. We'll see how it goes.
- 
+
 ---------------------------------------------------------------------------------
 ## 2026-07-24 - 1e31bf1
 

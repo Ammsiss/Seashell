@@ -18,6 +18,11 @@
 #include "job_state.h"
 #include "wait_stat.h"
 
+#define SIG_READY 1
+#define STDIN_READY 2
+
+#define ON_STDIN 1
+
 static volatile sig_atomic_t sigchld_caught = false;
 static volatile sig_atomic_t sighup_caught = false;
 static volatile sig_atomic_t sigint_caught = false;
@@ -348,35 +353,31 @@ static void print_job_event(job_event *jev) {
     }
 }
 
-static void drain_job_events_until_finished(pid_t fg_jid) {
-    bool job_done = false;
+static int shell_block(unsigned flags) {
+    int nfds = 0;
 
-    while (!job_done) {
-        sigsuspend(&sh_env.og_mask); /* always returns -1 */
+    if (flags & ON_STDIN)
+        ++nfds;
 
-        if (errno != EINTR)
-            err_exit("sigsuspend");
+    struct pollfd events = {
+        .events = POLLIN,
+        .fd = sh_env.tty_fd
+    };
 
+    int ready = xppoll(&events, nfds, 0, &sh_env.og_mask);
+
+    if (ready == -1 && errno != EINTR)
+        err_exit("sigsuspend");
+
+    if (ready == -1 && errno == EINTR) {
         process_signals();
+        return SIG_READY;
 
-        job_event *jev;
-
-        while ((jev = pop_job_event())) {
-            if (fg_jid != jev->jid) {
-                print_job_event(jev);
-
-            } else {
-                if (jev->type == JEXITED) {
-                    job_done = true;
-
-                } else if (jev->type == JSTOPPED) {
-                    printf("\n");
-                    print_job_event(jev);
-                    job_done = true;
-                }
-            }
-        }
+    } else if (ready == 1) {
+        return STDIN_READY;
     }
+
+    xfatal("shouldn't reach here");
 }
 
 static void line_to_ast(const char *line, ps_ast *ast) {
@@ -401,22 +402,12 @@ int main(void) {
 
     LOG_INFO("seashell PID(%d)", getpid());
 
-    struct pollfd events = {
-        .events = POLLIN,
-        .fd = sh_env.tty_fd
-    };
-
     display_prompt();
 
     while (true) {
-        int ready = xppoll(&events, 1, 0, &sh_env.og_mask);
+        int sh_ready = shell_block(ON_STDIN);
 
-        if (ready == -1) {
-            if (errno != EINTR)
-                xfatal("ppoll");
-
-            process_signals();
-
+        if (sh_ready == SIG_READY) {
             job_event *jev;
             while ((jev = pop_job_event())) {
                 printf("\n");
@@ -424,7 +415,7 @@ int main(void) {
                 display_prompt();
             }
 
-        } else if (ready == 1) {
+        } else if (sh_ready == STDIN_READY) {
             char *line;
             input_stat iostat = get_line(&line);
 
@@ -441,7 +432,31 @@ int main(void) {
             pid_t jid = add_job(pld.pids, pld.pgid);
 
             if (!ast.bg) {
-                drain_job_events_until_finished(jid);
+                while (true) {
+                    shell_block(0);
+
+                    bool job_done;
+                    job_event *jev;
+
+                    while ((jev = pop_job_event())) {
+                        if (jid != jev->jid) {
+                            print_job_event(jev);
+
+                        } else {
+                            if (jev->type == JEXITED) {
+                                job_done = true;
+
+                            } else if (jev->type == JSTOPPED) {
+                                printf("\n");
+                                print_job_event(jev);
+                                job_done = true;
+                            }
+                        }
+                    }
+
+                    if (job_done)
+                        break;
+                };
 
                 if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
                     err_exit("tcsetpgrp");
