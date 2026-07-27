@@ -1,60 +1,46 @@
 CC        := clang
 
-MSRC_DIR  := ../src
-MINC_DIR  := ../inc
-
-USRC_DIR  := ../deps/Unity/src
-
 BLD_DIR   := build
 COMPCOM   := compile_commands.json
 
-CFLAGS    := -g -O0 -fno-omit-frame-pointer -Wall -Wextra \
-			-Wpedantic -Wno-gnu-statement-expression-from-macro-expansion \
-			 -std=c23 -I$(MINC_DIR) -I$(USRC_DIR) \
-			-DUNITY_OUTPUT_COLOR
-DEPFLAGS  := -MMD -MP
+SRC_DIR  := ../src
+INC_DIR  := ../inc
 
+SRC   := $(wildcard $(SRC_DIR)/*.c)
+SRC   := $(filter-out $(SRC_DIR)/main.c,$(wildcard $(SRC_DIR)/*.c))
+
+OBJ   := $(patsubst $(SRC_DIR)/%.c,$(BLD_DIR)/%.o,$(SRC))
+DEPS   := $(patsubst $(SRC_DIR)/%.c,$(BLD_DIR)/%.d,$(SRC))
+
+USRC_DIR  := ../deps/Unity/src
 USRC      := $(USRC_DIR)/unity.c
 UOBJ      := $(BLD_DIR)/unity.o
 
-LEX_MODS  := $(UOBJ) $(BLD_DIR)/test_lexer.o $(BLD_DIR)/lexer.o \
-			 $(BLD_DIR)/dyn_arr.o
-PS_MODS   := $(UOBJ) $(BLD_DIR)/test_parser.o $(BLD_DIR)/parser.o \
-			 $(BLD_DIR)/lexer.o $(BLD_DIR)/dyn_arr.o
-DA_MODS   := $(UOBJ) $(BLD_DIR)/test_dyn_arr.o $(BLD_DIR)/dyn_arr.o
-EX_MODS   := $(UOBJ) $(BLD_DIR)/test_expander.o $(BLD_DIR)/dyn_arr.o \
-			 $(BLD_DIR)/parser.o $(BLD_DIR)/lexer.o $(BLD_DIR)/expander.o \
-			 $(BLD_DIR)/shell_state.o $(BLD_DIR)/dyn_str.o $(BLD_DIR)/log.o \
-			 $(BLD_DIR)/variable.o
-SH_MODS   := $(UOBJ) $(BLD_DIR)/test_executor.o $(BLD_DIR)/executor.o \
-			 $(BLD_DIR)/dyn_arr.o $(BLD_DIR)/parser.o $(BLD_DIR)/lexer.o \
-			 $(BLD_DIR)/expander.o $(BLD_DIR)/log.o $(BLD_DIR)/utils.o \
-			 $(BLD_DIR)/shell_state.o $(BLD_DIR)/dyn_str.o \
-			 $(BLD_DIR)/builtins.o $(BLD_DIR)/variable.o $(BLD_DIR)/runner.o
-DS_MODS   := $(UOBJ) $(BLD_DIR)/test_dyn_str.o $(BLD_DIR)/dyn_str.o
+CFLAGS    := -g -O0 -fno-omit-frame-pointer -Wall -Wextra \
+			-Wpedantic -Wno-gnu-statement-expression-from-macro-expansion \
+			 -std=c23 -I$(INC_DIR) -I$(SRC_DIR) -I$(USRC_DIR) \
+			-DUNITY_OUTPUT_COLOR
 
-TEST_BINS := test_lexer test_dyn_arr test_parser test_expander test_executor \
-			 test_dyn_str
+DEPFLAGS  := -MMD -MP
+
+TEST_BINS := test_lexer test_parser test_dyn_arr test_dyn_str test_shell
 
 .PHONY: all
 all: $(TEST_BINS)
 
-test_lexer: $(LEX_MODS)
+test_lexer: $(UOBJ) $(OBJ) $(BLD_DIR)/test_lexer.o
 	$(CC) $(CFLAGS) $^ -o $@
 
-test_parser: $(PS_MODS)
+test_parser: $(UOBJ) $(OBJ) $(BLD_DIR)/test_parser.o
 	$(CC) $(CLFAGS) $^ -o $@
 
-test_dyn_arr: $(DA_MODS)
+test_dyn_arr: $(UOBJ) $(OBJ) $(BLD_DIR)/test_dyn_arr.o
 	$(CC) $(CFLAGS) $^ -o $@
 
-test_dyn_str: $(DS_MODS)
+test_dyn_str: $(UOBJ) $(OBJ) $(BLD_DIR)/test_dyn_str.o
 	$(CC) $(CFLAGS) $^ -o $@
 
-test_expander: $(EX_MODS)
-	$(CC) $(CFLAGS) $^ -o $@
-
-test_executor: $(SH_MODS)
+test_shell: $(UOBJ) $(OBJ) $(BLD_DIR)/test_shell.o
 	$(CC) $(CFLAGS) $^ -o $@
 
 # Test module
@@ -63,7 +49,7 @@ $(BLD_DIR)/test_%.o: test_%.c
 	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # C module
-$(BLD_DIR)/%.o: $(MSRC_DIR)/%.c
+$(BLD_DIR)/%.o: $(SRC_DIR)/%.c
 	mkdir -p $(BLD_DIR)
 	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 
