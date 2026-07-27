@@ -3,13 +3,7 @@
 
 #define LINE_BUF 8192
 
-typedef enum {
-    INPUT_EOF,
-    INPUT_ERR,
-    INPUT_OK
-} input_stat;
-
-input_stat get_line(char **line);
+char *get_line(void);
 void display_prompt(void);
 
 #endif

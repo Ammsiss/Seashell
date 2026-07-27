@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 
+#include <stdlib.h>
 #include <linux/limits.h>
 #include <string.h> // IWYU pragma: keep
 #include <unistd.h>
@@ -37,16 +38,15 @@ void display_prompt(void) {
     d_str_free(&prompt);
 }
 
-input_stat get_line(char **line) {
+char *get_line(void) {
     int num_read = xread(sh_env.tty_fd, input_line, LINE_BUF - 1);
     if (num_read == -1)
-        return INPUT_ERR;
+        err_exit("read");
 
     if (num_read == 0)
-        return INPUT_EOF;
+        exit(EXIT_SUCCESS);
 
     input_line[num_read - 1] = '\0';
 
-    *line = input_line;
-    return INPUT_OK;
+    return input_line;
 }

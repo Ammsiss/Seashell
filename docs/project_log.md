@@ -2,7 +2,7 @@
 
 ### Next
 
-- [ ] Write expected behaviour and regression tests
+- [ ] Write test file for job_state module
 
 ### Completed
 

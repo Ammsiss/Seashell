@@ -340,4 +340,12 @@ void log_msg(log_level type, const char *errstr, const char *file, \
         rv; \
     })
 
+#define xatexit(func) \
+    ({ \
+        int rv = atexit(func); \
+        if (rv == -1) \
+            LOG_ERRNO("atexit"); \
+        rv; \
+    })
+
 #endif

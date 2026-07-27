@@ -78,7 +78,7 @@ static int block_sig(int sig) {
     return 0;
 }
 
-static int send_bg_jobs_hup(void) {
+static void hup_to_children(void) {
     for (size_t i = 0; i < get_jctl()->jobs.size; ++i) {
         jc_job *job = &get_jctl()->jobs.data[i];
 
@@ -94,8 +94,7 @@ static int send_bg_jobs_hup(void) {
 
     da_wevent wevs;
     get_wstats(&wevs);
-
-    return 0;
+    da_free(&wevs);
 }
 
 static void process_signals(void) {
@@ -104,10 +103,8 @@ static void process_signals(void) {
         sigchld_caught = false;
     }
 
-    if (sighup_caught) {
-        send_bg_jobs_hup();
-        exit(EXIT_SUCCESS);
-    }
+    if (sighup_caught)
+        exit(EXIT_FAILURE);
 
     if (sigint_caught) {
         sigint_caught = false;
@@ -400,6 +397,9 @@ int main(void) {
     env_init();
     sig_setup();
 
+    if (xatexit(hup_to_children) == -1)
+        err_exit("atexit");
+
     LOG_INFO("seashell PID(%d)", getpid());
 
     display_prompt();
@@ -416,14 +416,7 @@ int main(void) {
             }
 
         } else if (sh_ready == STDIN_READY) {
-            char *line;
-            input_stat iostat = get_line(&line);
-
-            if (iostat == INPUT_ERR)
-                xfatal("failed to read from terminal");
-
-            if (iostat == INPUT_EOF)
-                break;
+            char *line = get_line();
 
             ps_ast ast;
             line_to_ast(line, &ast);
