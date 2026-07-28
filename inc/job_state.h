@@ -58,6 +58,7 @@ job_table *get_jctl(void);
 job_event *pop_job_event(void);
 void update_job_table(void);
 
+void clear_job_table(void);
 pid_t add_job(da_pid *pids, pid_t pgid);
 
 #endif

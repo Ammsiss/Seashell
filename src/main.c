@@ -422,7 +422,10 @@ int main(void) {
             line_to_ast(line, &ast);
 
             pline_data pld = exec_pline(&ast.andors.data[0].pline, ast.bg);
+
             pid_t jid = add_job(pld.pids, pld.pgid);
+            if (jid == -1)
+                xfatal("add_job");
 
             if (!ast.bg) {
                 while (true) {

@@ -1,3 +1,28 @@
+## 2026-07-28 - 522f3e2
+
+### Next
+
+- [ ] Add wevent creation to feed get_wevents in job_state test module
+
+### Completed
+
+- [x] Write test file for job_state module
+
+### Notes
+
+Good day today, started the test module for the job table. Ironed out
+some edge cases already with potentially malformed pline data input. For
+example what happens if pgid isn't in the pid array? That should probably
+error.
+
+For tommorow, I'm going to continue writing tests for the job table. Maybe
+I'll get some insight on how the wait status collection, main shell, and job
+table sholld interact after testing the interfaces.
+
+---------------------------------------------------------------------------------
+
+### Notes
+
 ## 2026-07-27 - e492054
 
 ### Next

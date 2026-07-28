@@ -75,6 +75,13 @@ static bool identify_proc(pid_t pid, jc_job **job, jc_proc** proc) {
     return false;
 }
 
+void clear_job_table(void) {
+    for (size_t i = 0; i < jctl.jobs.size; ++i)
+        free_job(&jctl.jobs.data[i]);
+
+    da_free(&jctl.jobs);
+}
+
 job_table *get_jctl(void) {
     return &jctl;
 }
@@ -126,10 +133,10 @@ job_event *pop_job_event(void) {
     if (jevs.size == 0)
         return NULL;
 
-    jev.jid = jevs.data[0].jid;
-    jev.type = jevs.data[0].type;
+    jev.jid = jevs.data[jevs.size - 1].jid;
+    jev.type = jevs.data[jevs.size - 1].type;
 
-    if (da_delete(&jevs, 0) == -1)
+    if (da_delete(&jevs, jevs.size - 1) == -1)
         xfatal("da_delete");
 
     return &jev;
@@ -186,7 +193,23 @@ void update_job_table(void) {
     da_free(&wevs);
 }
 
+static bool pg_leader_missing(pid_t pgid, da_pid *pids) {
+    for (size_t i = 0; i < pids->size; ++i)
+        if (pgid == pids->data[i])
+            return false;
+
+    return true;
+}
+
 pid_t add_job(da_pid *pids, pid_t pgid) {
+    assert(pids);
+
+    if (pids->size == 0)
+        return -1;
+
+    if (pg_leader_missing(pgid, pids))
+        return -1;
+
     jc_job *job = da_push(&jctl.jobs);
     if (!job)
         xfatal("da_push");

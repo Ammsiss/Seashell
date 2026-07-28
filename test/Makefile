@@ -23,7 +23,8 @@ CFLAGS    := -g -O0 -fno-omit-frame-pointer -Wall -Wextra \
 
 DEPFLAGS  := -MMD -MP
 
-TEST_BINS := test_lexer test_parser test_dyn_arr test_dyn_str test_shell
+TEST_BINS := test_lexer test_parser test_dyn_arr test_dyn_str test_shell \
+			 test_job_state
 
 .PHONY: all
 all: $(TEST_BINS)
@@ -41,6 +42,9 @@ test_dyn_str: $(UOBJ) $(OBJ) $(BLD_DIR)/test_dyn_str.o
 	$(CC) $(CFLAGS) $^ -o $@
 
 test_shell: $(UOBJ) $(OBJ) $(BLD_DIR)/test_shell.o
+	$(CC) $(CFLAGS) $^ -o $@
+
+test_job_state: $(UOBJ) $(OBJ) $(BLD_DIR)/test_job_state.o
 	$(CC) $(CFLAGS) $^ -o $@
 
 # Test module

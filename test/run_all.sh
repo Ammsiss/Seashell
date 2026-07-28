@@ -13,29 +13,20 @@ VALGRIND_CMD=(
   --error-exitcode=1
 )
 
-"${VALGRIND_CMD[@]}" \
-    ./test_parser >/tmp/unity_output 2>&1 && \
-    echo "test_parser  $PASS" || \
-    cat /tmp/unity_output
+run_test() {
+    local TEST_BIN="$1"
 
-"${VALGRIND_CMD[@]}" \
-    ./test_lexer >/tmp/unity_output 2>&1 && \
-    echo "test_lexer   $PASS" || \
-    cat /tmp/unity_output
+    "${VALGRIND_CMD[@]}" \
+        ./${TEST_BIN} >/tmp/unity_output 2>&1 && \
+        echo "${TEST_BIN}  $PASS" || \
+        cat /tmp/unity_output
+}
 
-"${VALGRIND_CMD[@]}" \
-    ./test_dyn_arr >/tmp/unity_output 2>&1 && \
-    echo "test_dyn_arr $PASS" || \
-    cat /tmp/unity_output
+run_test test_dyn_arr
+run_test test_dyn_str
 
-"${VALGRIND_CMD[@]}" \
-    ./test_expander >/tmp/unity_output 2>&1 && \
-    echo "test_expander $PASS" || \
-    cat /tmp/unity_output
-
-"${VALGRIND_CMD[@]}" \
-    ./test_executor >/tmp/unity_output 2>&1 && \
-    echo "test_executor $PASS" || \
-    cat /tmp/unity_output
+run_test test_parser
+run_test test_lexer
+run_test test_job_state
 
 rm /tmp/unity_output
