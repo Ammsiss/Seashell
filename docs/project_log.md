@@ -1,8 +1,14 @@
 ## 2026-07-29 - 08568cd
 
+### Next
+
+- [ ] Make update_job_table take 1 wait event at a time (no dyn array needed)
+
 ### Completed
 
 - [x] Add wevent creation to feed get_wevents in job_state test module
+- [x] shouldn't pass "validate_job_events(NULL), assert pop_job_event instead
+- [x] Write 2 process job tests
 
 ### Notes
 
