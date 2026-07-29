@@ -348,4 +348,12 @@ void log_msg(log_level type, const char *errstr, const char *file, \
         rv; \
     })
 
+#define xfflush(stream) \
+    ({ \
+        int rv = fflush(stream); \
+        if (rv == -1) \
+            LOG_ERRNO("fflush"); \
+        rv; \
+    })
+
 #endif

@@ -1,3 +1,24 @@
+## 2026-07-29 - 08568cd
+
+### Completed
+
+- [x] Add wevent creation to feed get_wevents in job_state test module
+
+### Notes
+
+Added more test stuff for the job state function. Feels good for now,
+It's not the nicest thing to test with how much input and output is
+wrapped but macros make it manageable.
+
+Refactored the main loop. No more nested loop bs. Seems much easier
+to parser now. Prompt redrawing really is a circus but most of the happy
+pathes seem covered. Hopefully when I add ast's back it wont force me
+to re-create all the logic too much.
+
+So far soo good.
+
+---------------------------------------------------------------------------------
+
 ## 2026-07-28 - 522f3e2
 
 ### Next

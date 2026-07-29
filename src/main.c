@@ -22,7 +22,14 @@
 #define SIG_READY 1
 #define STDIN_READY 2
 
-static void print_job_event(job_event *jev) {
+static void print_job_event(job_event *jev, bool *prompt_upset) {
+    assert(jev && prompt_upset);
+
+    if (!*prompt_upset) {
+        printf("\n");
+        *prompt_upset = true;
+    }
+
     switch (jev->type) {
     case JEXITED:
         printf("[%d] exited\n", jev->jid);
@@ -130,27 +137,25 @@ int main(void) {
 
     while (true) {
         int sh_ready = shell_block(sh_env.fg_jid);
+        bool draw_prompt = false;
+        bool prompt_upset = false;
         job_event *jev;
 
         while ((jev = pop_job_event())) {
-            if (sh_env.fg_jid != jev->jid) {
-                printf("\n");
-                print_job_event(jev);
 
-                if (sh_env.fg_jid == -1)
-                    display_prompt();
+            if (sh_env.fg_jid != jev->jid) {
+                print_job_event(jev, &prompt_upset);
 
             } else if (jev->type != JCONTINUED) {
                 if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
                     err_exit("tcsetpgrp");
 
                 if (jev->type == JSTOPPED) {
-                    printf("\n");
-                    print_job_event(jev);
+                    print_job_event(jev, &prompt_upset);
                 }
 
                 sh_env.fg_jid = -1;
-                display_prompt();
+                draw_prompt = true;
             }
         }
 
@@ -170,12 +175,15 @@ int main(void) {
 
             if (ast.bg) {
                 printf("[%d] started\n", jid);
-                display_prompt();
+                draw_prompt = true;
             }
 
             free_pline_data(&pld);
             ps_free(&ast);
         }
+
+        if (draw_prompt || (prompt_upset && sh_env.fg_jid == -1))
+            display_prompt();
     }
 
     return EXIT_SUCCESS;

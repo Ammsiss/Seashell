@@ -31,15 +31,13 @@ void get_wstats(da_wevent *wevs) {
 
         } else if (WIFSIGNALED(wstat)) {
             wev->type = PSIGNALED;
-            wev->exit_stat = WTERMSIG(wstat);
+            wev->term_sig = WTERMSIG(wstat);
             LOG_INFO("%d terminated by signal %d (%s)", wev->pid,
                     wev->term_sig, strsignal(wev->term_sig));
 
         } else if (WIFSTOPPED(wstat)) {
             wev->type = PSTOPPED;
             LOG_INFO("%d stopped", wev->pid);
-
-
 
         } else if (WIFCONTINUED(wstat)) {
             wev->type = PCONTINUED;
