@@ -82,6 +82,10 @@ void clear_job_table(void) {
     da_free(&jctl.jobs);
 }
 
+void clear_job_events(void) {
+    da_free(&jevs);
+}
+
 job_table *get_jctl(void) {
     return &jctl;
 }
@@ -142,16 +146,12 @@ job_event *pop_job_event(void) {
     return &jev;
 }
 
-void update_job_table(void) {
-
-    da_wevent wevs;
-    get_wstats(&wevs);
-
+void update_job_table(da_wevent *wevs) {
     jc_job *job;
     jc_proc *proc;
 
-    for (size_t i = 0; i < wevs.size; ++i) {
-        wait_event *wev = &wevs.data[i];
+    for (size_t i = 0; i < wevs->size; ++i) {
+        wait_event *wev = &wevs->data[i];
 
         identify_proc(wev->pid, &job, &proc);
 
@@ -189,8 +189,6 @@ void update_job_table(void) {
                 xfatal("da_delete");
         }
     }
-
-    da_free(&wevs);
 }
 
 static bool pg_leader_missing(pid_t pgid, da_pid *pids) {

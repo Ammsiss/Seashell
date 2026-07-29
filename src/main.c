@@ -99,7 +99,12 @@ static void hup_to_children(void) {
 
 static void process_signals(void) {
     if (sigchld_caught) {
-        update_job_table();
+
+        da_wevent wevs;
+        get_wstats(&wevs);
+        update_job_table(&wevs);
+        da_free(&wevs);
+
         sigchld_caught = false;
     }
 
