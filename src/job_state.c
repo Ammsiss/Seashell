@@ -137,23 +137,26 @@ job_event *pop_job_event(void) {
     if (jevs.size == 0)
         return NULL;
 
-    jev.jid = jevs.data[jevs.size - 1].jid;
-    jev.type = jevs.data[jevs.size - 1].type;
+    jev.jid = jevs.data[0].jid;
+    jev.type = jevs.data[0].type;
 
-    if (da_delete(&jevs, jevs.size - 1) == -1)
+    if (da_delete(&jevs, 0) == -1)
         xfatal("da_delete");
 
     return &jev;
 }
 
-void update_job_table(da_wevent *wevs) {
+int update_job_table(da_wevent *wevs) {
+    assert(wevs);
+
     jc_job *job;
     jc_proc *proc;
 
     for (size_t i = 0; i < wevs->size; ++i) {
         wait_event *wev = &wevs->data[i];
 
-        identify_proc(wev->pid, &job, &proc);
+        if (!identify_proc(wev->pid, &job, &proc))
+            return -1;
 
         if (wev->type == PEXITED || wev->type == PSIGNALED) {
             proc->stat = PROC_EXIT;
@@ -189,6 +192,8 @@ void update_job_table(da_wevent *wevs) {
                 xfatal("da_delete");
         }
     }
+
+    return 0;
 }
 
 static bool pg_leader_missing(pid_t pgid, da_pid *pids) {

@@ -102,7 +102,10 @@ static void process_signals(void) {
 
         da_wevent wevs;
         get_wstats(&wevs);
-        update_job_table(&wevs);
+
+        if (update_job_table(&wevs) == -1)
+            xfatal("update_job_table");
+
         da_free(&wevs);
 
         sigchld_caught = false;
