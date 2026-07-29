@@ -2,10 +2,12 @@
 #define SHELL_STATE_H
 
 #include <bits/types/sigset_t.h>
+#include <fcntl.h>
 #include <unistd.h>
 
 typedef struct {
     bool subshell;
+    pid_t fg_jid;
     int tty_fd;
     sigset_t og_mask;
 } shell_env;

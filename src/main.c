@@ -76,7 +76,8 @@ static void process_signals(void) {
     }
 }
 
-static void line_to_ast(const char *line, ps_ast *ast) {
+static void line_to_ast(ps_ast *ast) {
+    char *line = get_line();
     da_tok toks = {0};
 
     if (lx_tokenize(line, &toks) == -1)
@@ -91,8 +92,8 @@ static void line_to_ast(const char *line, ps_ast *ast) {
     lx_free(&toks);
 }
 
-static int shell_block(bool for_stdin) {
-    int nfds = for_stdin ? 1 : 0;
+static int shell_block(pid_t fg_jid) {
+    int nfds = fg_jid == -1 ? 1 : 0;
 
     struct pollfd events = {
         .events = POLLIN,
@@ -128,21 +129,34 @@ int main(void) {
     display_prompt();
 
     while (true) {
-        int sh_ready = shell_block(true);
+        int sh_ready = shell_block(sh_env.fg_jid);
+        job_event *jev;
 
-        if (sh_ready == SIG_READY) {
-            job_event *jev;
-            while ((jev = pop_job_event())) {
+        while ((jev = pop_job_event())) {
+            if (sh_env.fg_jid != jev->jid) {
                 printf("\n");
                 print_job_event(jev);
+
+                if (sh_env.fg_jid == -1)
+                    display_prompt();
+
+            } else if (jev->type != JCONTINUED) {
+                if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
+                    err_exit("tcsetpgrp");
+
+                if (jev->type == JSTOPPED) {
+                    printf("\n");
+                    print_job_event(jev);
+                }
+
+                sh_env.fg_jid = -1;
                 display_prompt();
             }
+        }
 
-        } else if (sh_ready == STDIN_READY) {
-            char *line = get_line();
-
+        if (sh_ready == STDIN_READY) {
             ps_ast ast;
-            line_to_ast(line, &ast);
+            line_to_ast(&ast);
 
             pline_data pld = exec_pline(&ast.andors.data[0].pline, ast.bg);
 
@@ -151,44 +165,16 @@ int main(void) {
                 xfatal("add_job");
 
             if (!ast.bg) {
-                while (true) {
-                    shell_block(false);
-
-                    bool job_done;
-                    job_event *jev;
-
-                    while ((jev = pop_job_event())) {
-                        if (jid != jev->jid) {
-                            print_job_event(jev);
-
-                        } else {
-                            if (jev->type == JEXITED) {
-                                job_done = true;
-
-                            } else if (jev->type == JSTOPPED) {
-                                printf("\n");
-                                print_job_event(jev);
-                                job_done = true;
-                            }
-                        }
-                    }
-
-                    if (job_done)
-                        break;
-                };
-
-                if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
-                    err_exit("tcsetpgrp");
+                sh_env.fg_jid = jid;
             }
 
             if (ast.bg) {
                 printf("[%d] started\n", jid);
+                display_prompt();
             }
 
             free_pline_data(&pld);
             ps_free(&ast);
-
-            display_prompt();
         }
     }
 
