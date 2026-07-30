@@ -86,6 +86,25 @@ static int run_exit_builtin(char **argv, shell_env *_) {
     if (!validate_argc(argv, 0, 1))
         return EXIT_FAILURE;
 
+    int exit_status = EXIT_SUCCESS;
+
+    if (argv[1]) {
+        char *endptr;
+        exit_status = strtol(argv[1], &endptr, 10);
+
+        if (strcmp(argv[1], "") == 0 || *endptr != '\0') {
+            fprintf(stderr, "exit: invalid argument: %s\n", argv[1]);
+            return EXIT_FAILURE;
+        }
+    }
+
+    if (sh_env.subshell) {
+        _exit(exit_status);
+    } else {
+        printf("exit\n");
+        exit(exit_status);
+    }
+
     return EXIT_SUCCESS;
 }
 

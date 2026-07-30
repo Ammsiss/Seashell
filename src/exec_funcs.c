@@ -1,5 +1,7 @@
 #define _GNU_SOURCE
 
+#include <stdio.h>
+
 #include "builtins.h"
 #include "log.h"
 #include "parser.h"
@@ -112,7 +114,6 @@ pline_data exec_pline(const ps_pline *pline, bool bg) {
             pld.pgid = cpid;
 
         if (cpid == 0) {
-
             sh_env.subshell = true;
 
             /* subshell set up */
