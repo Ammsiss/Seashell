@@ -1,3 +1,72 @@
+---------------------------------------------------------------------------------
+
+## 2026-07-29 - b789be3
+
+### Next
+
+- [ ] Write a PTY harness for tests and consistant launches
+- [ ] Write regression tests for the prompt redraw logic
+- [ ] PTY harness can have an interactive mode
+
+### Completed
+
+- [x] Make update_job_table take 1 wait event at a time (no dyn array needed)
+- [x] Builtins hooked back up in main shell
+
+### Notes
+
+Really Ironing out the prompt redraw mechanics. Its actually pretty complicated.
+My current list of redraw events are as follows:
+
+After...
+
+    Reclaiming terminal -> Yes, test: ls
+    Launching a fg command -> No, test: cat
+    Launching a bg command -> Yes, test: sleep 1 &
+    Running a fg builtin -> Yes, test: jobs
+
+After receiving a signal with...
+
+    No prints, no fg job -> No, test: sleep 1 | sleep 2 &
+    No prints, fg job -> No, test: [1] sleep 3 | sleep 6 & [2] sleep 9
+    Prints, no fg job -> Yes, test: sleep 1 &
+    Prints, fg job -> No, test: [1] sleep 3 & [2] sleep 6
+
+So for signals it can boiled down to this:
+
+```lua
+if caught_signal then
+    if shell_owns_terminal and noti_printed then
+        draw_prompt()
+    end
+end
+```
+
+...or conversely this.
+
+```lua
+if caught_signal then
+    if not shell_owns_terminal or not noti_printed then
+        draw_prompt = false
+    end
+end
+```
+
+Another test: "sleep 5" then C-z
+
+Realizing I need a pty test harness to test end to end behaviour. I kind of
+adhoc did this earlier on by forking inside of unity, then execing the shell,
+and writing to a pipe and reading the result back. but of course that becomes
+untennable when you need to test the actual job control mechanics because it
+relies on actual kernel semantics.
+
+A pty test harness will allow me to start doing those full shell tests I had
+set up earlier but with full job control testing as well. It would set up
+the whole environemtnt, send commands, and verify output. It can even check for
+hangs by only waiting a sensible amount for output and then failing.
+
+---------------------------------------------------------------------------------
+
 ## 2026-07-29 - 08568cd
 
 ### Next

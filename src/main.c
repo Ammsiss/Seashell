@@ -22,6 +22,8 @@
 #define SIG_READY 1
 #define STDIN_READY 2
 
+#define NOFG -1
+
 static void print_job_event(job_event *jev, bool *prompt_upset) {
     assert(jev && prompt_upset);
 
@@ -123,6 +125,17 @@ static int shell_block(pid_t fg_jid) {
     xfatal("shouldn't reach here");
 }
 
+void reclaim_terminal(void) {
+    if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
+        err_exit("tcsetpgrp");
+
+    sh_env.fg_jid = NOFG;
+}
+
+bool fg_event(job_event *jev) {
+    return sh_env.fg_jid  == jev->jid;
+}
+
 int main(void) {
     log_init();
     env_init();
@@ -136,42 +149,45 @@ int main(void) {
     display_prompt();
 
     while (true) {
-        bool draw_prompt = false;
-        bool prompt_upset = false;
-
         int sh_ready = shell_block(sh_env.fg_jid);
 
-        job_event *jev;
-        while ((jev = pop_job_event())) {
-            if (sh_env.fg_jid != jev->jid) {
-                print_job_event(jev, &prompt_upset);
+        if (sh_ready == SIG_READY) {
 
-            } else if (jev->type != JCONTINUED) {
-                if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
-                    err_exit("tcsetpgrp");
+            bool need_prompt = false;
+            bool prompt_upset = false;
 
-                if (jev->type == JSTOPPED) {
+            job_event *jev;
+            while ((jev = pop_job_event())) {
+
+                if (!fg_event(jev)) {
                     print_job_event(jev, &prompt_upset);
+
+                } else if (jev->type == JSTOPPED || jev->type == JEXITED) {
+                    reclaim_terminal();
+                    need_prompt = true;
+
+                    if (jev->type == JSTOPPED)
+                        print_job_event(jev, &prompt_upset);
                 }
-
-                sh_env.fg_jid = -1;
-                draw_prompt = true;
             }
-        }
 
-        if (sh_ready == STDIN_READY) {
+            if (need_prompt || (sh_env.fg_jid == NOFG && prompt_upset))
+                display_prompt();
+
+        } else if (sh_ready == STDIN_READY) {
             ps_ast ast;
             line_to_ast(&ast);
 
             ps_pline *pline = &ast.andors.data[0].pline;
             bool handled = false;
 
-            if (pline->cmds.size == 1 && !ast.bg) {
+            if (pline->cmds.size == 1 && !ast.bg)
                 handled = try_run_builtin(pline->cmds.data[0].argv, NULL);
-                draw_prompt = true;
-            }
 
-            if (!handled) {
+            if (handled) {
+                display_prompt(); /* never lost term fg status */
+
+            } else {
                 pline_data pld = exec_pline(&ast.andors.data[0].pline, ast.bg);
 
                 pid_t jid = add_job(pld.pids, pld.pgid);
@@ -182,7 +198,7 @@ int main(void) {
 
                 if (ast.bg) {
                     printf("[%d] started\n", jid);
-                    draw_prompt = true;
+                    display_prompt();
 
                 } else {
                     sh_env.fg_jid = jid;
@@ -191,9 +207,6 @@ int main(void) {
 
             ps_free(&ast);
         }
-
-        if (draw_prompt || (prompt_upset && sh_env.fg_jid == -1))
-            display_prompt();
     }
 
     return EXIT_SUCCESS;

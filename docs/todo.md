@@ -1,5 +1,7 @@
 ### Tasks
 
+- [ ] if we need to test builtins, consider moving jctl back into sh_env
+- [ ] add pid string context to job control logs
 - [ ] should we do the same meme with job->ev with procs? so like proc->ev
 - [ ] add an events field to jctl so logs/notis happen after jctl_wait returns
 - [ ] Expand asts as needed; simplifies expander and more efficient
