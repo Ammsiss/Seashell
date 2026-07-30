@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "shell_state.h"
+#include "job_state.h"
 #include "builtins.h"
 #include "log.h"
 #include "utils.h"
@@ -78,6 +79,29 @@ static int run_jobs_builtin(char **argv, shell_env *sh_env) {
 
     if (!validate_argc(argv, 0, 0))
         return EXIT_FAILURE;
+
+    job_table *jctl = get_jctl();
+
+    for (size_t i = 0; i < jctl->jobs.size; ++i) {
+
+        jc_job *job = &jctl->jobs.data[i];
+
+        printf("[%d] ", job->jid);
+
+        switch (job->stat) {
+        case JOB_RUN:
+            printf("running");
+            break;
+        case JOB_STOP:
+            printf("stopped");
+            break;
+        case JOB_EXIT:
+            printf("done (?)");
+            break;
+        }
+
+        printf("\n");
+    }
 
     return EXIT_SUCCESS;
 }

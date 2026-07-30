@@ -123,24 +123,6 @@ static int shell_block(pid_t fg_jid) {
     xfatal("shouldn't reach here");
 }
 
-void run_job(ps_ast *ast, bool *draw_prompt) {
-    pline_data pld = exec_pline(&ast->andors.data[0].pline, ast->bg);
-
-    pid_t jid = add_job(pld.pids, pld.pgid);
-    if (jid == -1)
-        xfatal("add_job");
-
-    free_pline_data(&pld);
-
-    if (ast->bg) {
-        printf("[%d] started\n", jid);
-        *draw_prompt = true;
-
-    } else {
-        sh_env.fg_jid = jid;
-    }
-}
-
 int main(void) {
     log_init();
     env_init();
@@ -182,12 +164,29 @@ int main(void) {
             line_to_ast(&ast);
 
             ps_pline *pline = &ast.andors.data[0].pline;
+            bool handled = false;
 
             if (pline->cmds.size == 1 && !ast.bg) {
-                if (!try_run_builtin(pline->cmds.data[0].argv, NULL))
-                    run_job(&ast, &draw_prompt);
-            } else {
-                run_job(&ast, &draw_prompt);
+                handled = try_run_builtin(pline->cmds.data[0].argv, NULL);
+                draw_prompt = true;
+            }
+
+            if (!handled) {
+                pline_data pld = exec_pline(&ast.andors.data[0].pline, ast.bg);
+
+                pid_t jid = add_job(pld.pids, pld.pgid);
+                if (jid == -1)
+                    xfatal("add_job");
+
+                free_pline_data(&pld);
+
+                if (ast.bg) {
+                    printf("[%d] started\n", jid);
+                    draw_prompt = true;
+
+                } else {
+                    sh_env.fg_jid = jid;
+                }
             }
 
             ps_free(&ast);
