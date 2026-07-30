@@ -192,6 +192,13 @@ void validate_job_events(da_jevent *exp) {
 #define PIDS(...) \
     (da_pid){ .data = (pid_t[]) {__VA_ARGS__}, .size = VA_COUNT(__VA_ARGS__) }
 
+#define apply_wevs(...) \
+    do { \
+        da_wevent *wevs = &WEVS(__VA_ARGS__); \
+        for (size_t i = 0; i < wevs->size; ++i) \
+            TEST_ASSERT_NOT_EQUAL(-1, update_job_proc(wevs->data[i])); \
+    } while (false)
+
 void add_one_proc_job(pid_t jid, pid_t pid) {
     TEST_ASSERT_EQUAL(jid, add_job(&PIDS(pid), pid));
     validate_job_table(&TABLE(JRUN_1P(jid, pid)), get_jctl());
@@ -218,24 +225,22 @@ void test_add_job_with_empty_pid_arr(void) {
     TEST_ASSERT_NULL(pop_job_event());
 }
 
+void test_non_existant_proc_event(void) {
+    TEST_ASSERT_EQUAL_INT(-1, update_job_proc(PSTOP(1)));
+    TEST_ASSERT_NULL(pop_job_event());
+}
+
 void test_continue_running_job(void) {
     add_one_proc_job(JID(1), PID(1));
-
-    update_job_table(&WEVS(PCONT(PID(1))));
+    apply_wevs(PCONT(1));
 
     validate_job_table(&TABLE(JRUN_1P(JID(1), PID(1))), get_jctl());
     TEST_ASSERT_NULL(pop_job_event());
 }
 
-void test_non_existant_proc_event(void) {
-    TEST_ASSERT_EQUAL_INT(-1, update_job_table(&WEVS(PSTOP(PID(1)))));
-    TEST_ASSERT_NULL(pop_job_event());
-}
-
 void test_one_proc_job_exit(void) {
     add_one_proc_job(JID(1), PID(1));
-
-    update_job_table(&WEVS(PEXIT_OK(PID(1))));
+    apply_wevs(PEXIT_OK(1));
 
     validate_job_table(&(exp_job_table){0}, get_jctl());
     validate_job_events(&JEVS(JEXIT(JID(1))));
@@ -243,8 +248,7 @@ void test_one_proc_job_exit(void) {
 
 void test_one_proc_job_stop(void) {
     add_one_proc_job(JID(1), PID(1));
-
-    update_job_table(&WEVS(PSTOP(PID(1))));
+    apply_wevs(PSTOP(1));
 
     validate_job_table(&TABLE(JSTOP_1P(JID(1), PID(1))), get_jctl());
     validate_job_events(&JEVS(JSTOP(JID(1))));
@@ -252,8 +256,7 @@ void test_one_proc_job_stop(void) {
 
 void test_one_proc_job_cont(void) {
     add_one_proc_job(JID(1), PID(1));
-
-    update_job_table(&WEVS(PSTOP(PID(1)), PCONT(PID(1))));
+    apply_wevs(PSTOP(1), PCONT(1));
 
     validate_job_table(&TABLE(JRUN_1P(JID(1), PID(1))), get_jctl());
     validate_job_events(&JEVS(JSTOP(JID(1)), JCONT(JID(1))));
@@ -261,8 +264,7 @@ void test_one_proc_job_cont(void) {
 
 void test_two_proc_job_exit(void) {
     add_two_proc_job(JID(1), PID(10));
-
-    update_job_table(&WEVS(PEXIT_OK(PID(10)), PEXIT_OK(PID(11))));
+    apply_wevs(PEXIT_OK(10), PEXIT_OK(11));
 
     validate_job_table(&(exp_job_table){0}, get_jctl());
     validate_job_events(&JEVS(JEXIT(JID(1))));
@@ -270,8 +272,7 @@ void test_two_proc_job_exit(void) {
 
 void test_two_proc_job_stop(void) {
     add_two_proc_job(JID(1), PID(10));
-
-    update_job_table(&WEVS(PSTOP(PID(10)), PSTOP(PID(11))));
+    apply_wevs(PSTOP(10), PSTOP(11));
 
     validate_job_table(&TABLE(JSTOP_2P(JID(1), PID(10))), get_jctl());
     validate_job_events(&JEVS(JSTOP(JID(1))));
@@ -279,8 +280,7 @@ void test_two_proc_job_stop(void) {
 
 void test_two_proc_job_cont(void) {
     add_two_proc_job(JID(1), PID(10));
-
-    update_job_table(&WEVS(PSTOP(10), PSTOP(11), PCONT(10), PCONT(11)));
+    apply_wevs(PSTOP(10), PSTOP(11), PCONT(10), PCONT(11));
 
     validate_job_table(&TABLE(JRUN_2P(JID(1), PID(10))), get_jctl());
     validate_job_events(&JEVS(JSTOP(1), JCONT(1)));
@@ -293,8 +293,8 @@ int main(void) {
 
     RUN_TEST(test_pg_leader_missing);
     RUN_TEST(test_add_job_with_empty_pid_arr);
-    RUN_TEST(test_continue_running_job);
     RUN_TEST(test_non_existant_proc_event);
+    RUN_TEST(test_continue_running_job);
 
     RUN_TEST(test_one_proc_job_exit);
     RUN_TEST(test_one_proc_job_stop);

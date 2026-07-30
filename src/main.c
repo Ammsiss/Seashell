@@ -16,7 +16,6 @@
 #include "log.h"
 
 #include "job_state.h"
-#include "wait_stat.h"
 #include "sig_funcs.h"
 
 #define SIG_READY 1
@@ -57,20 +56,20 @@ static void hup_to_children(void) {
             err_exit("kill");
     }
 
-    da_wevent wevs;
-    get_wstats(&wevs);
-    da_free(&wevs);
+    while (get_wstat(&(wait_event){0}) != -1)
+        continue;
+
+    clear_job_events();
+    clear_job_table();
 }
 
 static void process_signals(void) {
     if (sigchld_caught) {
-        da_wevent wevs;
-        get_wstats(&wevs);
+        wait_event wev;
 
-        if (update_job_table(&wevs) == -1)
-            xfatal("update_job_table");
-
-        da_free(&wevs);
+        while (get_wstat(&wev) != -1)
+            if (update_job_proc(wev) == -1)
+                xfatal("update_job_table");
 
         sigchld_caught = false;
     }
@@ -136,11 +135,12 @@ int main(void) {
     display_prompt();
 
     while (true) {
-        int sh_ready = shell_block(sh_env.fg_jid);
         bool draw_prompt = false;
         bool prompt_upset = false;
-        job_event *jev;
 
+        int sh_ready = shell_block(sh_env.fg_jid);
+
+        job_event *jev;
         while ((jev = pop_job_event())) {
 
             if (sh_env.fg_jid != jev->jid) {

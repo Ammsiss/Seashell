@@ -2,6 +2,7 @@
 #define JOB_STATE_H
 
 #include "dyn_arr.h"
+#include "wait_stat.h"
 
 typedef enum {
     JOB_EXIT,
@@ -54,9 +55,9 @@ struct job_event {
 };
 
 job_table *get_jctl(void);
-
 job_event *pop_job_event(void);
-int update_job_table(da_wevent *wevs);
+
+int update_job_proc(wait_event wev);
 
 void clear_job_table(void);
 void clear_job_events(void);

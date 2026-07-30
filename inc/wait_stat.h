@@ -24,6 +24,6 @@ struct wait_event {
 
 typedef struct wait_event wait_event;
 
-void get_wstats(da_wevent *wevs);
+int get_wstat(wait_event *wev);
 
 #endif
