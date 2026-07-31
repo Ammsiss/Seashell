@@ -13,3 +13,4 @@ log*
 !log.c
 job_mon
 vg.err
+pty_test

@@ -3,7 +3,10 @@
 
 #define LINE_BUF 8192
 
+#define PROMPT_SIMPLE 1
+#define PROMPT_CWD 2
+
 char *get_line(void);
-void display_prompt(void);
+void display_prompt(int flags);
 
 #endif

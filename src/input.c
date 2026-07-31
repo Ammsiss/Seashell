@@ -13,24 +13,29 @@
 
 static char input_line[LINE_BUF];
 
-void display_prompt(void) {
+void display_prompt(int mode) {
     d_str prompt;
-
     if (d_str_init(&prompt) == -1)
         xfatal("d_str_init");
 
-    static char cwd_str[PATH_MAX];
+    if (mode == PROMPT_SIMPLE) {
+        d_strcat(&prompt, "> ");
 
-    char *cwd = xgetcwd(cwd_str, PATH_MAX);
-    if (!cwd)
-        err_exit("getcwd");
+    } else if (mode == PROMPT_CWD) {
+        static char cwd_str[PATH_MAX];
 
-    char *cwd_base = basename(cwd);
+        char *cwd = xgetcwd(cwd_str, PATH_MAX);
+        if (!cwd)
+            err_exit("getcwd");
 
-    if (d_strcat(&prompt, cwd_base) == -1)
-        xfatal("d_strcat");
-    if (d_strcat(&prompt, "> ") == -1)
-        xfatal("d_strcat");
+        char *cwd_base = basename(cwd);
+
+        if (d_strcat(&prompt, cwd_base) == -1)
+            xfatal("d_strcat");
+        if (d_strcat(&prompt, "> ") == -1)
+            xfatal("d_strcat");
+    } else
+        xfatal("unknown prompt mode");
 
     if (xwrite(sh_env.tty_fd, prompt.c_str, prompt.len) != (int) prompt.len)
         err_exit("write");

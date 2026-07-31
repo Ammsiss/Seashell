@@ -1,5 +1,34 @@
 ---------------------------------------------------------------------------------
 
+## 2026-07-29 - 4639811
+
+### Next
+
+- [ ] instead of the weird log + event creation macros, just call a dedicated
+      log event function
+
+### Completed
+
+- [x] make all da_delete and other mem failures fatal
+- [x] Change ps_job -> ps_ast
+- [x] convert literal \n to str in logs
+- [x] (Started) Write a PTY harness for tests and consistant launches
+- [ ] (Stale) add an events field to jctl so notis happen after wait returns
+- [ ] (Stale) Expand asts as needed; simplifies expander and more efficient
+- [ ] (Stale) add a test file for the map structure
+- [ ] (Stale) add -p option to show pids of job members in jobs builtin
+- [ ] (Stale) change PSTOPPED etc to JSTOPPED etc
+- [ ] (Stale) Add a init_proc function and use da_push_init for da_proc
+- [ ] (Stale) must flush stderr in child subshell before _exit
+- [ ] (Stale) errExit early and use exit handlers to clean up persistant state
+- [ ] (Stale) Find out why we get this output from 'exec valgrind ./run_all.sh'
+        ```Warning: ignored attempt to set SIGKILL handler in sigaction();
+                the SIGKILL signal is uncatchable
+        Warning: ignored attempt to set SIGSTOP handler in sigaction();
+                the SIGSTOP signal is uncatchable```
+
+---------------------------------------------------------------------------------
+
 ## 2026-07-29 - b789be3
 
 ### Next

@@ -73,7 +73,7 @@ typedef enum {
     L_ERR,
 } log_level;
 
-void log_init();
+void log_init(char *log_path);
 void log_free();
 
 PFFORMAT(6, 7)
@@ -271,7 +271,7 @@ void log_msg(log_level type, const char *errstr, const char *file, \
 #define xread(fd, buf, size) \
     ({ \
         int rv = read(fd, buf, size); \
-        if (rv == -1) \
+        if (rv == -1 && errno != EAGAIN) \
             LOG_ERRNO("read"); \
         rv; \
     })
@@ -355,5 +355,78 @@ void log_msg(log_level type, const char *errstr, const char *file, \
             LOG_ERRNO("fflush"); \
         rv; \
     })
+
+#define xposix_openpt(flags) \
+    ({ \
+        int rv = posix_openpt(flags); \
+        if (rv == -1) \
+            LOG_ERRNO("posix_openpt"); \
+        rv; \
+    })
+
+#define xgrantpt(fd) \
+    ({ \
+        int rv = grantpt(fd); \
+        if (rv == -1) \
+            LOG_ERRNO("grantpt"); \
+        rv; \
+    })
+
+#define xptsname(fd) \
+    ({ \
+        char *rv = ptsname(fd); \
+        if (!rv) \
+            LOG_ERRNO("ptsname"); \
+        rv; \
+    })
+
+#define xunlockpt(fd) \
+    ({ \
+        int rv = unlockpt(fd); \
+        if (rv == -1) \
+            LOG_ERRNO("unlockpt"); \
+        rv; \
+    })
+
+#define xsetsid() \
+    ({ \
+        int rv = setsid(); \
+        if (rv == (pid_t) -1) \
+            LOG_ERRNO("setsid"); \
+        rv; \
+    })
+
+#define xtcgetattr(fd, termios) \
+    ({ \
+        int rv = tcgetattr(fd, termios); \
+        if (rv == -1) \
+            LOG_ERRNO("tcgetattr"); \
+        rv; \
+    })
+
+#define xtcsetattr(fd, optional_actions, termios) \
+    ({ \
+        int rv = tcsetattr(fd, optional_actions, termios); \
+        if (rv == -1) \
+            LOG_ERRNO("tcsetattr"); \
+        rv; \
+    })
+
+#define xioctl(fd, op, ...) \
+    ({ \
+        int rv = ioctl(fd, op __VA_OPT__(,) __VA_ARGS__); \
+        if (rv == -1) \
+            LOG_ERRNO("ioctl"); \
+        rv; \
+    })
+
+#define xnanosleep(ts, remaining) \
+    ({ \
+        int rv = nanosleep(ts, remaining); \
+        if (rv == -1) \
+            LOG_ERRNO("nanosleep"); \
+        rv; \
+    })
+
 
 #endif

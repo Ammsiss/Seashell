@@ -64,6 +64,8 @@ static void hup_to_children(void) {
 
     clear_job_events();
     clear_job_table();
+
+    LOG_INFO("shutting down...");
 }
 
 static void process_signals(void) {
@@ -137,7 +139,7 @@ bool fg_event(job_event *jev) {
 }
 
 int main(void) {
-    log_init();
+    log_init("/home/juta/Projects/Seashell/logs");
     env_init();
     sig_setup();
 
@@ -146,7 +148,7 @@ int main(void) {
 
     LOG_INFO("seashell PID(%d)", getpid());
 
-    display_prompt();
+    display_prompt(PROMPT_SIMPLE);
 
     while (true) {
         int sh_ready = shell_block(sh_env.fg_jid);
@@ -172,7 +174,7 @@ int main(void) {
             }
 
             if (need_prompt || (sh_env.fg_jid == NOFG && prompt_upset))
-                display_prompt();
+                display_prompt(PROMPT_SIMPLE);
 
         } else if (sh_ready == STDIN_READY) {
             ps_ast ast;
@@ -185,7 +187,7 @@ int main(void) {
                 handled = try_run_builtin(pline->cmds.data[0].argv, NULL);
 
             if (handled) {
-                display_prompt(); /* never lost term fg status */
+                display_prompt(PROMPT_SIMPLE); /* never lost term fg status */
 
             } else {
                 pline_data pld = exec_pline(&ast.andors.data[0].pline, ast.bg);
@@ -198,7 +200,7 @@ int main(void) {
 
                 if (ast.bg) {
                     printf("[%d] started\n", jid);
-                    display_prompt();
+                    display_prompt(PROMPT_SIMPLE);
 
                 } else {
                     sh_env.fg_jid = jid;

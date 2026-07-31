@@ -1,36 +1,38 @@
-BIN      := shell-debug
-CC       := clang
+CC        := clang
+
+BIN      := pty_test
 BLD_DIR  := build
-COMPCOM  := compile_commands.json
+COMP_CMDS  := compile_commands.json
 
-MSRC_DIR  := ../src
-MINC_DIR  := ../inc
+SRC_DIR  := ../src
+INC_DIR  := ../inc
 
-CFLAGS   := -g -O0 -fno-omit-frame-pointer -std=c23 -I$(MINC_DIR) \
-			-Wall -Wextra -Wpedantic \
-			-Wno-gnu-statement-expression-from-macro-expansion
-DEPFLAGS := -MMD -MP
+SRCS   := pty_test.c $(wildcard $(SRC_DIR)/*.c)
+SRCS   := $(filter-out $(SRC_DIR)/main.c,$(wildcard $(SRC_DIR)/*.c))
 
-BIN_DEPS := $(BLD_DIR)/shell_debug.o $(BLD_DIR)/lexer.o $(BLD_DIR)/parser.o
+OBJS   := $(BLD_DIR)/pty_test.o $(patsubst $(SRC_DIR)/%.c,$(BLD_DIR)/%.o,$(SRCS))
+DEPS   := $(BLD_DIR)/pty_test.d $(patsubst $(SRC_DIR)/%.c,$(BLD_DIR)/%.d,$(SRCS))
+
+CFLAGS    := -g -O0 -fno-omit-frame-pointer -Wall -Wextra \
+			-Wpedantic -Wno-gnu-statement-expression-from-macro-expansion \
+			 -std=c23 -I$(INC_DIR) -I$(SRC_DIR)
+
+DEPFLAGS  := -MMD -MP
 
 .PHONY: all
 all: $(BIN)
 
-$(BIN): $(BIN_DEPS)
-	$(CC) $(CFLAGS) $^ -o $@
+$(BIN): $(OBJS)
+	$(CC) $(CFLAGS) $(DEPFLAGS) $^ -o $@
 
-# Debug binary
-$(BLD_DIR)/shell_debug.o: shell_debug.c
+$(BLD_DIR)/pty_test.o: pty_test.c
 	mkdir -p $(BLD_DIR)
 	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 
-# C modules
-$(BLD_DIR)/%.o: $(MSRC_DIR)/%.c
+$(BLD_DIR)/%.o: $(SRC_DIR)/%.c
 	mkdir -p $(BLD_DIR)
 	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 
-.PHONY: clean
+.PHONY:
 clean:
-	rm -rf $(BLD_DIR) $(COMPCOM)
-
--include $(BLD_DIR)/*.d
+	rm -rf $(BIN) $(BLD_DIR) $(COMP_CMDS)
