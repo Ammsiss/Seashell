@@ -3,8 +3,6 @@
 
 #include <sys/wait.h>
 
-#include "dyn_arr.h"
-
 typedef enum {
     PEXITED,
     PSIGNALED,
@@ -24,6 +22,7 @@ struct wait_event {
 
 typedef struct wait_event wait_event;
 
+char *get_wstat_str(pid_t pid, int wstat);
 int get_wstat(wait_event *wev);
 
 #endif

@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 
+#include "wait_stat.h"
 #include "utils.h"
 #include "log.h"
 #include "dyn_str.h"
@@ -16,24 +17,6 @@
 #define PROJ_DIR "/home/juta/Projects/Seashell"
 
 struct termios tp;
-
-void log_wstat(int pid, int wstat) {
-    if (WIFEXITED(wstat)) {
-        LOG_INFO("seashell (%d) exited with status %d",
-                pid, WEXITSTATUS(wstat));
-
-    } else if (WIFSIGNALED(wstat)) {
-        LOG_INFO("seashell (%d) termianted by signal %d (%s)",
-                pid, WTERMSIG(wstat), strsignal(WTERMSIG(wstat)));
-
-    } else if (WIFSTOPPED(wstat)) {
-        LOG_INFO("seashell (%d) stopped by signal %d (%s)",
-                pid, WSTOPSIG(wstat), strsignal(WSTOPSIG(wstat)));
-
-    } else if (WIFCONTINUED(wstat)) {
-        LOG_INFO("seashell (%d) continued", pid);
-    }
-}
 
 void transfer_fd(int fd1, int fd2) {
     if (fd1 == fd2)
@@ -246,7 +229,7 @@ int main(void) {
     if (xwaitpid(cpid, &wstat, WUNTRACED | WCONTINUED) == -1)
         exit(EXIT_FAILURE);
 
-    log_wstat(cpid, wstat);
+    LOG_INFO("seashell %s", get_wstat_str(cpid, wstat));
 
     /* ensure theres nothing unexpected in the master pty */
 

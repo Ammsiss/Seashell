@@ -287,7 +287,7 @@ void test_two_proc_job_cont(void) {
 }
 
 int main(void) {
-    log_init();
+    log_init("/home/juta/Projects/Seashell/test/logs");
 
     UNITY_BEGIN();
 

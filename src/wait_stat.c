@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 
+#include <stdio.h>
 #include <errno.h>
 #include <sys/wait.h>
 
@@ -7,38 +8,34 @@
 #include "log.h"
 #include "wait_stat.h"
 
-#define WEV_EXIT(_pid, _exit_stat) \
-    ({ \
-        LOG_INFO("%d exited with status %d", _pid, _exit_stat); \
-        (wait_event){ .pid = _pid, .type = PEXITED, { .exit_stat = _exit_stat }}; \
-    })
+char *get_wstat_str(pid_t pid, int wstat) {
+    static char buf[4096];
 
-#define WEV_SIG(_pid, _term_sig) \
-    ({ \
-        LOG_INFO("%d terminated by signal %d (%s)", _pid, _term_sig, \
-                strsignal(_term_sig)); \
-        (wait_event){ .pid = _pid, .type = PSIGNALED, { .term_sig = _term_sig }}; \
-    })
+    if (WIFEXITED(wstat)) {
+        snprintf(buf, 4096, "%d exited with status %d",
+                pid, WEXITSTATUS(wstat));
 
-#define WEV_STOP(_pid) \
-    ({ \
-        LOG_INFO("%d stopped", _pid); \
-        (wait_event){ .pid = _pid, .type = PSTOPPED, {0}}; \
-    })
+    } else if (WIFSIGNALED(wstat)) {
+        snprintf(buf, 4096, "%d termianted by signal %d (%s)",
+                pid, WTERMSIG(wstat), strsignal(WTERMSIG(wstat)));
 
-#define WEV_CONT(_pid) \
-    ({ \
-        LOG_INFO("%d continued", _pid); \
-        (wait_event){ .pid = _pid, .type = PCONTINUED, {0}}; \
-    })
+    } else if (WIFSTOPPED(wstat)) {
+        snprintf(buf, 4096, "%d stopped by signal %d (%s)",
+                pid, WSTOPSIG(wstat), strsignal(WSTOPSIG(wstat)));
+
+    } else if (WIFCONTINUED(wstat)) {
+        snprintf(buf, 4096, "%d continued", pid);
+    } else
+        xfatal("unexpected wstat");
+
+    return buf;
+}
 
 int get_wstat(wait_event *wev) {
     assert(wev);
 
     int wstat;
-    int wopts = WUNTRACED | WCONTINUED | WNOHANG;
-
-    pid_t cpid = xwaitpid(-1, &wstat, wopts);
+    pid_t cpid = xwaitpid(-1, &wstat, WUNTRACED | WCONTINUED | WNOHANG);
 
     if (cpid == -1 && errno != ECHILD)
         err_exit("waitpid");
@@ -46,19 +43,23 @@ int get_wstat(wait_event *wev) {
     if (cpid == 0 || errno == ECHILD)
         return -1;
 
+    wev->pid = cpid;
+
     if (WIFEXITED(wstat)) {
-        *wev = WEV_EXIT(cpid, WEXITSTATUS(wstat));
+        wev->type = PEXITED;
+        wev->exit_stat = WEXITSTATUS(wstat);
 
     } else if (WIFSIGNALED(wstat)) {
-        *wev = WEV_SIG(cpid, WTERMSIG(wstat));
+        wev->type = PSIGNALED;
+        wev->term_sig = WTERMSIG(wstat);
 
     } else if (WIFSTOPPED(wstat)) {
-        *wev = WEV_STOP(cpid);
+        wev->type = PSTOPPED;
 
     } else if (WIFCONTINUED(wstat)) {
-        *wev = WEV_CONT(cpid);
+        wev->type = PCONTINUED;
     }
 
-
+    LOG_INFO("%s", get_wstat_str(cpid, wstat));
     return 0;
 }

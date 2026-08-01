@@ -63,6 +63,9 @@ try_again:
 
     if (symlink(log_path.c_str, link_path.c_str) == -1)
         err_exit("symlink");
+
+    d_str_free(&log_path);
+    d_str_free(&link_path);
 }
 
 void log_free() {
