@@ -32,17 +32,7 @@ static void print_job_event(job_event *jev, bool *prompt_upset) {
         *prompt_upset = true;
     }
 
-    switch (jev->type) {
-    case JEXITED:
-        printf("[%d] exited\n", jev->jid);
-        break;
-    case JSTOPPED:
-        printf("[%d] stopped\n", jev->jid);
-        break;
-    case JCONTINUED:
-        printf("[%d] continued\n", jev->jid);
-        break;
-    }
+    printf("%s", get_jev_str(*jev));
 }
 
 static void hup_to_children(void) {

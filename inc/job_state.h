@@ -58,6 +58,7 @@ job_table *get_jctl(void);
 job_event *pop_job_event(void);
 
 int update_job_proc(wait_event wev);
+char *get_jev_str(job_event jev);
 
 void clear_job_table(void);
 void clear_job_events(void);

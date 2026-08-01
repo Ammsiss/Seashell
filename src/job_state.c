@@ -6,24 +6,6 @@
 #include "job_state.h"
 #include "wait_stat.h"
 
-#define JEV_EXIT(_jid) \
-    ({ \
-        LOG_INFO("[%d] exited", _jid); \
-        (job_event){ .jid = job->jid, .type = JEXITED }; \
-    })
-
-#define JEV_STOP(_jid) \
-    ({ \
-        LOG_INFO("[%d] stopped", _jid); \
-        (job_event){ .jid = job->jid, .type = JSTOPPED }; \
-    })
-
-#define JEV_CONT(_jid) \
-    ({ \
-        LOG_INFO("[%d] continued", _jid); \
-        (job_event){ .jid = job->jid, .type = JCONTINUED }; \
-    })
-
 static job_table jctl = {0};
 static da_jevent jevs = {0};
 
@@ -93,6 +75,21 @@ static bool identify_proc(pid_t pid, jc_job **job, jc_proc** proc) {
     return false;
 }
 
+char *get_jev_str(job_event jev) {
+    static char buf[4096];
+
+    if (jev.type == JEXITED) {
+        snprintf(buf, 4096, "[%d] exited", jev.jid);
+    } else if (jev.type == JSTOPPED) {
+        snprintf(buf, 4096, "[%d] stopped", jev.jid);
+    } else if (jev.type == JCONTINUED) {
+        snprintf(buf, 4096, "[%d] continued", jev.jid);
+    } else
+        xfatal("unknown job event type");
+
+    return buf;
+}
+
 void clear_job_table(void) {
     for (size_t i = 0; i < jctl.jobs.size; ++i) {
         LOG_INFO("[%d] removed", jctl.jobs.data[i].jid);
@@ -156,20 +153,22 @@ int update_job_proc(wait_event wev) {
     job_event jev;
     bool jev_created = false;
 
+    jev.jid = job->jid;
+
     if (job->stat == JOB_RUN && stat == JOB_STOP) {
-        jev = JEV_STOP(job->jid);
         jev_created = true;
+        jev.type = JSTOPPED;
 
     } else if (job->stat == JOB_STOP && stat == JOB_RUN) {
-        jev = JEV_CONT(job->jid);
         jev_created = true;
+        jev.type = JCONTINUED;
     }
 
     job->stat = stat;
 
     if (job->stat == JOB_EXIT) {
-        jev = JEV_EXIT(job->jid);
         jev_created = true;
+        jev.type = JEXITED;
 
         /* delete job */
         size_t i = get_job_index(job->jid);
@@ -179,6 +178,8 @@ int update_job_proc(wait_event wev) {
     }
 
     if (jev_created) {
+        LOG_INFO("%s", get_jev_str(jev));
+
         job_event *new_jev = da_push(&jevs);
         if (!new_jev)
             xfatal("da_push");
