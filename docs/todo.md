@@ -1,5 +1,8 @@
 ### Tasks
 
+- [ ] Write a function to parse /proc/stat, find last ) in line to parse comm
+- [ ] Add a variadic printf style strcat to dynstr
+- [ ] Declarative pty tests that support cc, lines, and escape sequences
 - [ ] Write regression tests for the prompt redraw logic
 - [ ] PTY harness can have an interactive mode
 - [ ] use man 3 backtrace to upgrade logs

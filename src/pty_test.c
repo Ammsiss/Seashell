@@ -12,7 +12,7 @@
 #include "log.h"
 #include "dyn_str.h"
 
-#define MTTY_BUF 8096
+#define MTTY_BUF 4096
 
 #define TS \
     (struct timespec){ .tv_nsec = 330000000, .tv_sec = 0 }
@@ -188,42 +188,58 @@ int send_tty_cc(pty_test *ptyt, int cc_code) {
 int verify_read(pty_test *ptyt, char *exp_str) {
     assert(ptyt && exp_str);
 
+    d_str got;
+    if (d_str_init(&got) == -1) {
+        LOG_ERR("d_str_init");
+        return -1;
+    }
+
     int exp_len = strlen(exp_str);
     char buf[MTTY_BUF];
-    int num_read;
 
     for (int i = 0; i < 3; ++i) {
-        num_read = xread(ptyt->mfd, buf, exp_len);
+        int num_read = xread(ptyt->mfd, buf, exp_len);
 
-        if (num_read == -1 && errno == EAGAIN) {
+        if (num_read == -1) {
+            if (errno != EAGAIN)
+                goto fail;
+
             if (i == 2) {
-                LOG_ERR("read timed out: \"%s\"", exp_str);
-                return -1;
+                LOG_ERR("timeout: exp: \"%s\", got: %s", exp_str, got.c_str);
+                goto fail;
             }
 
             if (xnanosleep(&TS, NULL) == -1)
-                return -1;
+                goto fail;
 
             continue;
         }
 
-        if (num_read == -1)
-            return -1;
+        buf[num_read] = '\0';
+
+        if (d_strcat(&got, buf) == -1) {
+            LOG_ERR("d_strcat");
+            goto fail;
+        }
 
         if (exp_len != num_read) {
-            LOG_ERR("partial read on %s", exp_str);
-            return -1;
+            exp_len -= num_read;
+            continue;
 
         } else {
-            buf[num_read] = '\0';
+            if (strcmp(exp_str, got.c_str) != 0) {
+                LOG_ERR("exp: \"%s\", got: \"%s\"", exp_str, got.c_str);
+                goto fail;
+            }
+
             break;
         }
     }
 
-    if (strcmp(buf, exp_str) != 0) {
-        LOG_ERR("exp: \"%s\" | got: \"%s\"", exp_str, buf);
-        return -1;
-    }
-
+    d_str_free(&got);
     return 0;
+
+fail:
+    d_str_free(&got);
+    return -1;
 }

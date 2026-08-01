@@ -1,6 +1,48 @@
 ---------------------------------------------------------------------------------
 
-## 2026-07-29 - 4639811
+## 2026-08-01
+
+### Next
+
+- [ ] don't treat partial read/write as fail, try to send/read the rest
+- [ ] log file should not use seashell utils
+
+### Completed
+
+- [x] instead of the weird log + event creation macros, just call a dedicated
+      log event function
+- [x] separate the pty test harness from the seashell specific test file
+
+### Notes
+
+Going to need to set up a small process viewer for seashell pty tests. This is
+for 2 reasons.
+
+1. Remove some process syncronization issues. For example, lauching a command
+   that prints no output followed by sending SIGINT. If SIGINT is sent before
+   the command is set to the terminal fg group then seashell will just consume
+   the interupt. A process tree will let us check if the new pid is in the
+   foreground group of the terminal before moving on.
+2. Allow testing of seashell as a process manager. This catches stuff like
+   zombies that might languish forever, correct pgid semantics, terminal
+   ownership, etc.
+
+This does not mean the pty harness is generic across programs though. You need
+to know the forking semantics of the process your testing in order to know what
+the correct state should be.
+
+Another limitation is that any program that relies on some setup time at
+start-up (for example setting up signal handlers) will still need to be
+considered, as just acquiring the fg group of the terminal would not be enough.
+
+Also small meme, just realized that you can't actually reference the commit
+in the commit object cause its created based on what the object contains so
+all the previous commit hashs are invalid. Oh well, probably just not going
+to track the logs in the next project!
+
+---------------------------------------------------------------------------------
+
+## 2026-07-31 - 4639811
 
 ### Next
 
@@ -29,7 +71,7 @@
 
 ---------------------------------------------------------------------------------
 
-## 2026-07-29 - b789be3
+## 2026-07-30 - b789be3
 
 ### Next
 

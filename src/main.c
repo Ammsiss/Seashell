@@ -69,10 +69,13 @@ static void process_signals(void) {
         sigchld_caught = false;
     }
 
-    if (sighup_caught)
+    if (sighup_caught) {
+        LOG_INFO("sighup caught");
         exit(EXIT_FAILURE);
+    }
 
     if (sigint_caught) {
+        LOG_INFO("sigint caught");
         sigint_caught = false;
     }
 }

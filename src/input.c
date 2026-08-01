@@ -48,8 +48,10 @@ char *get_line(void) {
     if (num_read == -1)
         err_exit("read");
 
-    if (num_read == 0)
+    if (num_read == 0) {
+        LOG_INFO("eof, exiting");
         exit(EXIT_SUCCESS);
+    }
 
     input_line[num_read - 1] = '\0';
 
