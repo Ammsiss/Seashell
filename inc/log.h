@@ -8,7 +8,8 @@
 #include <stdarg.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <string.h>
+#include <string.h> // IWYU pragma: keep
+#include <time.h>
 
 #include "utils.h" // IWYU pragma: export
 
@@ -73,6 +74,7 @@ typedef enum {
     L_ERR,
 } log_level;
 
+bool log_is_open(void);
 void log_init(char *log_path);
 void log_free();
 

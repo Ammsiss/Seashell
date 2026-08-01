@@ -12,7 +12,11 @@
 #include "log.h"
 #include "dyn_str.h"
 
-static int log_output_fd;
+static int log_output_fd = -1;
+
+bool log_is_open(void) {
+    return log_output_fd != -1;
+}
 
 char *get_date_str(void) {
     static char date[256];
@@ -70,6 +74,8 @@ try_again:
 
 void log_free() {
     xclose(log_output_fd);
+    log_output_fd = -1;
+
     log_output_fd = (int){0};
 }
 

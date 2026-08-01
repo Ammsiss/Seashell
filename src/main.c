@@ -55,7 +55,7 @@ static void hup_to_children(void) {
     clear_job_events();
     clear_job_table();
 
-    LOG_INFO("shutting down...");
+    LOG_INFO("seashell shutting down");
 }
 
 static void process_signals(void) {
