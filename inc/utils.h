@@ -4,7 +4,6 @@
 #include <stdnoreturn.h>
 
 #define PFFORMAT(x, y) __attribute__ ((format(printf, (x), (y))))
-#define BUF_SIZE 1024
 
 PFFORMAT(1, 2)
 noreturn void fatal(const char *fmt, ...);

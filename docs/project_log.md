@@ -1,5 +1,30 @@
 ---------------------------------------------------------------------------------
 
+## 2026-08-02
+
+### Next
+
+- [ ] Move polling out of verify_read into test_shell file
+
+### Completed
+
+- [x] Add a lil module for tracking child pids and retriving status values.
+- [x] Add wrapper around polling tests
+
+### Notes
+
+Running into an odd hang. The pipe sychrnonization while pty forking is adding
+like 0.33 seconds per test. Remove that, and that alone and it's instant.
+
+Ahh yes, classic. Moved the wait logic in the test_shell file but I'm still
+doing a polling wait for verifying output. Should probably move that out.
+
+Also strace seems pretty cool. Thats how I found out it was the old nanosleep
+call. Just run the test through strace and you can see the timestamps of how
+long every syscall that you trace takes. Cool!
+
+---------------------------------------------------------------------------------
+
 ## 2026-08-01
 
 ### Next

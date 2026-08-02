@@ -1,5 +1,9 @@
 ### Tasks
 
+- [ ] log file should not use seashell utils
+- [ ] don't treat partial read/write as fail, try to send/read the rest
+- [ ] remove all seashell utils from pty_view.c
+- [ ] Go back to simple void * dyn array, its just better...
 - [ ] Write a function to parse /proc/stat, find last ) in line to parse comm
 - [ ] Add a variadic printf style strcat to dynstr
 - [ ] Declarative pty tests that support cc, lines, and escape sequences

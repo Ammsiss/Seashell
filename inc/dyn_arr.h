@@ -31,6 +31,8 @@ struct jc_pgrp;
 struct jc_job;
 struct job_event;
 
+struct ps_pstat;
+
 #define DYN_ARR_TYPES(APPLY, arg) \
     /* lexer */ \
     APPLY(arg, da_part, struct lx_part) \
@@ -50,7 +52,8 @@ struct job_event;
     APPLY(arg, da_proc, struct jc_proc) \
     APPLY(arg, da_pgrp, struct jc_pgrp) \
     APPLY(arg, da_job, struct jc_job) \
-    APPLY(arg, da_jevent, struct job_event)
+    APPLY(arg, da_jevent, struct job_event) \
+    APPLY(arg, da_pstat, struct ps_pstat) \
 
 #define DECLARE_DYN_ARR(name, type) \
     typedef struct { \

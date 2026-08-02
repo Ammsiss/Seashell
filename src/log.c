@@ -12,13 +12,13 @@
 #include "log.h"
 #include "dyn_str.h"
 
-static int log_output_fd = -1;
+static int log_fd = -1;
 
 bool log_is_open(void) {
-    return log_output_fd != -1;
+    return log_fd != -1;
 }
 
-char *get_date_str(void) {
+char *date_str(void) {
     static char date[256];
 
     time_t t = time(NULL);
@@ -29,54 +29,46 @@ char *get_date_str(void) {
     if (!time)
         err_exit("localtime");
 
-    if (strftime(date, sizeof(date), "%d-%m-%y_%H:%M:%S", time) == 0)
+    if (strftime(date, sizeof(date), "%d-%m-%y", time) == 0)
         err_exit("strftime");
 
     return date;
 }
 
 void log_init(char *dir_path) {
-    /* create log path */
-    d_str log_path;
-    if (d_str_init(&log_path) == -1)
-        fatal("d_str_init");
-    d_strcat(&log_path, dir_path);
-    d_strcat(&log_path, "/log.");
-    d_strcat(&log_path, get_date_str());
+    static int log_id = 1;
+    char log_path[PATH_MAX];
+    char link_path[PATH_MAX];
 
-    /* create link path */
-    d_str link_path;
-    if (d_str_init(&link_path) == -1)
-        fatal("d_str_init");
-    d_strcat(&link_path, dir_path);
-    d_strcat(&link_path, "/latest");
+    do {
+        snprintf(log_path, PATH_MAX, "%s/log.%s.%d", dir_path, date_str(), log_id);
+        snprintf(link_path, PATH_MAX, "%s/latest", dir_path);
 
-try_again:
-    log_output_fd = open(log_path.c_str, O_CREAT | O_EXCL | O_RDWR, 0600);
+        log_fd = open(log_path, O_CREAT | O_EXCL | O_RDWR, 0600);
 
-    if (log_output_fd == -1) {
-        if (errno != ENOENT || mkdir(dir_path, 0700) == -1)
-            err_exit("open");
+        if (log_fd == -1 && errno != EEXIST) {
+            perror("log: open");
+            exit(EXIT_FAILURE);
+        }
+    } while (log_fd == -1 && ++log_id);
 
-        goto try_again;
+    if (unlink(link_path) == -1)
+        if (errno != ENOENT) {
+            perror("unlink");
+            exit(EXIT_FAILURE);
+        }
+
+    if (symlink(log_path, link_path) == -1) {
+        perror("symlink");
+        exit(EXIT_FAILURE);
     }
-
-    if (unlink(link_path.c_str) == -1)
-        if (errno != ENOENT)
-            err_exit("unlink");
-
-    if (symlink(log_path.c_str, link_path.c_str) == -1)
-        err_exit("symlink");
-
-    d_str_free(&log_path);
-    d_str_free(&link_path);
 }
 
 void log_free() {
-    xclose(log_output_fd);
-    log_output_fd = -1;
+    xclose(log_fd);
+    log_fd = -1;
 
-    log_output_fd = (int){0};
+    log_fd = (int){0};
 }
 
 char *convert_newlines(char *s) {
@@ -94,7 +86,6 @@ char *convert_newlines(char *s) {
     }
 
     d_str_push(&out, '\n');
-
     return out.c_str;
 }
 
@@ -140,7 +131,7 @@ void log_msg(log_level level, const char *errstr, const char *file, int line, \
     }
 
     char *log = convert_newlines(output_str);
-    write(log_output_fd, log, strlen(log));
+    write(log_fd, log, strlen(log));
 
     free(log);
 

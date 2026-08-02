@@ -52,26 +52,26 @@ static int pty_fork(pty_test *ptyt) {
     /* child continues... */
 
     if (xsetsid() == (pid_t) -1)
-        return -1;
+        _exit(EXIT_FAILURE);
 
     if (xclose(ptyt->mfd) == -1)
-        return -1;
+        _exit(EXIT_FAILURE);
 
         /* on BSD you need to preform TIOCSCTTY ioctl operation */
     int sfd = xopen(ptyt->slave_name, O_RDWR);
     if (sfd == -1)
-        return -1;
+        _exit(EXIT_FAILURE);
 
     if (xdup2(sfd, STDIN_FILENO) != STDIN_FILENO)
-        return -1;
+        _exit(EXIT_FAILURE);
     if (xdup2(sfd, STDOUT_FILENO) != STDOUT_FILENO)
-        return -1;
+        _exit(EXIT_FAILURE);
     if (xdup2(sfd, STDERR_FILENO) != STDERR_FILENO)
-        return -1;
+        _exit(EXIT_FAILURE);
 
     if (sfd > STDERR_FILENO)
         if (xclose(sfd) == -1)
-            return -1;
+            _exit(EXIT_FAILURE);
 
     return 0;
 }
@@ -149,10 +149,18 @@ int fork_pty_test(pty_test *ptyt, char **argv) {
     return cpid;
 }
 
+#define BUF_SIZE 8192
+
 int pty_test_done(pty_test *ptyt) {
-    char c;
-    int num_read = read(ptyt->mfd, &c, 1);
-        /* EIO on pty closure is linux specific */
+    int num_read;
+    char buf[BUF_SIZE];
+
+        /* don't log becuase EIO is expected */
+    while ((num_read = read(ptyt->mfd, buf, BUF_SIZE - 1)) > 0) {
+        buf[num_read] = '\0';
+        LOG_INFO("stale pty data: \"%s\"", buf);
+    }
+
     if (!(num_read == -1 && errno == EIO))
         return -1;
 

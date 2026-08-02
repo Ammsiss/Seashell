@@ -60,6 +60,8 @@ int get_wstat(wait_event *wev) {
         wev->type = PCONTINUED;
     }
 
+    /* child might not have received hup before getting here from
+     * hup_to_children. */
     LOG_INFO("%s", get_wstat_str(cpid, wstat));
     return 0;
 }

@@ -8,6 +8,8 @@
 #include "utils.h"
 #include "shell_state.h"
 
+#define BUF_SIZE 1024
+
 /* error functions */
 
 static void output_err(const char *fmt, va_list *va, bool print_err) {
