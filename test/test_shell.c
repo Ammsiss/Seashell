@@ -238,7 +238,13 @@ void tearDown(void) {
     da_free(&pstats);
 }
 
-void test_interupt_fg_job(void) {
+void test_short_lived_bg_cmd(void) {
+    write_verify("echo x &\n");
+            /* echo prints this newline --v */
+    read_verify("[1] started\n" PROMPT "x\n\n[1] exited\n" PROMPT);
+}
+
+void test_interrupt_fg_job(void) {
     write_verify("cat\n");
     write_verify("foo\n");
 
@@ -249,7 +255,7 @@ void test_interupt_fg_job(void) {
 }
 
 void test_stop_fg_job(void) {
-    write_verify("sleep 100\n");
+    write_verify("sleep 1\n");
 
     verify_proc_in_fg("sleep");
     send_tty_cc(VSUSP);
@@ -258,8 +264,8 @@ void test_stop_fg_job(void) {
 }
 
 void test_bg_jobs_pid_state(void) {
-    write_verify("sleep 10&\n");
-    write_verify("sleep 10&\n");
+    write_verify("sleep 1 &\n");
+    write_verify("sleep 1 &\n");
 
     if (!wait_for(pstat_size, &(size_t){2}, 1000))
         TEST_FAIL();
@@ -275,7 +281,7 @@ void test_unknown_cmd(void) {
 
 void test_jobs_builtin(void) {
     write_verify("jobs\n");
-    write_verify("sleep 100 &\n");
+    write_verify("sleep 1 &\n");
     write_verify("jobs\n");
 
     read_verify(PROMPT "[1] started\n" PROMPT "[1] running\n" PROMPT);
@@ -283,18 +289,18 @@ void test_jobs_builtin(void) {
 
 void test_pipeline(void) {
     write_verify("echo hi | grep h | wc -c\n");
-        /* wc includes the newline */
+        /* wc outputs 3 because it includes the newline from grep */
     read_verify("3\n" PROMPT);
 }
 
 void test_prompt_after_reclaim_tty(void) {
-    write_verify("echo hi\n");
+    write_verify("echo x\n");
 
-    read_verify("hi\n" PROMPT);
+    read_verify("x\n" PROMPT);
 }
 
 void test_prompt_after_launch_bg_cmd(void) {
-    write_verify("sleep 5 &\n");
+    write_verify("sleep 1 &\n");
 
     read_verify("[1] started\n" PROMPT);
 }
@@ -305,7 +311,27 @@ void test_prompt_after_running_fg_builtin(void) {
     read_verify(PROMPT);
 }
 
-// void test_prompt_after_running_k
+void test_prompt_after_bg_job_finishes(void) {
+    write_verify("sleep 0.05 &\n");
+
+    read_verify("[1] started\n" PROMPT "\n[1] exited\n" PROMPT);
+}
+
+void test_bg_job_finishes_with_fg_job(void) {
+
+    /* launch 2 bg jobs to determine if the prompt was not printed.
+     * If the prompt does not print between job exit messages it was
+     * correctly skipped.
+     *
+     * flush_pty should also have no output. */
+
+    write_verify("sleep 0.05 &\n");
+    write_verify("sleep 0.1 &\n");
+    write_verify("sleep 1\n");
+
+    read_verify("[1] started\n" PROMPT "[2] started\n" PROMPT
+                "[1] exited\n[2] exited\n");
+}
 
 int main(void) {
     log_init("/home/juta/Projects/Seashell/test/logs");
@@ -313,7 +339,8 @@ int main(void) {
 
     UNITY_BEGIN();
 
-    RUN_TEST(test_interupt_fg_job);
+    RUN_TEST(test_short_lived_bg_cmd);
+    RUN_TEST(test_interrupt_fg_job);
     RUN_TEST(test_stop_fg_job);
     RUN_TEST(test_bg_jobs_pid_state);
     RUN_TEST(test_unknown_cmd);
@@ -323,6 +350,9 @@ int main(void) {
     RUN_TEST(test_prompt_after_reclaim_tty);
     RUN_TEST(test_prompt_after_launch_bg_cmd);
     RUN_TEST(test_prompt_after_running_fg_builtin);
+    RUN_TEST(test_prompt_after_bg_job_finishes);
+
+    RUN_TEST(test_bg_job_finishes_with_fg_job);
 
     return UNITY_END();
 }

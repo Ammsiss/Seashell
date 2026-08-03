@@ -12,6 +12,12 @@ volatile sig_atomic_t sigchld_caught = false;
 volatile sig_atomic_t sighup_caught = false;
 volatile sig_atomic_t sigint_caught = false;
 
+void reset_sig_flags(void) {
+    sigchld_caught = false;
+    sighup_caught = false;
+    sigint_caught = false;
+}
+
 void sigchld_handler(int _) {
     sigchld_caught = true;
 }

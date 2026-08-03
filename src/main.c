@@ -58,28 +58,6 @@ static void hup_to_children(void) {
     LOG_INFO("seashell shutting down");
 }
 
-static void process_signals(void) {
-    if (sigchld_caught) {
-        wait_event wev;
-
-        while (get_wstat(&wev) != -1)
-            if (update_job_proc(wev) == -1)
-                xfatal("update_job_table");
-
-        sigchld_caught = false;
-    }
-
-    if (sighup_caught) {
-        LOG_INFO("sighup caught");
-        exit(EXIT_FAILURE);
-    }
-
-    if (sigint_caught) {
-        LOG_INFO("sigint caught");
-        sigint_caught = false;
-    }
-}
-
 static void line_to_ast(ps_ast *ast) {
     char *line = get_line();
     da_tok toks = {0};
@@ -96,30 +74,6 @@ static void line_to_ast(ps_ast *ast) {
     lx_free(&toks);
 }
 
-static int shell_block(pid_t fg_jid) {
-    int nfds = fg_jid == NOFG ? 1 : 0;
-
-    struct pollfd events = {
-        .events = POLLIN,
-        .fd = sh_env.tty_fd
-    };
-
-    int ready = xppoll(&events, nfds, 0, &sh_env.og_mask);
-
-    if (ready == -1 && errno != EINTR)
-        err_exit("sigsuspend");
-
-    if (ready == -1 && errno == EINTR) {
-        process_signals();
-        return SIG_READY;
-
-    } else if (ready == 1) {
-        return STDIN_READY;
-    }
-
-    xfatal("shouldn't reach here");
-}
-
 void reclaim_terminal(void) {
     if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
         err_exit("tcsetpgrp");
@@ -129,6 +83,54 @@ void reclaim_terminal(void) {
 
 bool fg_event(job_event *jev) {
     return sh_env.fg_jid  == jev->jid;
+}
+
+static void process_signals(void) {
+    bool need_prompt = false;
+    bool prompt_upset = sh_env.fg_jid != NOFG;
+
+    if (sigchld_caught) {
+        LOG_INFO("sigchild caught");
+
+        wait_event wev;
+        while (get_wstat(&wev) != -1)
+            if (update_job_proc(wev) == -1)
+                xfatal("update_job_table");
+
+        job_event *jev;
+        while ((jev = pop_job_event())) {
+
+            if (!fg_event(jev)) {
+                print_job_event(jev, &prompt_upset);
+
+            } else if (jev->type == JSTOPPED || jev->type == JEXITED) {
+                reclaim_terminal();
+                need_prompt = true;
+
+                if (jev->type == JSTOPPED) {
+                    printf("\n");
+                    print_job_event(jev, &prompt_upset);
+                }
+            }
+        }
+    }
+
+    if (sigint_caught) {
+        LOG_INFO("sigint caught");
+
+        if (!prompt_upset) {
+            printf("\n");
+            prompt_upset = true;
+        }
+    }
+
+    if (sighup_caught) {
+        LOG_INFO("sighup caught");
+        exit(EXIT_FAILURE);
+    }
+
+    if (need_prompt || (sh_env.fg_jid == NOFG && prompt_upset))
+        display_prompt(PROMPT_SIMPLE);
 }
 
 int main(void) {
@@ -144,64 +146,53 @@ int main(void) {
     display_prompt(PROMPT_SIMPLE);
 
     while (true) {
-        int sh_ready = shell_block(sh_env.fg_jid);
+        int nfds = sh_env.fg_jid == NOFG ? 1 : 0;
 
-        if (sh_ready == SIG_READY) {
+        struct pollfd events = {
+            .events = POLLIN,
+            .fd = sh_env.tty_fd
+        };
 
-            bool need_prompt = false;
-            bool prompt_upset = sh_env.fg_jid != NOFG;
+        int ready = xppoll(&events, nfds, NULL, &sh_env.og_mask);
 
-            job_event *jev;
-            while ((jev = pop_job_event())) {
+        if (ready == -1 && errno != EINTR)
+            err_exit("sigsuspend");
 
-                if (!fg_event(jev)) {
-                    print_job_event(jev, &prompt_upset);
-
-                } else if (jev->type == JSTOPPED || jev->type == JEXITED) {
-                    reclaim_terminal();
-                    need_prompt = true;
-
-                    if (jev->type == JSTOPPED) {
-                        printf("\n");
-                        print_job_event(jev, &prompt_upset);
-                    }
-                }
-            }
-
-            if (need_prompt || (sh_env.fg_jid == NOFG && prompt_upset))
-                display_prompt(PROMPT_SIMPLE);
-
-        } else if (sh_ready == STDIN_READY) {
-            ps_ast ast;
-            line_to_ast(&ast);
-
-            ps_pline *pline = &ast.andors.data[0].pline;
-            bool handled = false;
-
-            if (pline->cmds.size == 1 && !ast.bg)
-                handled = try_run_builtin(pline->cmds.data[0].argv, NULL);
-
-            if (handled) {
-                display_prompt(PROMPT_SIMPLE); /* never lost term fg status */
-
-            } else {
-                pid_t jid = create_job_id();
-
-                if (ast.bg) {
-                    printf("[%d] started\n", jid);
-                    display_prompt(PROMPT_SIMPLE);
-                } else
-                    sh_env.fg_jid = jid;
-
-                pline_data pld = exec_pline(&ast.andors.data[0].pline, ast.bg);
-
-                add_job(jid, pld.pids, pld.pgid);
-
-                free_pline_data(&pld);
-            }
-
-            ps_free(&ast);
+        if (ready == -1 && errno == EINTR) {
+            process_signals();
+            reset_sig_flags();
+            continue;
         }
+
+        ps_ast ast;
+        line_to_ast(&ast);
+
+        ps_pline *pline = &ast.andors.data[0].pline;
+        bool handled = false;
+
+        if (pline->cmds.size == 1 && !ast.bg)
+            handled = try_run_builtin(pline->cmds.data[0].argv, NULL);
+
+        if (handled) {
+            display_prompt(PROMPT_SIMPLE); /* never lost term fg status */
+
+        } else {
+            pid_t jid = create_job_id();
+
+            if (ast.bg) {
+                printf("[%d] started\n", jid);
+                display_prompt(PROMPT_SIMPLE);
+            } else
+                sh_env.fg_jid = jid;
+
+            pline_data pld = exec_pline(&ast.andors.data[0].pline, ast.bg);
+
+            add_job(jid, pld.pids, pld.pgid);
+
+            free_pline_data(&pld);
+        }
+
+        ps_free(&ast);
     }
 
     return EXIT_SUCCESS;
