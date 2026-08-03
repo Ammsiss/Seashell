@@ -161,7 +161,7 @@ int pty_test_done(pty_test *ptyt) {
         LOG_INFO("stale pty data: \"%s\"", buf);
     }
 
-    if (!(num_read == -1 && errno == EIO))
+    if (num_read == 0 || (num_read == -1 && errno != EIO))
         return -1;
 
     return 0;

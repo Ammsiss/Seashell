@@ -35,22 +35,52 @@ char *date_str(void) {
     return date;
 }
 
+char asciis[] =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz"
+    "1234567890";
+
+char *get_log_str(char *id_buf) {
+    for (size_t i = 0; i < 6; ++i)
+        id_buf[i] = asciis[rand() % strlen(asciis)];
+
+    id_buf[6] = '\0';
+
+    return id_buf;
+}
+
 void log_init(char *dir_path) {
-    static int log_id = 1;
+    struct timespec ts;
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1) {
+        perror("log: clock_gettime");
+        exit(EXIT_FAILURE);
+    }
+
+    srand(ts.tv_nsec ^ ts.tv_sec);
+
     char log_path[PATH_MAX];
     char link_path[PATH_MAX];
 
-    do {
-        snprintf(log_path, PATH_MAX, "%s/log.%s.%d", dir_path, date_str(), log_id);
+    while (true) {
+        char id_buf[7];
+
+        snprintf(log_path, PATH_MAX, "%s/%s.%s",
+                dir_path, date_str(), get_log_str(id_buf));
+
         snprintf(link_path, PATH_MAX, "%s/latest", dir_path);
 
         log_fd = open(log_path, O_CREAT | O_EXCL | O_RDWR, 0600);
 
-        if (log_fd == -1 && errno != EEXIST) {
-            perror("log: open");
-            exit(EXIT_FAILURE);
-        }
-    } while (log_fd == -1 && ++log_id);
+        if (log_fd == -1) {
+            if (errno != EEXIST) {
+                perror("log: open");
+                exit(EXIT_FAILURE);
+
+            } else
+                continue;
+        } else
+            break;
+    }
 
     if (unlink(link_path) == -1)
         if (errno != ENOENT) {

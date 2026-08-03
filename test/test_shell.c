@@ -12,27 +12,56 @@
 #define assert_send_string(ptyt, str) \
     TEST_ASSERT_EQUAL_INT(0, send_string(ptyt, str));
 
-#define assert_verify_read(ptyt, exp_str) \
-    TEST_ASSERT_EQUAL_INT(0, verify_read(ptyt, exp_str));
-
 #define PROMPT "> "
+#define BUF_SIZE 8192
+
+typedef struct {
+    size_t n;
+    char buf[BUF_SIZE];
+    size_t len;
+} pty_read;
 
 char *argv[] = { "/home/juta/Projects/Seashell/seashell" };
 pty_test ptyt = {0};
 pid_t cpid = {0};
 da_pstat pstats;
 
+bool read_until(void *context) {
+    pty_read *rst = context;
+
+    if (rst->n >= BUF_SIZE - 1 || rst->len >= BUF_SIZE - 1)
+        return false;
+
+    int num_read = xread(ptyt.mfd, &rst->buf[rst->len], rst->n - rst->len);
+
+    if (num_read == -1) {
+        if (errno == EAGAIN) {
+            return false;
+
+        } else
+            TEST_FAIL();
+    }
+
+    rst->len += num_read;
+
+    rst->buf[rst->len] = '\0';
+
+    return rst->n == rst->len;
+}
+
 bool shell_exited(void *_) {
     pid_t pid = xwaitpid(cpid, NULL, WNOHANG);
     return pid > 0;
 }
 
-bool pstat_size(void *exp_size) {
+bool pstat_size(void *context) {
+    size_t exp_size = *(size_t *)context;
+
     TEST_ASSERT_NOT_EQUAL_INT(-1, child_pstat(cpid, &pstats));
 
-    LOG_INFO("exp %ld, real %ld", *(size_t *)exp_size, pstats.size);
+    LOG_INFO("exp %ld, real %ld", exp_size, pstats.size);
 
-    if (pstats.size != *(size_t *)exp_size) {
+    if (pstats.size != exp_size) {
         da_free(&pstats);
         return false;
     }
@@ -40,7 +69,9 @@ bool pstat_size(void *exp_size) {
     return true;
 }
 
-bool names_present(void *names) {
+bool names_present(void *context) {
+    char **names = context;
+
     TEST_ASSERT_NOT_EQUAL_INT(-1, child_pstat(cpid, &pstats));
 
     if (pstats.size == 0)
@@ -66,8 +97,6 @@ bool wait_for(bool (* pred)(void *context), void *context, int max_ms) {
     struct timespec ts = { sec, ns };
 
     while (!pred(context)) {
-        LOG_INFO("pred failed");
-
         if (checks-- < 1)
             return false;
 
@@ -78,11 +107,28 @@ bool wait_for(bool (* pred)(void *context), void *context, int max_ms) {
     return true;
 }
 
+void read_verify(char *exp_str) {
+    pty_read rst = {
+        .buf = {0},
+        .len = 0,
+        .n = strlen(exp_str)
+    };
+
+    if (rst.n >= BUF_SIZE)
+        TEST_FAIL_MESSAGE("expected string too large");
+
+    wait_for(read_until, &rst, 1000);
+    TEST_ASSERT_EQUAL_STRING(exp_str, rst.buf);
+}
+
 void setUp(void) {
     cpid = fork_pty_test(&ptyt, argv);
-    assert_verify_read(&ptyt, PROMPT);
 
-    TEST_ASSERT_EQUAL_INT(0, child_pstat(cpid, &pstats));
+    read_verify(PROMPT);
+
+    if (child_pstat(cpid, &pstats) == -1)
+        TEST_FAIL();
+
     TEST_ASSERT_EQUAL_size_t(0, pstats.size);
 }
 
@@ -128,8 +174,8 @@ void test_interupt_fg_job(void) {
     verify_proc_in_fg("cat");
     send_tty_cc(&ptyt, VINTR);
 
-    assert_verify_read(&ptyt, "foo\n");
-    assert_verify_read(&ptyt, PROMPT);
+    read_verify("foo\n");
+    read_verify(PROMPT);
 }
 
 void test_bg_jobs_pid_state(void) {
@@ -151,10 +197,8 @@ int main(void) {
 
     UNITY_BEGIN();
 
-    // RUN_TEST(test_interupt_fg_job);
-    // RUN_TEST(test_bg_jobs_pid_state);
-
-    // for (int i = 0; i < 100; ++i)
+    RUN_TEST(test_interupt_fg_job);
+    RUN_TEST(test_bg_jobs_pid_state);
     RUN_TEST(test_rapid_set_up_tear_down);
 
     return UNITY_END();
