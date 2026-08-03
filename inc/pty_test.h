@@ -22,8 +22,4 @@ void close_pty_test(pty_test *ptyt);
 int fork_pty_test(pty_test *ptyt, char **argv);
 int pty_test_done(pty_test *ptyt);
 
-int send_string(pty_test *ptyt, const char *cmd);
-int send_tty_cc(pty_test *ptyt, int cc_code);
-int verify_read(pty_test *ptyt, char *exp_str);
-
 #endif

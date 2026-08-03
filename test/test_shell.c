@@ -165,6 +165,14 @@ void write_verify(char *str) {
     TEST_ASSERT(wait_for(write_until, &wst, 1000));
 }
 
+void send_tty_cc(int cc_code) {
+    char tty_cc_str[2];
+    tty_cc_str[0] = ptyt.tp.c_cc[cc_code];
+    tty_cc_str[1] = '\0';
+
+    write_verify(tty_cc_str);
+}
+
 void verify_proc_in_fg(char *name) {
     if (!wait_for(names_present, (char *[]){ name, NULL }, 1000))
         TEST_FAIL();
@@ -212,11 +220,8 @@ void tearDown(void) {
 void test_interupt_fg_job(void) {
     write_verify("cat\n");
     write_verify("foo\n");
-
     verify_proc_in_fg("cat");
-
-    if (send_tty_cc(&ptyt, VINTR) == -1)
-        TEST_FAIL();
+    send_tty_cc(VINTR);
 
     read_verify("foo\n");
     read_verify(PROMPT);
@@ -245,9 +250,9 @@ int main(void) {
 
     UNITY_BEGIN();
 
-    // RUN_TEST(test_interupt_fg_job);
+    RUN_TEST(test_interupt_fg_job);
     RUN_TEST(test_bg_jobs_pid_state);
-    // RUN_TEST(test_rapid_set_up_tear_down);
+    RUN_TEST(test_rapid_set_up_tear_down);
 
     return UNITY_END();
 }

@@ -182,11 +182,3 @@ int send_string(pty_test *ptyt, const char *cmd) {
 
     return 0;
 }
-
-int send_tty_cc(pty_test *ptyt, int cc_code) {
-    assert(ptyt);
-
-    int num_write = xwrite(ptyt->mfd, &ptyt->tp.c_cc[cc_code], 1);
-
-    return num_write;
-}
