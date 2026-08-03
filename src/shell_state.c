@@ -9,6 +9,10 @@
 
 shell_env sh_env = {0};
 
+bool shell_in_fg(void) {
+    return sh_env.fg_jid == NOFG;
+}
+
 void env_init(void) {
     sh_env.subshell = false;
     sh_env.fg_jid = -1;

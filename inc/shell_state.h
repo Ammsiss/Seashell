@@ -5,6 +5,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#define NOFG -1
+
 typedef struct {
     bool subshell;
     pid_t fg_jid;
@@ -13,6 +15,8 @@ typedef struct {
 } shell_env;
 
 extern shell_env sh_env;
+
+bool shell_in_fg(void);
 
 void env_init(void);
 void env_free(void);

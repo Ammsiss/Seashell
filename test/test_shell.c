@@ -348,6 +348,17 @@ void test_bg_job_done_with_fg_job(void) {
                 "[1] exited\n[2] exited\n");
 }
 
+void test_pipeline_of_builtins_does_not_duplicate_prompt(void) {
+
+    /* Regression: after adding display_prompt() to try_run_builtin()
+     * and neglecting to confirm if we are in the fg, and not calling
+     * from a subshell, the prompt was duplicated. */
+
+    write_verify("jobs | cd .\n");
+
+    read_verify("jobs: no job control in this shell\n" PROMPT);
+}
+
 int main(void) {
     log_init("/home/juta/Projects/Seashell/test/logs");
     open_pty_test(&ptyt);
@@ -369,6 +380,7 @@ int main(void) {
         RUN_TEST(test_prompt_after_bg_job_done);
 
         RUN_TEST(test_bg_job_done_with_fg_job);
+        RUN_TEST(test_pipeline_of_builtins_does_not_duplicate_prompt);
     }
 
     return UNITY_END();

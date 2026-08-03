@@ -22,12 +22,6 @@
 #define SIG_READY 1
 #define STDIN_READY 2
 
-#define NOFG -1
-
-static bool shell_in_fg(void) {
-    return sh_env.fg_jid == NOFG;
-}
-
 static void print_job_event(job_event *jev, bool *prompt_upset) {
     assert(jev && prompt_upset);
 
@@ -168,30 +162,27 @@ int main(void) {
         line_to_ast(&ast);
 
         ps_pline *pline = &ast.andors.data[0].pline;
-        bool handled = false;
 
-        if (pline->cmds.size == 1 && !ast.bg)
-            handled = try_run_builtin(pline->cmds.data[0].argv, NULL);
-
-        if (handled) {
-            display_prompt(PROMPT_SIMPLE); /* never lost term fg status */
-
-        } else {
-            pid_t jid = create_job_id();
-
-            if (ast.bg) {
-                printf("[%d] started\n", jid);
-                display_prompt(PROMPT_SIMPLE);
-            } else
-                sh_env.fg_jid = jid;
-
-            pline_data pld = exec_pline(&ast.andors.data[0].pline, ast.bg);
-
-            add_job(jid, pld.pids, pld.pgid);
-
-            free_pline_data(&pld);
+        if (pline->cmds.size == 1 && !ast.bg) {
+            if (try_run_builtin(pline->cmds.data[0].argv, NULL)) {
+                ps_free(&ast);
+                continue;
+            }
         }
 
+        pid_t jid = create_job_id();
+
+        if (ast.bg) {
+            printf("[%d] started\n", jid);
+            display_prompt(PROMPT_SIMPLE);
+        } else
+            sh_env.fg_jid = jid;
+
+        pline_data pld = exec_pline(&ast.andors.data[0].pline, ast.bg);
+
+        add_job(jid, pld.pids, pld.pgid);
+
+        free_pline_data(&pld);
         ps_free(&ast);
     }
 

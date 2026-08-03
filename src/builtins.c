@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "shell_state.h"
+#include "input.h"
 #include "job_state.h"
 #include "builtins.h"
 #include "log.h"
@@ -186,11 +187,15 @@ bool try_run_builtin(char **argv, int *status) {
     }
 
     sh_builtin *builtin = get_builtin(argv[0]);
+
     if (builtin) {
-        int out = builtin->func(argv, &sh_env);
+        int builtin_status = builtin->func(argv, &sh_env);
 
         if (status)
-            *status = out;
+            *status = builtin_status;
+
+        if (!sh_env.subshell && shell_in_fg())
+            display_prompt(PROMPT_SIMPLE);
 
         return true;
     }
