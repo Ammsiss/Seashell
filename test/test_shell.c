@@ -18,7 +18,22 @@ typedef struct {
     size_t n;
 } pty_io;
 
+#define VAL_TEST
+
+#ifdef VAL_TEST
+char *argv[] = {
+    "valgrind",
+    "--vgdb=no",
+    "--quiet",
+    "--leak-check=full",
+    "--errors-for-leak-kinds=definite,indirect,possible",
+    "/home/juta/Projects/Seashell/seashell",
+    NULL
+};
+#else
 char *argv[] = { "/home/juta/Projects/Seashell/seashell" };
+#endif
+
 pty_test ptyt = {0};
 pid_t cpid = {0};
 da_pstat pstats;
@@ -255,7 +270,7 @@ void test_interrupt_fg_job(void) {
 }
 
 void test_stop_fg_job(void) {
-    write_verify("sleep 1\n");
+    write_verify("sleep 100\n");
 
     verify_proc_in_fg("sleep");
     send_tty_cc(VSUSP);
@@ -264,8 +279,8 @@ void test_stop_fg_job(void) {
 }
 
 void test_bg_jobs_pid_state(void) {
-    write_verify("sleep 1 &\n");
-    write_verify("sleep 1 &\n");
+    write_verify("sleep 100 &\n");
+    write_verify("sleep 100 &\n");
 
     if (!wait_for(pstat_size, &(size_t){2}, 1000))
         TEST_FAIL();
@@ -281,7 +296,7 @@ void test_unknown_cmd(void) {
 
 void test_jobs_builtin(void) {
     write_verify("jobs\n");
-    write_verify("sleep 1 &\n");
+    write_verify("sleep 100 &\n");
     write_verify("jobs\n");
 
     read_verify(PROMPT "[1] started\n" PROMPT "[1] running\n" PROMPT);
@@ -300,7 +315,7 @@ void test_prompt_after_reclaim_tty(void) {
 }
 
 void test_prompt_after_launch_bg_cmd(void) {
-    write_verify("sleep 1 &\n");
+    write_verify("sleep 100 &\n");
 
     read_verify("[1] started\n" PROMPT);
 }
