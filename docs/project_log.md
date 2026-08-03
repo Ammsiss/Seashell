@@ -1,5 +1,47 @@
 ---------------------------------------------------------------------------------
 
+## 2026-08-03
+
+### Next
+
+- [ ] Add a variadic printf style strcat to dynstr
+- [ ] Go back to simple void * dyn array, its just better...
+
+### Completed
+
+- [x] Move polling out of verify_read into test_shell file
+- [x] remove assertions from pred funcs
+- [x] Add poll for waiting for tcgetpgrp
+- [x] log file should not use seashell utils
+- [x] don't treat partial read/write as fail, try to send/read the rest
+- [x] send_tty_cc moved out of pty_test, re-attempts on partial writes
+- [x] remove all seashell utils from pty_view.c
+- [x] remove log dependency from pty_view.c
+- [x] Add wrapper around sh_env.jid == NOFG, not very readable
+- [x] add builtins in a pipeline test
+- [x] add builtin in the background test
+- [ ] (Removed) should we do job->ev with procs?
+
+### Notes
+
+The tests are pretty fast now, for 300 iterations of pty setup, execing
+seashell, sending it a command, and reading its output, it takes about 1.2
+seconds. 99% of that is the polling func though. A big preformance improvement
+would be to use something like select/poll on the mfd, and wait for input to be
+available for reads.
+
+Not going to implement it for now though as the centralized polling with pred
+funcs is simpler and its still pretty fast. Also some stuff can't use alternate
+io methods like checking a process's children or whteher or not a process group
+is in the foreground so I would need to maintain 2 methods when preformance
+might never actaully be an issue.
+
+Need to hook valgrind back up. I think it basically requires execing a shell
+like sh, then setting up the redirects so we can see the error output. Also
+timing stuff might get flaky cause valgrind makes stuff really slow.
+
+---------------------------------------------------------------------------------
+
 ## 2026-08-02
 
 ### Next
@@ -8,6 +50,7 @@
 
 ### Completed
 
+- [x] Write a function to parse /proc/stat, find last ) in line to parse comm
 - [x] Add a lil module for tracking child pids and retriving status values.
 - [x] Add wrapper around polling tests
 

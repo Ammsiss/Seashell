@@ -1,18 +1,13 @@
 ### Tasks
 
-- [ ] log file should not use seashell utils
-- [ ] don't treat partial read/write as fail, try to send/read the rest
-- [ ] remove all seashell utils from pty_view.c
-- [ ] Go back to simple void * dyn array, its just better...
-- [ ] Write a function to parse /proc/stat, find last ) in line to parse comm
-- [ ] Add a variadic printf style strcat to dynstr
+- [ ] proc_view should not include log.c
+- [ ] Intead of exiting with failure on sighup, self kill with sighup
 - [ ] Declarative pty tests that support cc, lines, and escape sequences
 - [ ] Write regression tests for the prompt redraw logic
 - [ ] PTY harness can have an interactive mode
 - [ ] use man 3 backtrace to upgrade logs
 - [ ] if we need to test builtins, consider moving jctl back into sh_env
 - [ ] add pid string context to job control logs
-- [ ] should we do the same meme with job->ev with procs? so like proc->ev
 - [ ] on exec_pline failure, excess pfds in parent should be closed
 
 ### Unresolved
@@ -24,3 +19,4 @@
    erase_line(), etc. Then comparing the actual screen state rather then
    just raw bytes being identicle. The pty test harness could then interact
    with the emulator instead for example feed(...) -> cells\[x,y\] = "..."
+4. Is fg_jid enough to replace the subshell boolean?

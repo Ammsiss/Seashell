@@ -348,6 +348,15 @@ void test_bg_job_done_with_fg_job(void) {
                 "[1] exited\n[2] exited\n");
 }
 
+void test_builtin_in_bg(void) {
+    write_verify("jobs &\n");
+
+    read_verify("[1] started\n" PROMPT "jobs: no job control in this shell\n"
+                "\n[1] exited\n" PROMPT);
+}
+
+/* REGRESSION TESTS */
+
 void test_pipeline_of_builtins_does_not_duplicate_prompt(void) {
 
     /* Regression: after adding display_prompt() to try_run_builtin()
@@ -380,6 +389,10 @@ int main(void) {
         RUN_TEST(test_prompt_after_bg_job_done);
 
         RUN_TEST(test_bg_job_done_with_fg_job);
+        RUN_TEST(test_builtin_in_bg);
+
+        /* REGRESSION TESTS */
+
         RUN_TEST(test_pipeline_of_builtins_does_not_duplicate_prompt);
     }
 
