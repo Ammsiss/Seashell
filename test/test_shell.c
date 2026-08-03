@@ -57,15 +57,15 @@ bool shell_exited(void *_) {
 bool pstat_size(void *context) {
     size_t exp_size = *(size_t *)context;
 
-    TEST_ASSERT_NOT_EQUAL_INT(-1, child_pstat(cpid, &pstats));
-
-    LOG_INFO("exp %ld, real %ld", exp_size, pstats.size);
+    if (child_pstat(cpid, &pstats) == -1)
+        TEST_FAIL();
 
     if (pstats.size != exp_size) {
         da_free(&pstats);
         return false;
     }
 
+    da_free(&pstats);
     return true;
 }
 
@@ -121,6 +121,20 @@ void read_verify(char *exp_str) {
     TEST_ASSERT_EQUAL_STRING(exp_str, rst.buf);
 }
 
+void verify_proc_in_fg(char *name) {
+    if (!wait_for(names_present, (char *[]){ name, NULL }, 1000))
+        TEST_FAIL();
+
+    ps_pstat *pstat = lookup_pstat(&pstats, name);
+
+    pid_t fg_pgid = xtcgetpgrp(ptyt.mfd);
+    if (fg_pgid == -1)
+        TEST_FAIL();
+
+    if (fg_pgid != pstat->pid)
+        TEST_FAIL_MESSAGE("unexpected pgid");
+}
+
 void setUp(void) {
     cpid = fork_pty_test(&ptyt, argv);
 
@@ -151,20 +165,6 @@ void tearDown(void) {
     da_free(&pstats);
 
     TEST_ASSERT_EQUAL_INT(0, pty_test_done(&ptyt));
-}
-
-void verify_proc_in_fg(char *name) {
-    if (!wait_for(names_present, (char *[]){ name, NULL }, 1000))
-        TEST_FAIL();
-
-    ps_pstat *pstat = lookup_pstat(&pstats, name);
-
-    pid_t fg_pgid = xtcgetpgrp(ptyt.mfd);
-    if (fg_pgid == -1)
-        TEST_FAIL();
-
-    if (fg_pgid != pstat->pid)
-        TEST_FAIL_MESSAGE("unexpected pgid");
 }
 
 void test_interupt_fg_job(void) {
