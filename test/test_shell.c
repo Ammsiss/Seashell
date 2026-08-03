@@ -18,7 +18,7 @@ typedef struct {
     size_t n;
 } pty_io;
 
-#define VAL_TEST
+// #define VAL_TEST
 
 #ifdef VAL_TEST
 char *argv[] = {
@@ -259,7 +259,7 @@ void test_short_lived_bg_cmd(void) {
     read_verify("[1] started\n" PROMPT "x\n\n[1] exited\n" PROMPT);
 }
 
-void test_interrupt_fg_job(void) {
+void test_int_fg_job(void) {
     write_verify("cat\n");
     write_verify("foo\n");
 
@@ -320,19 +320,19 @@ void test_prompt_after_launch_bg_cmd(void) {
     read_verify("[1] started\n" PROMPT);
 }
 
-void test_prompt_after_running_fg_builtin(void) {
+void test_prompt_after_launch_fg_builtin(void) {
     write_verify("cd .\n");
 
     read_verify(PROMPT);
 }
 
-void test_prompt_after_bg_job_finishes(void) {
+void test_prompt_after_bg_job_done(void) {
     write_verify("sleep 0.05 &\n");
 
     read_verify("[1] started\n" PROMPT "\n[1] exited\n" PROMPT);
 }
 
-void test_bg_job_finishes_with_fg_job(void) {
+void test_bg_job_done_with_fg_job(void) {
 
     /* launch 2 bg jobs to determine if the prompt was not printed.
      * If the prompt does not print between job exit messages it was
@@ -354,20 +354,22 @@ int main(void) {
 
     UNITY_BEGIN();
 
-    RUN_TEST(test_short_lived_bg_cmd);
-    RUN_TEST(test_interrupt_fg_job);
-    RUN_TEST(test_stop_fg_job);
-    RUN_TEST(test_bg_jobs_pid_state);
-    RUN_TEST(test_unknown_cmd);
-    RUN_TEST(test_jobs_builtin);
-    RUN_TEST(test_pipeline);
+    for (int i = 0; i < 1; ++i) {
+        RUN_TEST(test_short_lived_bg_cmd);
+        RUN_TEST(test_int_fg_job);
+        RUN_TEST(test_stop_fg_job);
+        RUN_TEST(test_bg_jobs_pid_state);
+        RUN_TEST(test_unknown_cmd);
+        RUN_TEST(test_jobs_builtin);
+        RUN_TEST(test_pipeline);
 
-    RUN_TEST(test_prompt_after_reclaim_tty);
-    RUN_TEST(test_prompt_after_launch_bg_cmd);
-    RUN_TEST(test_prompt_after_running_fg_builtin);
-    RUN_TEST(test_prompt_after_bg_job_finishes);
+        RUN_TEST(test_prompt_after_reclaim_tty);
+        RUN_TEST(test_prompt_after_launch_bg_cmd);
+        RUN_TEST(test_prompt_after_launch_fg_builtin);
+        RUN_TEST(test_prompt_after_bg_job_done);
 
-    RUN_TEST(test_bg_job_finishes_with_fg_job);
+        RUN_TEST(test_bg_job_done_with_fg_job);
+    }
 
     return UNITY_END();
 }

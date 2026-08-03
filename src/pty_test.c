@@ -18,7 +18,7 @@
     (struct timespec){ .tv_nsec = 330000000, .tv_sec = 0 }
 
 static void err_exit(char *msg) {
-    fprintf(stderr, "log: %s: %s", msg, strerror(errno));
+    fprintf(stderr, "pty_test: %s: %s", msg, strerror(errno));
     exit(EXIT_FAILURE);
 }
 

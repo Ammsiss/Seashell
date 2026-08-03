@@ -24,6 +24,10 @@
 
 #define NOFG -1
 
+static bool shell_in_fg(void) {
+    return sh_env.fg_jid == NOFG;
+}
+
 static void print_job_event(job_event *jev, bool *prompt_upset) {
     assert(jev && prompt_upset);
 
@@ -87,7 +91,7 @@ bool fg_event(job_event *jev) {
 
 static void process_signals(void) {
     bool need_prompt = false;
-    bool prompt_upset = sh_env.fg_jid != NOFG;
+    bool prompt_upset = !shell_in_fg();
 
     if (sigchld_caught) {
         LOG_INFO("sigchild caught");
@@ -129,7 +133,7 @@ static void process_signals(void) {
         exit(EXIT_FAILURE);
     }
 
-    if (need_prompt || (sh_env.fg_jid == NOFG && prompt_upset))
+    if (need_prompt || (shell_in_fg() && prompt_upset))
         display_prompt(PROMPT_SIMPLE);
 }
 
@@ -143,16 +147,12 @@ int main(void) {
 
     LOG_INFO("seashell PID(%d)", getpid());
 
+    struct pollfd events = { .events = POLLIN, .fd = sh_env.tty_fd };
+
     display_prompt(PROMPT_SIMPLE);
 
     while (true) {
-        int nfds = sh_env.fg_jid == NOFG ? 1 : 0;
-
-        struct pollfd events = {
-            .events = POLLIN,
-            .fd = sh_env.tty_fd
-        };
-
+        int nfds = shell_in_fg() ? 1 : 0;
         int ready = xppoll(&events, nfds, NULL, &sh_env.og_mask);
 
         if (ready == -1 && errno != EINTR)

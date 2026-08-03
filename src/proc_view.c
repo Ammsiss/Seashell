@@ -90,22 +90,15 @@ int child_pstat(pid_t pid, da_pstat *pstats) {
 
     static char buf[BUF_SIZE];
 
-    if (!fgets(buf, BUF_SIZE - 1, stat) && feof(stat))
-        return 0; /* nochildren */
-
-    if (ferror(stat)) {
-        LOG_ERR("ferror");
-        return -1;
+    if (!fgets(buf, BUF_SIZE - 1, stat)) {
+        if (feof(stat)) {
+            goto success;
+        } else
+            goto fail;
     }
 
-    if (buf[0] == '\0' || buf[0] == '\n') {
-        if (fclose(stat) == EOF) {
-            LOG_ERRNO("fclose");
-            return -1;
-        }
-
-        return 0; /* no children */
-    }
+    if (buf[0] == '\0' || buf[0] == '\n')
+        goto success;
 
     char *endptr = buf;
 
@@ -115,7 +108,7 @@ int child_pstat(pid_t pid, da_pstat *pstats) {
         long child_pid = strtol(start, &endptr, 10);
         if (child_pid == LONG_MAX || child_pid == LONG_MIN) {
             LOG_ERR("strtol overflow");
-            return -1;
+            goto fail;
         }
 
         if (start == endptr)
@@ -124,17 +117,25 @@ int child_pstat(pid_t pid, da_pstat *pstats) {
         ps_pstat *pstat = da_push(pstats);
         if (!pstat) {
             LOG_ERR("da_push failed");
-            return -1;
+            goto fail;
         }
 
         pstat->pid = child_pid;
 
         char *child_name = stat_val_str(child_pid, NAME);
         if (!child_name)
-            return -1;
+            goto fail;
 
         strcpy(pstat->name, child_name);
     }
 
+success:
+    if (fclose(stat) == EOF)
+        LOG_ERRNO("fclose");
     return 0;
+
+fail:
+    if (fclose(stat) == EOF)
+        LOG_ERRNO("fclose");
+    return -1;
 }
