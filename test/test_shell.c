@@ -69,6 +69,20 @@ bool pstat_size(void *context) {
     return true;
 }
 
+bool proc_in_fg(void *context) {
+    pid_t pid = *(pid_t *)context;
+
+    pid_t fg_pgid = xtcgetpgrp(ptyt.mfd);
+    if (fg_pgid == -1)
+        TEST_FAIL();
+
+    pid_t pgid = getpgid(pid);
+    if (pgid == -1)
+        TEST_FAIL();
+
+    return fg_pgid == pgid;
+}
+
 bool names_present(void *context) {
     char **names = context;
 
@@ -126,13 +140,11 @@ void verify_proc_in_fg(char *name) {
         TEST_FAIL();
 
     ps_pstat *pstat = lookup_pstat(&pstats, name);
-
-    pid_t fg_pgid = xtcgetpgrp(ptyt.mfd);
-    if (fg_pgid == -1)
+    if (!pstat)
         TEST_FAIL();
 
-    if (fg_pgid != pstat->pid)
-        TEST_FAIL_MESSAGE("unexpected pgid");
+    if (!wait_for(proc_in_fg, &(pid_t){ pstat->pid }, 1000))
+        TEST_FAIL();
 }
 
 void setUp(void) {
@@ -181,11 +193,15 @@ void test_interupt_fg_job(void) {
 void test_bg_jobs_pid_state(void) {
     assert_send_string(&ptyt, "sleep 10&\n");
     assert_send_string(&ptyt, "sleep 10&\n");
-    assert_send_string(&ptyt, "sleep 10&\n");
-    assert_send_string(&ptyt, "sleep 10&\n");
 
-    if (!wait_for(pstat_size, &(size_t){4}, 1000))
+    if (!wait_for(pstat_size, &(size_t){2}, 1000))
         TEST_FAIL();
+
+    read_verify("[1] started\n");
+    read_verify(PROMPT);
+
+    read_verify("[2] started\n");
+    read_verify(PROMPT);
 }
 
 void test_rapid_set_up_tear_down(void) {
