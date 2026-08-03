@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "expander.h"
-#include "log.h"
 #include "parser.h" // IWYU pragma: keep - See 2026-06-25 Notes
+#include "log.h" // IWYU pragma: keep
+#include "expander.h"
 #include "dyn_str.h"
+#include "utils.h"
 
 static int create_arg(ps_word *word) {
     d_str arg;

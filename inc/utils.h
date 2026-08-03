@@ -20,4 +20,10 @@ void errno_msg(const char *fmt, ...);
 PFFORMAT(1, 2)
 void usage_err(const char *fmt, ...);
 
+#define xfatal(fmt, ...) \
+    do { \
+        LOG_ERR(fmt __VA_OPT__(,) __VA_ARGS__); \
+        fatal(fmt __VA_OPT__(,) __VA_ARGS__); \
+    } while (false)
+
 #endif

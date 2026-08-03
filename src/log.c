@@ -14,6 +14,16 @@
 
 static int log_fd = -1;
 
+static void err_exit(char *msg) {
+    fprintf(stderr, "log: %s: %s", msg, strerror(errno));
+    exit(EXIT_FAILURE);
+}
+
+static void fatal(char *msg) {
+    fprintf(stderr, "%s\n", msg);
+    exit(EXIT_FAILURE);
+}
+
 bool log_is_open(void) {
     return log_fd != -1;
 }
@@ -52,8 +62,7 @@ char *get_log_str(char *id_buf) {
 void log_init(char *dir_path) {
     struct timespec ts;
     if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1) {
-        perror("log: clock_gettime");
-        exit(EXIT_FAILURE);
+        err_exit("clock_gettime");
     }
 
     srand(ts.tv_nsec ^ ts.tv_sec);
@@ -72,12 +81,8 @@ void log_init(char *dir_path) {
         log_fd = open(log_path, O_CREAT | O_EXCL | O_RDWR, 0600);
 
         if (log_fd == -1) {
-            if (errno != EEXIST) {
-                perror("log: open");
-                exit(EXIT_FAILURE);
-
-            } else
-                continue;
+            if (errno != EEXIST)
+                err_exit("open");
         } else
             break;
     }
@@ -95,7 +100,8 @@ void log_init(char *dir_path) {
 }
 
 void log_free() {
-    xclose(log_fd);
+    if (close(log_fd) == -1)
+        err_exit("close");
     log_fd = -1;
 
     log_fd = (int){0};

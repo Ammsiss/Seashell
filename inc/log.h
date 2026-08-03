@@ -11,8 +11,6 @@
 #include <string.h> // IWYU pragma: keep
 #include <time.h>
 
-#include "utils.h" // IWYU pragma: export
-
 #define STR_IMP(x) #x
 #define STR(x) STR_IMP(x)
 
@@ -81,36 +79,6 @@ void log_free();
 PFFORMAT(6, 7)
 void log_msg(log_level type, const char *errstr, const char *file, \
     int line, const char *function, const char *fmt, ...);
-
-#define xfatal(fmt, ...) \
-    do { \
-        LOG_ERR(fmt __VA_OPT__(,) __VA_ARGS__); \
-        fatal(fmt __VA_OPT__(,) __VA_ARGS__); \
-    } while (false)
-
-#define xpipe(pfd) \
-    ({ \
-        int rv = pipe(pfd); \
-        if (rv == -1) \
-            LOG_ERRNO("pipe"); \
-        rv; \
-    })
-
-#define xfork() \
-    ({ \
-        int rv = fork(); \
-        if (rv == -1) \
-            LOG_ERRNO("fork"); \
-        rv; \
-     })
-
-#define xclose(fd) \
-    ({ \
-        int rv = close(fd); \
-        if (rv == -1) \
-            LOG_ERRNO("close"); \
-        rv; \
-    })
 
 #define xdup2(fd1, fd2) \
     ({ \
@@ -243,7 +211,6 @@ void log_msg(log_level type, const char *errstr, const char *file, \
             LOG_ERRNO("isatty"); \
         rv; \
     })
-
 
 #define xtcgetpgrp(fd) \
     ({ \
@@ -430,5 +397,28 @@ void log_msg(log_level type, const char *errstr, const char *file, \
         rv; \
     })
 
+#define xpipe(pfd) \
+    ({ \
+        int rv = pipe(pfd); \
+        if (rv == -1) \
+            LOG_ERRNO("pipe"); \
+        rv; \
+    })
+
+#define xfork() \
+    ({ \
+        int rv = fork(); \
+        if (rv == -1) \
+            LOG_ERRNO("fork"); \
+        rv; \
+     })
+
+#define xclose(fd) \
+    ({ \
+        int rv = close(fd); \
+        if (rv == -1) \
+            LOG_ERRNO("close"); \
+        rv; \
+    })
 
 #endif

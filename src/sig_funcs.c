@@ -3,8 +3,10 @@
 #include <signal.h>
 
 #include "log.h"
-#include "shell_state.h"
 #include "sig_funcs.h"
+#include "log.h"
+#include "utils.h"
+#include "shell_state.h"
 
 volatile sig_atomic_t sigchld_caught = false;
 volatile sig_atomic_t sighup_caught = false;

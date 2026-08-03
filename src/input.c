@@ -10,6 +10,7 @@
 #include "dyn_str.h"
 #include "log.h"
 #include "shell_state.h"
+#include "utils.h"
 
 static char input_line[LINE_BUF];
 

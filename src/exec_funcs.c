@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 
+#include "utils.h"
 #include "builtins.h"
 #include "log.h"
 #include "parser.h"

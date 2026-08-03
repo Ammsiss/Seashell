@@ -5,6 +5,7 @@
 #include "log.h"
 #include "job_state.h"
 #include "wait_stat.h"
+#include "utils.h"
 
 static job_table jctl = {0};
 static da_jevent jevs = {0};
