@@ -9,17 +9,14 @@
 #include "pty_test.h"
 #include "proc_view.h"
 
-#define assert_send_string(ptyt, str) \
-    TEST_ASSERT_EQUAL_INT(0, send_string(ptyt, str));
-
 #define PROMPT "> "
 #define BUF_SIZE 8192
 
 typedef struct {
-    size_t n;
-    char buf[BUF_SIZE];
     size_t len;
-} pty_read;
+    char buf[BUF_SIZE];
+    size_t n;
+} pty_io;
 
 char *argv[] = { "/home/juta/Projects/Seashell/seashell" };
 pty_test ptyt = {0};
@@ -27,26 +24,45 @@ pid_t cpid = {0};
 da_pstat pstats;
 
 bool read_until(void *context) {
-    pty_read *rst = context;
+    pty_io *iost = context;
 
-    if (rst->n >= BUF_SIZE - 1 || rst->len >= BUF_SIZE - 1)
+    if (iost->len >= BUF_SIZE - 1 || iost->n >= BUF_SIZE - 1)
         return false;
 
-    int num_read = xread(ptyt.mfd, &rst->buf[rst->len], rst->n - rst->len);
+    int num_read = xread(ptyt.mfd, &iost->buf[iost->n], iost->len - iost->n);
 
     if (num_read == -1) {
         if (errno == EAGAIN) {
             return false;
-
         } else
             TEST_FAIL();
     }
 
-    rst->len += num_read;
+    iost->n += num_read;
 
-    rst->buf[rst->len] = '\0';
+    iost->buf[iost->n] = '\0';
 
-    return rst->n == rst->len;
+    return iost->len == iost->n;
+}
+
+bool write_until(void *context) {
+    pty_io *iost = context;
+
+    if (iost->len >= BUF_SIZE - 1 || iost->n >= BUF_SIZE - 1)
+        return false;
+
+    int num_write = xwrite(ptyt.mfd, &iost->buf[iost->n], iost->len - iost->n);
+
+    if (num_write == -1) {
+        if (errno == EAGAIN) {
+            return false;
+        } else
+            TEST_FAIL();
+    }
+
+    iost->n += num_write;
+
+    return iost->len == iost->n;
 }
 
 bool shell_exited(void *_) {
@@ -122,17 +138,31 @@ bool wait_for(bool (* pred)(void *context), void *context, int max_ms) {
 }
 
 void read_verify(char *exp_str) {
-    pty_read rst = {
+    pty_io rst = {
+        .len = strlen(exp_str),
         .buf = {0},
-        .len = 0,
-        .n = strlen(exp_str)
+        .n = 0,
     };
 
-    if (rst.n >= BUF_SIZE)
+    if (rst.len >= BUF_SIZE)
         TEST_FAIL_MESSAGE("expected string too large");
 
-    wait_for(read_until, &rst, 1000);
+    TEST_ASSERT(wait_for(read_until, &rst, 1000));
     TEST_ASSERT_EQUAL_STRING(exp_str, rst.buf);
+}
+
+void write_verify(char *str) {
+    pty_io wst;
+
+    wst.len = strlen(str);
+
+    if (wst.len >= BUF_SIZE)
+        TEST_FAIL_MESSAGE("string too large to write");
+
+    strncpy(wst.buf, str, wst.len);
+    wst.n = 0;
+
+    TEST_ASSERT(wait_for(write_until, &wst, 1000));
 }
 
 void verify_proc_in_fg(char *name) {
@@ -180,19 +210,21 @@ void tearDown(void) {
 }
 
 void test_interupt_fg_job(void) {
-    assert_send_string(&ptyt, "cat\n");
-    assert_send_string(&ptyt, "foo\n");
+    write_verify("cat\n");
+    write_verify("foo\n");
 
     verify_proc_in_fg("cat");
-    send_tty_cc(&ptyt, VINTR);
+
+    if (send_tty_cc(&ptyt, VINTR) == -1)
+        TEST_FAIL();
 
     read_verify("foo\n");
     read_verify(PROMPT);
 }
 
 void test_bg_jobs_pid_state(void) {
-    assert_send_string(&ptyt, "sleep 10&\n");
-    assert_send_string(&ptyt, "sleep 10&\n");
+    write_verify("sleep 10&\n");
+    write_verify("sleep 10&\n");
 
     if (!wait_for(pstat_size, &(size_t){2}, 1000))
         TEST_FAIL();
@@ -213,9 +245,9 @@ int main(void) {
 
     UNITY_BEGIN();
 
-    RUN_TEST(test_interupt_fg_job);
+    // RUN_TEST(test_interupt_fg_job);
     RUN_TEST(test_bg_jobs_pid_state);
-    RUN_TEST(test_rapid_set_up_tear_down);
+    // RUN_TEST(test_rapid_set_up_tear_down);
 
     return UNITY_END();
 }

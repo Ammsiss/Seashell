@@ -170,7 +170,7 @@ int pty_test_done(pty_test *ptyt) {
 int send_string(pty_test *ptyt, const char *cmd) {
     assert(ptyt && cmd);
 
-    int num_write = xwrite(ptyt->mfd,  cmd, strlen(cmd));
+    int num_write = xwrite(ptyt->mfd, cmd, strlen(cmd));
 
     if (num_write == -1)
         return -1;
@@ -186,68 +186,7 @@ int send_string(pty_test *ptyt, const char *cmd) {
 int send_tty_cc(pty_test *ptyt, int cc_code) {
     assert(ptyt);
 
-    char buf[2];
-    buf[0] = ptyt->tp.c_cc[cc_code];
-    buf[1] = '\0';
+    int num_write = xwrite(ptyt->mfd, &ptyt->tp.c_cc[cc_code], 1);
 
-    return send_string(ptyt, buf);
-}
-
-int verify_read(pty_test *ptyt, char *exp_str) {
-    assert(ptyt && exp_str);
-
-    d_str got;
-    if (d_str_init(&got) == -1) {
-        LOG_ERR("d_str_init");
-        return -1;
-    }
-
-    int exp_len = strlen(exp_str);
-    char buf[MTTY_BUF];
-
-    for (int i = 0; i < 3; ++i) {
-        int num_read = xread(ptyt->mfd, buf, exp_len);
-
-        if (num_read == -1) {
-            if (errno != EAGAIN)
-                goto fail;
-
-            if (i == 2) {
-                LOG_ERR("timeout: exp: \"%s\", got: %s", exp_str, got.c_str);
-                goto fail;
-            }
-
-            if (xnanosleep(&TS, NULL) == -1)
-                goto fail;
-
-            continue;
-        }
-
-        buf[num_read] = '\0';
-
-        if (d_strcat(&got, buf) == -1) {
-            LOG_ERR("d_strcat");
-            goto fail;
-        }
-
-        if (exp_len != num_read) {
-            exp_len -= num_read;
-            continue;
-
-        } else {
-            if (strcmp(exp_str, got.c_str) != 0) {
-                LOG_ERR("exp: \"%s\", got: \"%s\"", exp_str, got.c_str);
-                goto fail;
-            }
-
-            break;
-        }
-    }
-
-    d_str_free(&got);
-    return 0;
-
-fail:
-    d_str_free(&got);
-    return -1;
+    return num_write;
 }
