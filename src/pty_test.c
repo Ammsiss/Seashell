@@ -1,5 +1,9 @@
 #define _GNU_SOURCE
 
+#include <assert.h>
+#include <errno.h>
+#include <string.h>
+#include <stdio.h>
 #include <time.h>
 #include <wait.h>
 #include <stdlib.h> // IWYU pragma: keep
@@ -9,100 +13,92 @@
 #include <sys/ioctl.h>
 
 #include "pty_test.h"
-#include "log.h"
-#include "dyn_str.h"
-
-#define MTTY_BUF 4096
 
 #define TS \
     (struct timespec){ .tv_nsec = 330000000, .tv_sec = 0 }
 
-static int pty_master_open(pty_test *ptyt) {
+static void err_exit(char *msg) {
+    fprintf(stderr, "log: %s: %s", msg, strerror(errno));
+    exit(EXIT_FAILURE);
+}
+
+static void pty_master_open(pty_test *ptyt) {
     assert(ptyt);
         /* passing O_NONBLOCK directly is linux specific */
-    ptyt->mfd = xposix_openpt(O_RDWR | O_NOCTTY | O_NONBLOCK);
+    ptyt->mfd = posix_openpt(O_RDWR | O_NOCTTY | O_NONBLOCK);
     if (ptyt->mfd == -1)
-        return -1;
+        err_exit("posix_openpt");
 
         /* granpt not actually required on linux */
-    if (xgrantpt(ptyt->mfd) == -1)
-        return -1;
+    if (grantpt(ptyt->mfd) == -1)
+        err_exit("grantpt");
 
-    if (xunlockpt(ptyt->mfd) == -1)
-        return -1;
+    if (unlockpt(ptyt->mfd) == -1)
+        err_exit("unlockpt");
 
-    ptyt->slave_name = xptsname(ptyt->mfd);
+    ptyt->slave_name = ptsname(ptyt->mfd);
     if (!ptyt->slave_name)
-        return -1;
-
-    return 0;
+        err_exit("ptsname");
 }
 
 static int pty_fork(pty_test *ptyt) {
     assert(ptyt);
     assert(ptyt->slave_name);
 
-    int cpid = xfork();
+    int cpid = fork();
     if (cpid == -1)
-        return -1;
+        err_exit("fork");
 
     if (cpid != 0)
         return cpid;
 
     /* child continues... */
 
-    if (xsetsid() == (pid_t) -1)
+    if (setsid() == (pid_t) -1)
         _exit(EXIT_FAILURE);
 
-    if (xclose(ptyt->mfd) == -1)
+    if (close(ptyt->mfd) == -1)
         _exit(EXIT_FAILURE);
 
         /* on BSD you need to preform TIOCSCTTY ioctl operation */
-    int sfd = xopen(ptyt->slave_name, O_RDWR);
+    int sfd = open(ptyt->slave_name, O_RDWR);
     if (sfd == -1)
         _exit(EXIT_FAILURE);
 
-    if (xdup2(sfd, STDIN_FILENO) != STDIN_FILENO)
+    if (dup2(sfd, STDIN_FILENO) != STDIN_FILENO)
         _exit(EXIT_FAILURE);
-    if (xdup2(sfd, STDOUT_FILENO) != STDOUT_FILENO)
+    if (dup2(sfd, STDOUT_FILENO) != STDOUT_FILENO)
         _exit(EXIT_FAILURE);
-    if (xdup2(sfd, STDERR_FILENO) != STDERR_FILENO)
+    if (dup2(sfd, STDERR_FILENO) != STDERR_FILENO)
         _exit(EXIT_FAILURE);
 
     if (sfd > STDERR_FILENO)
-        if (xclose(sfd) == -1)
+        if (close(sfd) == -1)
             _exit(EXIT_FAILURE);
 
     return 0;
 }
 
-static int init_termios(pty_test *ptyt) {
+static void init_termios(pty_test *ptyt) {
     assert(ptyt);
 
-    if (xtcgetattr(ptyt->mfd, &ptyt->tp) == -1)
-        return -1;
+    if (tcgetattr(ptyt->mfd, &ptyt->tp) == -1)
+        err_exit("tcgetattr");
 
     ptyt->tp.c_lflag &= ~ECHO; /* don't echo, non-interactive */
     ptyt->tp.c_oflag &= ~OPOST; /* no post processing, \r\n -> \n */
 
-    if (xtcsetattr(ptyt->mfd, 0, &ptyt->tp) == -1)
-        return -1;
-
-    return 0;
+    if (tcsetattr(ptyt->mfd, 0, &ptyt->tp) == -1)
+        err_exit("tcsetattr");
 }
 
-int open_pty_test(pty_test *ptyt) {
+void open_pty_test(pty_test *ptyt) {
     assert(ptyt);
-    assert(log_is_open());
 
     *ptyt = (pty_test){0};
 
-    if (pty_master_open(ptyt) == -1)
-        return -1;
-    if (init_termios(ptyt) == -1)
-        return -1;
-
-    return 0;
+    pty_master_open(ptyt);
+    init_termios(ptyt);
 }
 
 void close_pty_test(pty_test *ptyt) {
@@ -115,70 +111,33 @@ void close_pty_test(pty_test *ptyt) {
 
 int fork_pty_test(pty_test *ptyt, char **argv) {
     int pfd[2];
-    if (xpipe(pfd) == -1)
-        return -1;
+    if (pipe(pfd) == -1)
+        err_exit("pipe");
 
     int cpid = pty_fork(ptyt);
 
-    if (cpid == -1)
-        return -1;
-
     if (cpid == 0) {
-        if (xclose(pfd[0]) == -1)
+        if (close(pfd[0]) == -1)
             _exit(EXIT_FAILURE);
 
-        if (xwrite(pfd[1], &(char){'x'}, 1) != 1)
+        if (write(pfd[1], &(char){'x'}, 1) != 1)
             _exit(EXIT_FAILURE);
 
-        if (xclose(pfd[1]) == -1)
+        if (close(pfd[1]) == -1)
             _exit(EXIT_FAILURE);
 
-        xexecvp(argv[0], argv);
+        execvp(argv[0], argv);
         _exit(EXIT_FAILURE);
     }
 
-    if (xclose(pfd[1]) == -1)
-        return -1;
+    if (close(pfd[1]) == -1)
+        err_exit("close");
 
-    if (xread(pfd[0], &(char){0}, 1) != 1)
-        return -1;
+    if (read(pfd[0], &(char){0}, 1) != 1)
+        err_exit("read");
 
-    if (xclose(pfd[0]) == -1)
-        return -1;
+    if (close(pfd[0]) == -1)
+        err_exit("close");
 
     return cpid;
-}
-
-#define BUF_SIZE 8192
-
-int pty_test_done(pty_test *ptyt) {
-    int num_read;
-    char buf[BUF_SIZE];
-
-        /* don't log becuase EIO is expected */
-    while ((num_read = read(ptyt->mfd, buf, BUF_SIZE - 1)) > 0) {
-        buf[num_read] = '\0';
-        LOG_INFO("stale pty data: \"%s\"", buf);
-    }
-
-    if (num_read == 0 || (num_read == -1 && errno != EIO))
-        return -1;
-
-    return 0;
-}
-
-int send_string(pty_test *ptyt, const char *cmd) {
-    assert(ptyt && cmd);
-
-    int num_write = xwrite(ptyt->mfd, cmd, strlen(cmd));
-
-    if (num_write == -1)
-        return -1;
-
-    if (num_write != (int) strlen(cmd)) {
-        LOG_ERR("partial write");
-        return -1;
-    }
-
-    return 0;
 }

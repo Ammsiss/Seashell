@@ -16,10 +16,8 @@ struct pty_test {
     struct termios tp;
 };
 
-int open_pty_test(pty_test *ptyt);
+void open_pty_test(pty_test *ptyt);
 void close_pty_test(pty_test *ptyt);
-
 int fork_pty_test(pty_test *ptyt, char **argv);
-int pty_test_done(pty_test *ptyt);
 
 #endif

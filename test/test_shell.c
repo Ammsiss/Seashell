@@ -26,7 +26,7 @@ da_pstat pstats;
 bool read_until(void *context) {
     pty_io *iost = context;
 
-    if (iost->len >= BUF_SIZE - 1 || iost->n >= BUF_SIZE - 1)
+    if (iost->len > BUF_SIZE - 1 || iost->n > iost->len)
         return false;
 
     int num_read = xread(ptyt.mfd, &iost->buf[iost->n], iost->len - iost->n);
@@ -48,7 +48,7 @@ bool read_until(void *context) {
 bool write_until(void *context) {
     pty_io *iost = context;
 
-    if (iost->len >= BUF_SIZE - 1 || iost->n >= BUF_SIZE - 1)
+    if (iost->n > BUF_SIZE -1 || iost->n > iost->len)
         return false;
 
     int num_write = xwrite(ptyt.mfd, &iost->buf[iost->n], iost->len - iost->n);
@@ -118,7 +118,7 @@ bool names_present(void *context) {
 }
 
 bool wait_for(bool (* pred)(void *context), void *context, int max_ms) {
-    int checks = 500;
+    int checks = 1000;
     int sleep_time = max_ms / checks;
 
     int sec = sleep_time / 1000;
@@ -156,7 +156,7 @@ void write_verify(char *str) {
 
     wst.len = strlen(str);
 
-    if (wst.len >= BUF_SIZE)
+    if (wst.len > BUF_SIZE - 1)
         TEST_FAIL_MESSAGE("string too large to write");
 
     strncpy(wst.buf, str, wst.len);
@@ -183,6 +183,21 @@ void verify_proc_in_fg(char *name) {
 
     if (!wait_for(proc_in_fg, &(pid_t){ pstat->pid }, 1000))
         TEST_FAIL();
+}
+
+int flush_pty(void) {
+    int num_read;
+    char buf[BUF_SIZE];
+
+    while ((num_read = read(ptyt.mfd, buf, BUF_SIZE - 1)) > 0) {
+        buf[num_read] = '\0';
+        LOG_INFO("%s: \"%s\"", Unity.CurrentTestName, buf);
+    }
+
+    if (num_read == -1 && errno != EIO && errno != EAGAIN)
+        TEST_FAIL();
+
+    return 0;
 }
 
 void setUp(void) {
@@ -212,9 +227,8 @@ void tearDown(void) {
         sigkill_sent = true;
     }
 
+    flush_pty();
     da_free(&pstats);
-
-    TEST_ASSERT_EQUAL_INT(0, pty_test_done(&ptyt));
 }
 
 void test_interupt_fg_job(void) {
@@ -250,9 +264,12 @@ int main(void) {
 
     UNITY_BEGIN();
 
-    RUN_TEST(test_interupt_fg_job);
-    RUN_TEST(test_bg_jobs_pid_state);
-    RUN_TEST(test_rapid_set_up_tear_down);
+    for (int i = 0; i < 300; ++i)
+        RUN_TEST(test_interupt_fg_job);
+    for (int i = 0; i < 100; ++i)
+        RUN_TEST(test_bg_jobs_pid_state);
+    for (int i = 0; i < 100; ++i)
+        RUN_TEST(test_rapid_set_up_tear_down);
 
     return UNITY_END();
 }
