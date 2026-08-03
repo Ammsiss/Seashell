@@ -32,7 +32,7 @@ static void print_job_event(job_event *jev, bool *prompt_upset) {
         *prompt_upset = true;
     }
 
-    printf("%s", get_jev_str(*jev));
+    printf("%s\n", get_jev_str(*jev));
 }
 
 static void hup_to_children(void) {
@@ -97,7 +97,7 @@ static void line_to_ast(ps_ast *ast) {
 }
 
 static int shell_block(pid_t fg_jid) {
-    int nfds = fg_jid == -1 ? 1 : 0;
+    int nfds = fg_jid == NOFG ? 1 : 0;
 
     struct pollfd events = {
         .events = POLLIN,
@@ -149,7 +149,7 @@ int main(void) {
         if (sh_ready == SIG_READY) {
 
             bool need_prompt = false;
-            bool prompt_upset = false;
+            bool prompt_upset = sh_env.fg_jid != NOFG;
 
             job_event *jev;
             while ((jev = pop_job_event())) {
@@ -161,8 +161,10 @@ int main(void) {
                     reclaim_terminal();
                     need_prompt = true;
 
-                    if (jev->type == JSTOPPED)
+                    if (jev->type == JSTOPPED) {
+                        printf("\n");
                         print_job_event(jev, &prompt_upset);
+                    }
                 }
             }
 
@@ -183,21 +185,19 @@ int main(void) {
                 display_prompt(PROMPT_SIMPLE); /* never lost term fg status */
 
             } else {
-                pline_data pld = exec_pline(&ast.andors.data[0].pline, ast.bg);
-
-                pid_t jid = add_job(pld.pids, pld.pgid);
-                if (jid == -1)
-                    xfatal("add_job");
-
-                free_pline_data(&pld);
+                pid_t jid = create_job_id();
 
                 if (ast.bg) {
                     printf("[%d] started\n", jid);
                     display_prompt(PROMPT_SIMPLE);
-
-                } else {
+                } else
                     sh_env.fg_jid = jid;
-                }
+
+                pline_data pld = exec_pline(&ast.andors.data[0].pline, ast.bg);
+
+                add_job(jid, pld.pids, pld.pgid);
+
+                free_pline_data(&pld);
             }
 
             ps_free(&ast);

@@ -22,22 +22,6 @@ static void free_job(jc_job *job) {
     *job = (jc_job){0};
 }
 
-static pid_t create_job_id(void) {
-    pid_t jid = 1;
-
-    if (jctl.jobs.size == 0)
-        return jid;
-
-    for (size_t i = 0; i < jctl.jobs.size; ++i) {
-        if (jid == jctl.jobs.data[i].jid) {
-            ++jid;
-            continue;
-        }
-    }
-
-    return jid;
-}
-
 static job_stat calc_job_stat(jc_job *job) {
     bool stopped = false;
 
@@ -74,6 +58,22 @@ static bool identify_proc(pid_t pid, jc_job **job, jc_proc** proc) {
     }
 
     return false;
+}
+
+pid_t create_job_id(void) {
+    pid_t jid = 1;
+
+    if (jctl.jobs.size == 0)
+        return jid;
+
+    for (size_t i = 0; i < jctl.jobs.size; ++i) {
+        if (jid == jctl.jobs.data[i].jid) {
+            ++jid;
+            continue;
+        }
+    }
+
+    return jid;
 }
 
 char *get_jev_str(job_event jev) {
@@ -199,7 +199,7 @@ static bool pg_leader_missing(pid_t pgid, da_pid *pids) {
     return true;
 }
 
-pid_t add_job(da_pid *pids, pid_t pgid) {
+int add_job(pid_t jid, da_pid *pids, pid_t pgid) {
     assert(pids);
 
     if (pids->size == 0)
@@ -214,7 +214,7 @@ pid_t add_job(da_pid *pids, pid_t pgid) {
 
     init_job(job);
 
-    job->jid = create_job_id();
+    job->jid = jid;
     job->stat = JOB_RUN;
     job->pgrp.pgid = pgid;
 
@@ -232,5 +232,5 @@ pid_t add_job(da_pid *pids, pid_t pgid) {
 
     LOG_INFO("[%d] started", job->jid);
 
-    return job->jid;
+    return 0;
 }

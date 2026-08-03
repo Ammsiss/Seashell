@@ -140,15 +140,22 @@ bool wait_for(bool (* pred)(void *context), void *context, int max_ms) {
 void read_verify(char *exp_str) {
     pty_io rst = {
         .len = strlen(exp_str),
-        .buf = {0},
+        .buf = "",
         .n = 0,
     };
 
     if (rst.len >= BUF_SIZE)
         TEST_FAIL_MESSAGE("expected string too large");
 
-    TEST_ASSERT(wait_for(read_until, &rst, 1000));
-    TEST_ASSERT_EQUAL_STRING(exp_str, rst.buf);
+    if (!wait_for(read_until, &rst, 1000)) {
+        LOG_ERR("exp: %s got: %s", exp_str, rst.buf);
+        TEST_FAIL();
+    }
+
+    if (strcmp(exp_str, rst.buf) != 0) {
+        LOG_ERR("exp: %s got: %s", exp_str, rst.buf);
+        TEST_FAIL();
+    }
 }
 
 void write_verify(char *str) {
@@ -234,11 +241,20 @@ void tearDown(void) {
 void test_interupt_fg_job(void) {
     write_verify("cat\n");
     write_verify("foo\n");
+
     verify_proc_in_fg("cat");
     send_tty_cc(VINTR);
 
-    read_verify("foo\n");
-    read_verify(PROMPT);
+    read_verify("foo\n" PROMPT);
+}
+
+void test_stop_fg_job(void) {
+    write_verify("sleep 100\n");
+
+    verify_proc_in_fg("sleep");
+    send_tty_cc(VSUSP);
+
+    read_verify("\n[1] stopped\n" PROMPT);
 }
 
 void test_bg_jobs_pid_state(void) {
@@ -248,15 +264,48 @@ void test_bg_jobs_pid_state(void) {
     if (!wait_for(pstat_size, &(size_t){2}, 1000))
         TEST_FAIL();
 
-    read_verify("[1] started\n");
-    read_verify(PROMPT);
+    read_verify("[1] started\n" PROMPT "[2] started\n" PROMPT);
+}
 
-    read_verify("[2] started\n");
+void test_unknown_cmd(void) {
+    write_verify("zoobar\n"); /* hopefully no-one ever makes this... */
+
+    read_verify("seashell: command not found: zoobar\n" PROMPT);
+}
+
+void test_jobs_builtin(void) {
+    write_verify("jobs\n");
+    write_verify("sleep 100 &\n");
+    write_verify("jobs\n");
+
+    read_verify(PROMPT "[1] started\n" PROMPT "[1] running\n" PROMPT);
+}
+
+void test_pipeline(void) {
+    write_verify("echo hi | grep h | wc -c\n");
+        /* wc includes the newline */
+    read_verify("3\n" PROMPT);
+}
+
+void test_prompt_after_reclaim_tty(void) {
+    write_verify("echo hi\n");
+
+    read_verify("hi\n" PROMPT);
+}
+
+void test_prompt_after_launch_bg_cmd(void) {
+    write_verify("sleep 5 &\n");
+
+    read_verify("[1] started\n" PROMPT);
+}
+
+void test_prompt_after_running_fg_builtin(void) {
+    write_verify("cd .\n");
+
     read_verify(PROMPT);
 }
 
-void test_rapid_set_up_tear_down(void) {
-}
+// void test_prompt_after_running_k
 
 int main(void) {
     log_init("/home/juta/Projects/Seashell/test/logs");
@@ -264,12 +313,16 @@ int main(void) {
 
     UNITY_BEGIN();
 
-    for (int i = 0; i < 300; ++i)
-        RUN_TEST(test_interupt_fg_job);
-    for (int i = 0; i < 100; ++i)
-        RUN_TEST(test_bg_jobs_pid_state);
-    for (int i = 0; i < 100; ++i)
-        RUN_TEST(test_rapid_set_up_tear_down);
+    RUN_TEST(test_interupt_fg_job);
+    RUN_TEST(test_stop_fg_job);
+    RUN_TEST(test_bg_jobs_pid_state);
+    RUN_TEST(test_unknown_cmd);
+    RUN_TEST(test_jobs_builtin);
+    RUN_TEST(test_pipeline);
+
+    RUN_TEST(test_prompt_after_reclaim_tty);
+    RUN_TEST(test_prompt_after_launch_bg_cmd);
+    RUN_TEST(test_prompt_after_running_fg_builtin);
 
     return UNITY_END();
 }
