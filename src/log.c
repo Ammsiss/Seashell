@@ -20,7 +20,7 @@ static void err_exit(char *msg) {
 }
 
 static void fatal(char *msg) {
-    fprintf(stderr, "%s\n", msg);
+    fprintf(stderr, "log: %s\n", msg);
     exit(EXIT_FAILURE);
 }
 

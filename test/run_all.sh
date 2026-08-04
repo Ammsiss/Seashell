@@ -29,4 +29,6 @@ run_test test_parser
 run_test test_lexer
 run_test test_job_state
 
+run_test test_shell
+
 rm /tmp/unity_output
