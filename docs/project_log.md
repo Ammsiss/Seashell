@@ -1,5 +1,27 @@
 ---------------------------------------------------------------------------------
 
+## 2026-08-04
+
+### Next
+
+- [ ] investigate why just '"' has weird prompt ordering
+- [ ] fix job_plan leak when fully short circuited (eg true || true)
+- [ ] builtins in first position currenlty short circuit and or chains
+
+### Completed
+
+- [x] proc_view should not include log.c
+- [x] Add a variadic printf style strcat to dynstr
+- [x] send last process exit info in job_exited event
+- [x] add andor logic
+
+### Notes
+
+Adding and or stuff back this time felt much easier. Used the same plan
+method just a lot simpler. It seems to jive well with the "event" model.
+
+---------------------------------------------------------------------------------
+
 ## 2026-08-03
 
 ### Next

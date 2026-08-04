@@ -378,6 +378,38 @@ void test_simple_bg_andor_chain(void) {
     read_verify("[1] started\n" PROMPT "x\n" "\n[1] exited\n" PROMPT);
 }
 
+void test_and_if_logic(void) {
+    write_verify("true && echo x\n");
+    read_verify("x\n" PROMPT);
+
+    write_verify("false && echo x\n");
+    read_verify(PROMPT);
+}
+
+void test_or_if_logic(void) {
+    write_verify("false || echo y\n");
+    read_verify("y\n" PROMPT);
+
+    write_verify("true || echo y\n");
+    read_verify(PROMPT);
+}
+
+void test_and_if_logic_bg(void) {
+    write_verify("true && echo x &\n");
+    read_verify("[1] started\n" PROMPT "x\n\n[1] exited\n" PROMPT);
+
+    write_verify("false && echo x &\n");
+    read_verify("[1] started\n" PROMPT "\n[1] exited\n" PROMPT);
+}
+
+void test_or_if_logic_bg(void) {
+    write_verify("false || echo y &\n");
+    read_verify("[1] started\n" PROMPT "y\n\n[1] exited\n" PROMPT);
+
+    write_verify("true || echo y &\n");
+    read_verify("[1] started\n" PROMPT "\n[1] exited\n" PROMPT);
+}
+
 int main(void) {
     log_init("/home/juta/Projects/Seashell/test/logs");
     open_pty_test(&ptyt);
@@ -402,6 +434,10 @@ int main(void) {
         RUN_TEST(test_pipeline_of_builtins_does_not_duplicate_prompt);
         RUN_TEST(test_simple_andor_chain);
         RUN_TEST(test_simple_bg_andor_chain);
+        RUN_TEST(test_and_if_logic);
+        RUN_TEST(test_or_if_logic);
+        RUN_TEST(test_or_if_logic_bg);
+        RUN_TEST(test_and_if_logic_bg);
     }
 
     return UNITY_END();

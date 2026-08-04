@@ -1,6 +1,15 @@
 ### Tasks
 
-- [ ] proc_view should not include log.c
+- [ ] if request_job_id returns different, need to update fg_jid
+- [ ] investigate input followed by sigint followed by enter valgrind issue
+- [ ] consider making x-funcs err_exit directly on failure
+- [ ] make pop_job_event not use static storage
+- [ ] factor out lookup logic in run_next_job_in_plan
+- [ ] test stopping andor chain with plines left
+- [ ] stress test request_job_id with many different jobs exiting
+- [ ] make exec_pline use an outparam for pline_data
+- [ ] move fg_event() to shell_stat.c
+- [ ] Add a ncurses debug display
 - [ ] Intead of exiting with failure on sighup, self kill with sighup
 - [ ] Declarative pty tests that support cc, lines, and escape sequences
 - [ ] Write regression tests for the prompt redraw logic
@@ -9,6 +18,8 @@
 - [ ] if we need to test builtins, consider moving jctl back into sh_env
 - [ ] add pid string context to job control logs
 - [ ] on exec_pline failure, excess pfds in parent should be closed
+- [ ] consider only expanding 1 andor chain at a time etc
+- [ ] consider allowing add_jobs to free pline_data
 
 ### Unresolved
 
@@ -20,3 +31,4 @@
    just raw bytes being identicle. The pty test harness could then interact
    with the emulator instead for example feed(...) -> cells\[x,y\] = "..."
 4. Is fg_jid enough to replace the subshell boolean?
+5. Is the simpler void * dyn array strictly just better?

@@ -131,8 +131,7 @@ job_event *pop_job_event(void) {
     if (jevs.size == 0)
         return NULL;
 
-    jev.jid = jevs.data[0].jid;
-    jev.type = jevs.data[0].type;
+    jev = jevs.data[0];
 
     if (da_delete(&jevs, 0) == -1)
         xfatal("da_delete");
@@ -186,7 +185,19 @@ int update_job_proc(wait_event wev) {
         job->stat = stat;
 
     } else if (stat == JOB_EXIT) {
-        add_job_event((job_event){ .jid = job->jid, .type = JEXITED });
+
+        job_event jev = { .jid = job->jid, .type = JEXITED };
+
+        if (job->last->stat == PROC_EXIT) {
+            jev.success = job->last->exit_stat == EXIT_SUCCESS;
+
+        } else if (job->last->stat == PROC_SIG) {
+            jev.success = false;
+
+        } else
+            xfatal("unexpected process exit status");
+
+        add_job_event(jev);
 
         /* delete job */
         size_t i = get_job_index(job->jid);

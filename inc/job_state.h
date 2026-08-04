@@ -59,6 +59,7 @@ struct job_table {
 struct job_event {
     pid_t jid;
     job_event_type type;
+    bool success;
 };
 
 pid_t request_job_id(pid_t jid);

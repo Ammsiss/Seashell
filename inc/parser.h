@@ -68,6 +68,6 @@ struct ps_ast {
 typedef struct ps_ast ps_ast;
 
 void ps_free(ps_ast *ast);
-int ps_parse(da_tok *tokens, ps_ast *job);
+int ps_parse(da_tok *tokens, ps_ast *ast);
 
 #endif

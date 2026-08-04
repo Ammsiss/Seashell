@@ -240,25 +240,25 @@ static int queue_redir(lx_kind kind, int append, ps_scanner *scanner) {
     return 0;
 }
 
-void ps_free(ps_ast *job) {
-    if (!job)
+void ps_free(ps_ast *ast) {
+    if (!ast)
         return;
 
-    for (size_t i = 0; i < job->andors.size; ++i)
-        free_andor(&job->andors.data[i]);
-    da_free(&job->andors);
+    for (size_t i = 0; i < ast->andors.size; ++i)
+        free_andor(&ast->andors.data[i]);
+    da_free(&ast->andors);
 
-    *job = (ps_ast){0};
+    *ast = (ps_ast){0};
 }
 
-int ps_parse(da_tok *tokens, ps_ast *job) {
-    if (!tokens || !job)
+int ps_parse(da_tok *tokens, ps_ast *ast) {
+    if (!tokens || !ast)
         return -1;
 
     if (tokens->size == 0)
         return -1;
 
-    if (init_job(job) == -1)
+    if (init_job(ast) == -1)
         goto fail;
 
     ps_scanner scanner = {0};
@@ -280,7 +280,7 @@ int ps_parse(da_tok *tokens, ps_ast *job) {
                 continue;
             }
 
-            ensure_pline(&job->andors, scanner.cur_andor_op, &scanner);
+            ensure_pline(&ast->andors, scanner.cur_andor_op, &scanner);
             ensure_cmd(scanner.cur_pline, &scanner);
 
             ps_word *word = da_push_init(&scanner.cur_cmd->words, init_word);
@@ -313,7 +313,7 @@ int ps_parse(da_tok *tokens, ps_ast *job) {
             if (i != tokens->size - 1)
                 goto fail;
 
-            job->bg = true;
+            ast->bg = true;
             break;
         }
 
@@ -342,6 +342,6 @@ int ps_parse(da_tok *tokens, ps_ast *job) {
     return 0;
 
 fail:
-    ps_free(job);
+    ps_free(ast);
     return -1;
 }

@@ -25,34 +25,43 @@
 
 static da_plan plans = {0};
 
-static ps_andor *plan_next(job_plan *plan) {
+static ps_andor *pnxt(job_plan *plan) {
     return &plan->ast->andors.data[plan->index];
 }
 
 static ps_ast *line_to_ast(void) {
+
+    da_tok toks;
+    if (lx_tokenize(get_line(), &toks) == -1) {
+        err_msg("lex error");
+        return NULL;
+    }
+
     ps_ast *ast = xmalloc(sizeof(ps_ast));
     if (!ast)
         err_exit("malloc");
 
-    char *line = get_line();
-    da_tok toks = {0};
+    if (ps_parse(&toks, ast) == -1) {
+        err_msg("syntax error");
+        free(ast);
+        lx_free(&toks);
+        return NULL;
+    }
 
-    if (lx_tokenize(line, &toks) == -1)
-        xfatal("lx_tokenize");
-
-    if (ps_parse(&toks, ast) == -1)
-        xfatal("lx_tokenize");
-
-    if (ex_expand(ast) == -1)
-        xfatal("lx_tokenize");
+    if (ex_expand(ast) == -1) {
+        err_msg("expansion error");
+        ps_free(ast);
+        free(ast);
+        lx_free(&toks);
+        return NULL;
+    }
 
     lx_free(&toks);
-
     return ast;
 }
 
 static void add_plan(pid_t jid, ps_ast *ast) {
-    LOG_INFO("added plan with initial jid=%d", jid);
+    LOG_INFO("added plan jid=%d", jid);
 
     job_plan *plan = da_push(&plans);
     if (!plan)
@@ -64,7 +73,7 @@ static void add_plan(pid_t jid, ps_ast *ast) {
 }
 
 static void remove_plan(size_t index) {
-    LOG_INFO("Removed plan with jid=%d", plans.data[index].jid);
+    LOG_INFO("removed plan jid=%d", plans.data[index].jid);
 
     ps_free(plans.data[index].ast);
     free(plans.data[index].ast);
@@ -74,26 +83,41 @@ static void remove_plan(size_t index) {
 }
 
 static bool run_next_job_in_plan(job_event *jev, bool bg) {
+    bool execed_pline = false;
+
     for (size_t i = 0; i < plans.size; ++i) {
         if (jev->jid == plans.data[i].jid) {
+
             job_plan *plan = &plans.data[i];
 
-            plan->jid = request_job_id(plan->jid);
-            if (plan->jid == -1)
-                xfatal("job id unexpectedly unavailable");
+            for (; plan->index < plan->ast->andors.size; ++plan->index) {
 
-            pline_data pld = exec_pline(&plan_next(plan)->pline, bg);
-            add_job(plan->jid, pld.pids, pld.pgid);
-            free_pline_data(&pld);
+                if (jev->success && pnxt(plan)->op == PS_OR_IF)
+                    continue;
 
-            if (++plan->index >= plan->ast->andors.size)
-                remove_plan(i);
+                if (!jev->success && pnxt(plan)->op == PS_AND_IF)
+                    continue;
 
-            return true;
+                plan->jid = request_job_id(plan->jid);
+                if (plan->jid == -1)
+                    xfatal("job id unexpectedly unavailable");
+
+                pline_data pld = exec_pline(&pnxt(plan)->pline, bg);
+                add_job(plan->jid, pld.pids, pld.pgid);
+                free_pline_data(&pld);
+
+                if (++plan->index >= plan->ast->andors.size)
+                    remove_plan(i);
+
+                execed_pline = true;
+                break;
+            }
+
+            break;
         }
     }
 
-    return false;
+    return execed_pline;
 }
 
 static bool run_next_job_fg(job_event *jev) {
@@ -155,8 +179,6 @@ static void process_signals(void) {
     bool prompt_upset = !shell_in_fg();
 
     if (sigchld_caught) {
-        LOG_INFO("sigchild caught");
-
         wait_event wev;
         while (get_wstat(&wev) != -1)
             if (update_job_proc(wev) == -1)
@@ -164,16 +186,18 @@ static void process_signals(void) {
 
         job_event *jev;
         while ((jev = pop_job_event())) {
+
             if (!fg_event(jev)) {
                 if (jev->type != JEXITED || !run_next_job_bg(jev))
                     print_job_event(jev, &prompt_upset);
 
             } else if (jev->type == JEXITED) {
+
                 if (!run_next_job_fg(jev))
                     need_terminal = true;
 
             } else if (jev->type == JSTOPPED) {
-                printf("\n");
+                printf("\n"); /* because of echoed ^Z on C-z */
                 print_job_event(jev, &prompt_upset);
                 need_terminal = true;
             }
@@ -231,6 +255,11 @@ int main(void) {
         }
 
         ps_ast *ast = line_to_ast();
+        if (!ast) {
+            display_prompt(PROMPT_SIMPLE);
+            continue;
+        }
+
         if (ast->andors.size == 0)
             xfatal("parsed empty ast");
 

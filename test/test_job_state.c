@@ -128,6 +128,7 @@ typedef struct {
 struct job_event {
     pid_t jid;
     job_event_type type;
+    bool success;
 };
 
 void setUp(void) {}
