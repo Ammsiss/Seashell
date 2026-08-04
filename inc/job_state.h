@@ -12,12 +12,14 @@ typedef enum {
 
 typedef enum {
     PROC_EXIT,
+    PROC_SIG,
     PROC_STOP,
     PROC_RUN,
 } proc_stat;
 
 typedef enum {
     JEXITED,
+    /* JSIGNALED, ? */
     JSTOPPED,
     JCONTINUED,
 } job_event_type;
@@ -31,6 +33,11 @@ typedef struct job_event job_event;
 struct jc_proc {
     pid_t pid;
     proc_stat stat;
+
+    union {
+        int term_sig;
+        int exit_stat;
+    };
 };
 
 struct jc_pgrp {

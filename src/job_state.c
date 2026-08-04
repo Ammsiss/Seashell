@@ -131,6 +131,16 @@ job_event *pop_job_event(void) {
     return &jev;
 }
 
+void add_job_event(job_event jev) {
+    LOG_INFO("%s", get_jev_str(jev));
+
+    job_event *new_jev = da_push(&jevs);
+    if (!new_jev)
+        xfatal("da_push");
+
+    *new_jev = jev;
+}
+
 int update_job_proc(wait_event wev) {
     jc_job *job;
     jc_proc *proc;
@@ -138,8 +148,14 @@ int update_job_proc(wait_event wev) {
     if (!identify_proc(wev.pid, &job, &proc))
         return -1;
 
-    if (wev.type == PEXITED || wev.type == PSIGNALED) {
+    if (wev.type == PEXITED) {
         proc->stat = PROC_EXIT;
+        proc->exit_stat = wev.exit_stat;
+    }
+
+    if (wev.type == PSIGNALED) {
+        proc->stat = PROC_SIG;
+        proc->exit_stat = wev.term_sig;
     }
 
     else if (wev.type == PSTOPPED) {
@@ -151,41 +167,23 @@ int update_job_proc(wait_event wev) {
     }
 
     job_stat stat = calc_job_stat(job);
-    job_event jev;
-    bool jev_created = false;
-
-    jev.jid = job->jid;
 
     if (job->stat == JOB_RUN && stat == JOB_STOP) {
-        jev_created = true;
-        jev.type = JSTOPPED;
+        add_job_event((job_event){ .jid = job->jid, .type = JSTOPPED });
+        job->stat = stat;
 
     } else if (job->stat == JOB_STOP && stat == JOB_RUN) {
-        jev_created = true;
-        jev.type = JCONTINUED;
-    }
+        add_job_event((job_event){ .jid = job->jid, .type = JCONTINUED });
+        job->stat = stat;
 
-    job->stat = stat;
-
-    if (job->stat == JOB_EXIT) {
-        jev_created = true;
-        jev.type = JEXITED;
+    } else if (stat == JOB_EXIT) {
+        add_job_event((job_event){ .jid = job->jid, .type = JEXITED });
 
         /* delete job */
         size_t i = get_job_index(job->jid);
         free_job(&jctl.jobs.data[i]);
         if (da_delete(&jctl.jobs, i) == -1)
             xfatal("da_delete");
-    }
-
-    if (jev_created) {
-        LOG_INFO("%s", get_jev_str(jev));
-
-        job_event *new_jev = da_push(&jevs);
-        if (!new_jev)
-            xfatal("da_push");
-
-        *new_jev = jev;
     }
 
     return 0;
