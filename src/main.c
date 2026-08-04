@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <wait.h>
 
+#include "shell_types.h"
 #include "builtins.h"
 #include "exec_funcs.h"
 #include "expander.h"
@@ -21,6 +22,77 @@
 
 #define SIG_READY 1
 #define STDIN_READY 2
+
+static da_plan plans = {0};
+
+static ps_andor *plan_next(job_plan *plan) {
+    return &plan->ast->andors.data[plan->index];
+}
+
+static ps_ast *line_to_ast(void) {
+    ps_ast *ast = xmalloc(sizeof(ps_ast));
+    if (!ast)
+        err_exit("malloc");
+
+    char *line = get_line();
+    da_tok toks = {0};
+
+    if (lx_tokenize(line, &toks) == -1)
+        xfatal("lx_tokenize");
+
+    if (ps_parse(&toks, ast) == -1)
+        xfatal("lx_tokenize");
+
+    if (ex_expand(ast) == -1)
+        xfatal("lx_tokenize");
+
+    lx_free(&toks);
+
+    return ast;
+}
+
+static void add_plan(pid_t jid, ps_ast *ast) {
+    LOG_INFO("added plan with initial jid=%d", jid);
+
+    job_plan *plan = da_push(&plans);
+    if (!plan)
+        xfatal("da_push");
+
+    plan->jid = jid;
+    plan->index = 1;
+    plan->ast = ast;
+}
+
+static void remove_plan(size_t index) {
+    LOG_INFO("Removed plan with jid=%d", plans.data[index].jid);
+
+    ps_free(plans.data[index].ast);
+    free(plans.data[index].ast);
+
+    if (da_delete(&plans, index) == -1)
+        xfatal("da_delete");
+}
+
+static void run_next_job_in_plan(job_event *jev) {
+    for (size_t i = 0; i < plans.size;) {
+        if (jev->jid == plans.data[i].jid) {
+            job_plan *plan = &plans.data[i];
+
+            plan->jid = create_job_id();
+
+            pline_data pld = exec_pline(&plan_next(plan)->pline, plan->ast->bg);
+            add_job(plan->jid, pld.pids, pld.pgid);
+            free_pline_data(&pld);
+
+            if (++plan->index >= plan->ast->andors.size) {
+                remove_plan(i);
+                continue;
+            }
+        }
+
+        ++i;
+    }
+}
 
 static void print_job_event(job_event *jev, bool *prompt_upset) {
     assert(jev && prompt_upset);
@@ -56,22 +128,6 @@ static void hup_to_children(void) {
     LOG_INFO("seashell shutting down");
 }
 
-static void line_to_ast(ps_ast *ast) {
-    char *line = get_line();
-    da_tok toks = {0};
-
-    if (lx_tokenize(line, &toks) == -1)
-        xfatal("lx_tokenize");
-
-    if (ps_parse(&toks, ast) == -1)
-        xfatal("lx_tokenize");
-
-    if (ex_expand(ast) == -1)
-        xfatal("lx_tokenize");
-
-    lx_free(&toks);
-}
-
 void reclaim_terminal(void) {
     if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
         err_exit("tcsetpgrp");
@@ -97,6 +153,9 @@ static void process_signals(void) {
 
         job_event *jev;
         while ((jev = pop_job_event())) {
+
+            if (jev->type == JEXITED)
+                run_next_job_in_plan(jev);
 
             if (!fg_event(jev)) {
                 print_job_event(jev, &prompt_upset);
@@ -158,32 +217,39 @@ int main(void) {
             continue;
         }
 
-        ps_ast ast;
-        line_to_ast(&ast);
+        ps_ast *ast = line_to_ast();
+        if (ast->andors.size == 0)
+            xfatal("parsed empty ast");
 
-        ps_pline *pline = &ast.andors.data[0].pline;
+        ps_pline *first_pline = &ast->andors.data[0].pline;
 
-        if (pline->cmds.size == 1 && !ast.bg) {
-            if (try_run_builtin(pline->cmds.data[0].argv, NULL)) {
-                ps_free(&ast);
+        if (first_pline->cmds.size == 1 && !ast->bg) {
+            if (try_run_builtin(first_pline->cmds.data[0].argv, NULL)) {
+                ps_free(ast);
+                free(ast);
                 continue;
             }
         }
 
-        pid_t jid = create_job_id();
+        int jid = create_job_id();
 
-        if (ast.bg) {
+        if (ast->bg) {
             printf("[%d] started\n", jid);
             display_prompt(PROMPT_SIMPLE);
         } else
             sh_env.fg_jid = jid;
 
-        pline_data pld = exec_pline(&ast.andors.data[0].pline, ast.bg);
-
+        pline_data pld = exec_pline(first_pline, ast->bg);
         add_job(jid, pld.pids, pld.pgid);
-
         free_pline_data(&pld);
-        ps_free(&ast);
+
+        if (ast->andors.size > 1) {
+            add_plan(jid, ast);
+
+        } else {
+            ps_free(ast);
+            free(ast);
+        }
     }
 
     return EXIT_SUCCESS;
