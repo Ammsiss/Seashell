@@ -1,3 +1,5 @@
+#include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -67,6 +69,23 @@ int d_str_push(d_str *str, char c) {
     str->c_str[str->size - 1] = '\0';
 
     return 0;
+}
+
+int d_vstrcat(d_str *dst, char *fmt, ...) {
+    va_list va;
+    va_start(va, fmt);
+
+    char max_fmt_print[8192];
+    vsnprintf(max_fmt_print, 8192, fmt, va);
+
+    if (d_strcat(dst, max_fmt_print) == -1)
+        goto fail;
+
+    return 0;
+
+fail:
+    va_end(va);
+    return -1;
 }
 
 int d_strcat(d_str *dst, char *src) {

@@ -53,6 +53,17 @@ void test_concat_with_non_empty_string(void) {
     validate_str(6, 7, 7);
 }
 
+void test_vstrcat(void) {
+    int x = 1;
+    float y = 1.5;
+    char *s = "Equation";
+
+    d_vstrcat(&s_str, "%s: %d + %.1f = %.1f", s, x, y, x + y);
+    validate_str(23, 24, 24);
+
+    TEST_ASSERT_EQUAL_STRING("Equation: 1 + 1.5 = 2.5", s_str.c_str);
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -60,6 +71,7 @@ int main(void) {
     RUN_TEST(test_is_c_string_after_push);
     RUN_TEST(test_concat_right_after_init);
     RUN_TEST(test_concat_with_non_empty_string);
+    RUN_TEST(test_vstrcat);
 
     return UNITY_END();
 }

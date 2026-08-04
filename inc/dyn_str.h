@@ -4,6 +4,8 @@
 #include <assert.h>
 #include <stddef.h>
 
+#define PFFORMAT(x, y) __attribute__ ((format(printf, (x), (y))))
+
 typedef struct {
     char *c_str;
     size_t len;
@@ -15,6 +17,9 @@ int d_str_init(d_str *str);
 void d_str_free(d_str *str);
 int d_str_reserve(d_str *str, size_t min);
 int d_str_push(d_str *str, char c);
+
+PFFORMAT(2, 3)
+int d_vstrcat(d_str *dst, char *fmt, ...);
 
 int d_strcpy(d_str *str, char *c);
 int d_strcat(d_str *dst, char *src);
