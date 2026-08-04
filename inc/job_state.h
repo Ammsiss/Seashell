@@ -61,6 +61,7 @@ struct job_event {
     job_event_type type;
 };
 
+pid_t request_job_id(pid_t jid);
 pid_t create_job_id(void);
 
 job_table *get_jctl(void);

@@ -253,6 +253,30 @@ void tearDown(void) {
     da_free(&pstats);
 }
 
+void test_prompt_after_reclaim_tty(void) {
+    write_verify("echo x\n");
+
+    read_verify("x\n" PROMPT);
+}
+
+void test_prompt_after_launch_bg_cmd(void) {
+    write_verify("sleep 100 &\n");
+
+    read_verify("[1] started\n" PROMPT);
+}
+
+void test_prompt_after_launch_fg_builtin(void) {
+    write_verify("cd .\n");
+
+    read_verify(PROMPT);
+}
+
+void test_prompt_after_bg_job_done(void) {
+    write_verify("sleep 0.05 &\n");
+
+    read_verify("[1] started\n" PROMPT "\n[1] exited\n" PROMPT);
+}
+
 void test_short_lived_bg_cmd(void) {
     write_verify("echo x &\n");
             /* echo prints this newline --v */
@@ -308,30 +332,6 @@ void test_pipeline(void) {
     read_verify("3\n" PROMPT);
 }
 
-void test_prompt_after_reclaim_tty(void) {
-    write_verify("echo x\n");
-
-    read_verify("x\n" PROMPT);
-}
-
-void test_prompt_after_launch_bg_cmd(void) {
-    write_verify("sleep 100 &\n");
-
-    read_verify("[1] started\n" PROMPT);
-}
-
-void test_prompt_after_launch_fg_builtin(void) {
-    write_verify("cd .\n");
-
-    read_verify(PROMPT);
-}
-
-void test_prompt_after_bg_job_done(void) {
-    write_verify("sleep 0.05 &\n");
-
-    read_verify("[1] started\n" PROMPT "\n[1] exited\n" PROMPT);
-}
-
 void test_bg_job_done_with_fg_job(void) {
 
     /* launch 2 bg jobs to determine if the prompt was not printed.
@@ -355,8 +355,6 @@ void test_builtin_in_bg(void) {
                 "\n[1] exited\n" PROMPT);
 }
 
-/* REGRESSION TESTS */
-
 void test_pipeline_of_builtins_does_not_duplicate_prompt(void) {
 
     /* Regression: after adding display_prompt() to try_run_builtin()
@@ -368,6 +366,18 @@ void test_pipeline_of_builtins_does_not_duplicate_prompt(void) {
     read_verify("jobs: no job control in this shell\n" PROMPT);
 }
 
+void test_simple_andor_chain(void) {
+    write_verify("sleep 0.05 && echo x\n");
+
+    read_verify("x\n" PROMPT);
+}
+
+void test_simple_bg_andor_chain(void) {
+    write_verify("sleep 0.05 && echo x &\n");
+
+    read_verify("[1] started\n" PROMPT "x\n" "\n[1] exited\n" PROMPT);
+}
+
 int main(void) {
     log_init("/home/juta/Projects/Seashell/test/logs");
     open_pty_test(&ptyt);
@@ -375,6 +385,11 @@ int main(void) {
     UNITY_BEGIN();
 
     for (int i = 0; i < 1; ++i) {
+        RUN_TEST(test_prompt_after_reclaim_tty);
+        RUN_TEST(test_prompt_after_launch_bg_cmd);
+        RUN_TEST(test_prompt_after_launch_fg_builtin);
+        RUN_TEST(test_prompt_after_bg_job_done);
+
         RUN_TEST(test_short_lived_bg_cmd);
         RUN_TEST(test_int_fg_job);
         RUN_TEST(test_stop_fg_job);
@@ -382,18 +397,11 @@ int main(void) {
         RUN_TEST(test_unknown_cmd);
         RUN_TEST(test_jobs_builtin);
         RUN_TEST(test_pipeline);
-
-        RUN_TEST(test_prompt_after_reclaim_tty);
-        RUN_TEST(test_prompt_after_launch_bg_cmd);
-        RUN_TEST(test_prompt_after_launch_fg_builtin);
-        RUN_TEST(test_prompt_after_bg_job_done);
-
         RUN_TEST(test_bg_job_done_with_fg_job);
         RUN_TEST(test_builtin_in_bg);
-
-        /* REGRESSION TESTS */
-
         RUN_TEST(test_pipeline_of_builtins_does_not_duplicate_prompt);
+        RUN_TEST(test_simple_andor_chain);
+        RUN_TEST(test_simple_bg_andor_chain);
     }
 
     return UNITY_END();

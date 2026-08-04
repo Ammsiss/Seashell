@@ -60,6 +60,14 @@ static bool identify_proc(pid_t pid, jc_job **job, jc_proc** proc) {
     return false;
 }
 
+pid_t request_job_id(pid_t jid) {
+    for (size_t i = 0; i < jctl.jobs.size; ++i)
+        if (jid == jctl.jobs.data[i].jid)
+            return -1;
+
+    return jid;
+}
+
 pid_t create_job_id(void) {
     pid_t jid = 1;
 
@@ -69,6 +77,7 @@ pid_t create_job_id(void) {
     for (size_t i = 0; i < jctl.jobs.size; ++i) {
         if (jid == jctl.jobs.data[i].jid) {
             ++jid;
+            i = 0;
             continue;
         }
     }

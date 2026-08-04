@@ -73,25 +73,35 @@ static void remove_plan(size_t index) {
         xfatal("da_delete");
 }
 
-static void run_next_job_in_plan(job_event *jev) {
-    for (size_t i = 0; i < plans.size;) {
+static bool run_next_job_in_plan(job_event *jev, bool bg) {
+    for (size_t i = 0; i < plans.size; ++i) {
         if (jev->jid == plans.data[i].jid) {
             job_plan *plan = &plans.data[i];
 
-            plan->jid = create_job_id();
+            plan->jid = request_job_id(plan->jid);
+            if (plan->jid == -1)
+                xfatal("job id unexpectedly unavailable");
 
-            pline_data pld = exec_pline(&plan_next(plan)->pline, plan->ast->bg);
+            pline_data pld = exec_pline(&plan_next(plan)->pline, bg);
             add_job(plan->jid, pld.pids, pld.pgid);
             free_pline_data(&pld);
 
-            if (++plan->index >= plan->ast->andors.size) {
+            if (++plan->index >= plan->ast->andors.size)
                 remove_plan(i);
-                continue;
-            }
-        }
 
-        ++i;
+            return true;
+        }
     }
+
+    return false;
+}
+
+static bool run_next_job_fg(job_event *jev) {
+    return run_next_job_in_plan(jev, false);
+}
+
+static bool run_next_job_bg(job_event *jev) {
+    return run_next_job_in_plan(jev, true);
 }
 
 static void print_job_event(job_event *jev, bool *prompt_upset) {
@@ -141,6 +151,7 @@ bool fg_event(job_event *jev) {
 
 static void process_signals(void) {
     bool need_prompt = false;
+    bool need_terminal = false;
     bool prompt_upset = !shell_in_fg();
 
     if (sigchld_caught) {
@@ -153,21 +164,18 @@ static void process_signals(void) {
 
         job_event *jev;
         while ((jev = pop_job_event())) {
-
-            if (jev->type == JEXITED)
-                run_next_job_in_plan(jev);
-
             if (!fg_event(jev)) {
-                print_job_event(jev, &prompt_upset);
-
-            } else if (jev->type == JSTOPPED || jev->type == JEXITED) {
-                reclaim_terminal();
-                need_prompt = true;
-
-                if (jev->type == JSTOPPED) {
-                    printf("\n");
+                if (jev->type != JEXITED || !run_next_job_bg(jev))
                     print_job_event(jev, &prompt_upset);
-                }
+
+            } else if (jev->type == JEXITED) {
+                if (!run_next_job_fg(jev))
+                    need_terminal = true;
+
+            } else if (jev->type == JSTOPPED) {
+                printf("\n");
+                print_job_event(jev, &prompt_upset);
+                need_terminal = true;
             }
         }
     }
@@ -184,6 +192,11 @@ static void process_signals(void) {
     if (sighup_caught) {
         LOG_INFO("sighup caught");
         exit(EXIT_FAILURE);
+    }
+
+    if (need_terminal) {
+        reclaim_terminal();
+        need_prompt = true;
     }
 
     if (need_prompt || (shell_in_fg() && prompt_upset))
