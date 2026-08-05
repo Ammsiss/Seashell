@@ -28,10 +28,9 @@ void child_fd_setup(bool first, bool last, int next_pipe[2], int prev_rfd) {
     if (!last) {
         move_fd(next_pipe[1], STDOUT_FILENO);
 
-        if (close(next_pipe[0]) == -1) /* why here? */
+        if (close(next_pipe[0]) == -1)
             err_exit("close");
     }
-
 }
 
 void child_redir_setup(da_redir *redirs) {
