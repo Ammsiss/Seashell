@@ -449,11 +449,9 @@ int main(void) {
         RUN_TEST(test_or_if_logic);
         RUN_TEST(test_or_if_logic_bg);
         RUN_TEST(test_and_if_logic_bg);
-
         RUN_TEST(test_and_or_chain_with_builtins);
         RUN_TEST(test_prompt_after_launch_fg_builtin);
         RUN_TEST(test_jobs_builtin);
-
         RUN_TEST(test_builtin_and_or_logic);
     }
 

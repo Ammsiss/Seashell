@@ -48,6 +48,43 @@ static void hup_to_children(void) {
     LOG_INFO("seashell shutting down");
 }
 
+static ps_ast *line_to_ast(void) {
+
+    char *line = get_line();
+    if (strlen(line) == 0)
+        return NULL;
+
+    LOG_INFO("%s", line);
+
+    da_tok toks;
+    if (lx_tokenize(line, &toks) != LX_OK) {
+        err_msg("lex error");
+        return NULL;
+    }
+
+    ps_ast *ast = xmalloc(sizeof(ps_ast));
+    if (!ast)
+        err_exit("malloc");
+
+    if (ps_parse(&toks, ast) == -1) {
+        err_msg("syntax error");
+        free(ast);
+        lx_free(&toks);
+        return NULL;
+    }
+
+    if (ex_expand(ast) == -1) {
+        err_msg("expansion error");
+        ps_free(ast);
+        free(ast);
+        lx_free(&toks);
+        return NULL;
+    }
+
+    lx_free(&toks);
+    return ast;
+}
+
 static void launch_job(ps_pline *pline, bool bg, pid_t jid) {
     bool handled = false;
 
@@ -75,37 +112,6 @@ static void launch_job(ps_pline *pline, bool bg, pid_t jid) {
 
 static ps_andor *pnxt(job_plan *plan) {
     return &plan->ast->andors.data[plan->index];
-}
-
-static ps_ast *line_to_ast(void) {
-
-    da_tok toks;
-    if (lx_tokenize(get_line(), &toks) == -1) {
-        err_msg("lex error");
-        return NULL;
-    }
-
-    ps_ast *ast = xmalloc(sizeof(ps_ast));
-    if (!ast)
-        err_exit("malloc");
-
-    if (ps_parse(&toks, ast) == -1) {
-        err_msg("syntax error");
-        free(ast);
-        lx_free(&toks);
-        return NULL;
-    }
-
-    if (ex_expand(ast) == -1) {
-        err_msg("expansion error");
-        ps_free(ast);
-        free(ast);
-        lx_free(&toks);
-        return NULL;
-    }
-
-    lx_free(&toks);
-    return ast;
 }
 
 static void add_plan(pid_t jid, ps_ast *ast) {

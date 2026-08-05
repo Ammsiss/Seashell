@@ -128,6 +128,8 @@ char *convert_newlines(char *s) {
 /* level: file:line:func:pid msg[: errstr] */
 void log_msg(log_level level, const char *errstr, const char *file, int line, \
         const char *func, const char *fmt, ...) {
+    if (log_fd == -1)
+        err_exit("bad log_fd");
 
     int saved_errno = errno;
 

@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <linux/limits.h>
 #include <string.h> // IWYU pragma: keep
@@ -9,7 +10,6 @@
 #include "input.h"
 #include "dyn_str.h"
 #include "log.h"
-#include "shell_state.h"
 #include "utils.h"
 
 static char input_line[LINE_BUF];
@@ -38,23 +38,23 @@ void display_prompt(int mode) {
     } else
         xfatal("unknown prompt mode");
 
-    if (xwrite(sh_env.tty_fd, prompt.c_str, prompt.len) != (int) prompt.len)
-        err_exit("write");
+    printf("%s", prompt.c_str);
+    fflush(stdout);
 
     d_str_free(&prompt);
 }
 
 char *get_line(void) {
-    int num_read = xread(sh_env.tty_fd, input_line, LINE_BUF - 1);
-    if (num_read == -1)
-        err_exit("read");
+    if (!fgets(input_line, LINE_BUF, stdin))
+        xfatal("fgets");
 
-    if (num_read == 0) {
+    if (feof(stdout)) {
         LOG_INFO("eof, exiting");
         exit(EXIT_SUCCESS);
     }
 
-    input_line[num_read - 1] = '\0';
+    if (input_line[strlen(input_line) - 1] == '\n')
+        input_line[strlen(input_line) - 1 ] = '\0';
 
     return input_line;
 }
