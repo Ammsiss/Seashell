@@ -416,6 +416,14 @@ void test_jobs_builtin(void) {
     read_verify(PROMPT "[1] started\n" PROMPT "[1] running\n" PROMPT);
 }
 
+void test_builtin_and_or_logic(void) {
+    write_verify("cd /non-existant || echo ?\n");
+    read_verify("cd: chdir: No such file or directory\n?\n" PROMPT);
+
+    write_verify("cd /non-existant && echo ?\n");
+    read_verify("cd: chdir: No such file or directory\n" PROMPT);
+}
+
 int main(void) {
     log_init("/home/juta/Projects/Seashell/test/logs");
     open_pty_test(&ptyt);
@@ -445,6 +453,8 @@ int main(void) {
         RUN_TEST(test_and_or_chain_with_builtins);
         RUN_TEST(test_prompt_after_launch_fg_builtin);
         RUN_TEST(test_jobs_builtin);
+
+        RUN_TEST(test_builtin_and_or_logic);
     }
 
     return UNITY_END();

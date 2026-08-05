@@ -217,14 +217,14 @@ static bool pg_leader_missing(pid_t pgid, da_pid *pids) {
     return true;
 }
 
-void add_job_builtin(pid_t jid) {
+void queue_builtin_exit_event(pid_t jid, int status) {
     job_event builtin_jev = {
         .jid = jid,
         .type = JEXITED,
-        .success = true // TODO: get real exit status
+        .success = status == EXIT_SUCCESS
     };
 
-    LOG_INFO("[%d] started", jid);
+    LOG_INFO("[%d] started (builtin)", jid);
 
     add_job_event(builtin_jev);
 }

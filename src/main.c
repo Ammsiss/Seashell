@@ -52,9 +52,12 @@ static void launch_job(ps_pline *pline, bool bg, pid_t jid) {
     bool handled = false;
 
     if (pline->cmds.size == 1 && !bg) {
-        if (try_run_builtin(pline->cmds.data[0].argv, NULL)) {
 
-            add_job_builtin(jid);
+        int status;
+
+        if (try_run_builtin(pline->cmds.data[0].argv, &status)) {
+
+            queue_builtin_exit_event(jid, status);
 
             if (xkill(getpid(), SIGCHLD) == -1)
                 xfatal("kill");
