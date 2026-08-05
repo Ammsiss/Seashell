@@ -82,40 +82,47 @@ static void remove_plan(size_t index) {
         xfatal("da_delete");
 }
 
-static bool run_next_job_in_plan(job_event *jev, bool bg) {
-    bool execed_pline = false;
-
+static job_plan *lookup_plan(pid_t jid, size_t *index) {
     for (size_t i = 0; i < plans.size; ++i) {
-        if (jev->jid == plans.data[i].jid) {
-
-            job_plan *plan = &plans.data[i];
-
-            for (; plan->index < plan->ast->andors.size; ++plan->index) {
-
-                if (jev->success && pnxt(plan)->op == PS_OR_IF)
-                    continue;
-
-                if (!jev->success && pnxt(plan)->op == PS_AND_IF)
-                    continue;
-
-                plan->jid = request_job_id(plan->jid);
-                if (plan->jid == -1)
-                    xfatal("job id unexpectedly unavailable");
-
-                pline_data pld = exec_pline(&pnxt(plan)->pline, bg);
-                add_job(plan->jid, pld.pids, pld.pgid);
-                free_pline_data(&pld);
-
-                if (++plan->index >= plan->ast->andors.size)
-                    remove_plan(i);
-
-                execed_pline = true;
-                break;
-            }
-
-            break;
+        if (jid == plans.data[i].jid) {
+            *index = i;
+            return &plans.data[i];
         }
     }
+
+    return NULL;
+}
+
+static bool run_next_job_in_plan(job_event *jev, bool bg) {
+    size_t plan_i;
+    bool execed_pline = false;
+
+    job_plan *plan = lookup_plan(jev->jid, &plan_i);
+    if (!plan)
+        return execed_pline;
+
+    for (; plan->index < plan->ast->andors.size; ++plan->index) {
+
+        if (jev->success && pnxt(plan)->op == PS_OR_IF)
+            continue;
+
+        if (!jev->success && pnxt(plan)->op == PS_AND_IF)
+            continue;
+
+        plan->jid = request_job_id(plan->jid);
+        if (plan->jid == -1)
+            xfatal("job id unexpectedly unavailable");
+
+        pline_data pld = exec_pline(&pnxt(plan)->pline, bg);
+        add_job(plan->jid, pld.pids, pld.pgid);
+        free_pline_data(&pld);
+
+        execed_pline = true;
+        break;
+    }
+
+    if (++plan->index >= plan->ast->andors.size)
+        remove_plan(plan_i);
 
     return execed_pline;
 }
