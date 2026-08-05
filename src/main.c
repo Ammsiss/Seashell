@@ -48,6 +48,28 @@ static void hup_to_children(void) {
     LOG_INFO("seashell shutting down");
 }
 
+static void launch_job(ps_pline *pline, bool bg, pid_t jid) {
+    bool handled = false;
+
+    if (pline->cmds.size == 1 && !bg) {
+        if (try_run_builtin(pline->cmds.data[0].argv, NULL)) {
+
+            add_job_builtin(jid);
+
+            if (xkill(getpid(), SIGCHLD) == -1)
+                xfatal("kill");
+
+            handled = true;
+        }
+    }
+
+    if (!handled) {
+        pline_data pld = exec_pline(pline, bg);
+        add_job(jid, pld.pids, pld.pgid);
+        free_pline_data(&pld);
+    }
+}
+
 static ps_andor *pnxt(job_plan *plan) {
     return &plan->ast->andors.data[plan->index];
 }
@@ -136,24 +158,7 @@ static bool run_next_job_in_plan(job_event *jev, bool bg) {
         if (plan->jid == -1)
             xfatal("job id unexpectedly unavailable");
 
-        bool handled = false;
-
-        if (pnxt(plan)->pline.cmds.size == 1 && !bg) {
-            if (try_run_builtin(pnxt(plan)->pline.cmds.data[0].argv, NULL)) {
-                add_job_builtin(plan->jid);
-
-                if (xkill(getpid(), SIGCHLD) == -1)
-                    xfatal("kill");
-
-                handled = true;
-            }
-        }
-
-        if (!handled) {
-            pline_data pld = exec_pline(&pnxt(plan)->pline, bg);
-            add_job(plan->jid, pld.pids, pld.pgid);
-            free_pline_data(&pld);
-        }
+        launch_job(&pnxt(plan)->pline, bg, plan->jid);
 
         execed_pline = true;
         break;
@@ -298,24 +303,7 @@ int main(void) {
             sh_env.fg_jid = jid;
         }
 
-        bool handled = false;
-
-        if (first_pline->cmds.size == 1 && !ast->bg) {
-            if (try_run_builtin(first_pline->cmds.data[0].argv, NULL)) {
-                add_job_builtin(jid);
-
-                if (xkill(getpid(), SIGCHLD) == -1)
-                    xfatal("kill");
-
-                handled = true;
-            }
-        }
-
-        if (!handled) {
-            pline_data pld = exec_pline(first_pline, ast->bg);
-            add_job(jid, pld.pids, pld.pgid);
-            free_pline_data(&pld);
-        }
+        launch_job(first_pline, ast->bg, jid);
 
         if (ast->andors.size > 1) {
             add_plan(jid, ast);
