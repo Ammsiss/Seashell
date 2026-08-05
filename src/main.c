@@ -25,6 +25,29 @@
 
 static da_plan plans = {0};
 
+static void hup_to_children(void) {
+    for (size_t i = 0; i < get_jctl()->jobs.size; ++i) {
+        jc_job *job = &get_jctl()->jobs.data[i];
+
+        if (getpgrp() == job->pgrp.pgid || job->pgrp.pgid <= 1)
+            xfatal("unexpected pgid %d", job->pgrp.pgid);
+
+        if (xkill(-job->pgrp.pgid, SIGHUP) == -1 && errno != ESRCH)
+            err_exit("kill");
+
+        if (xkill(-job->pgrp.pgid, SIGCONT) == -1 && errno != ESRCH)
+            err_exit("kill");
+    }
+
+    while (get_wstat(&(wait_event){0}) != -1)
+        continue;
+
+    clear_job_events();
+    clear_job_table();
+
+    LOG_INFO("seashell shutting down");
+}
+
 static ps_andor *pnxt(job_plan *plan) {
     return &plan->ast->andors.data[plan->index];
 }
@@ -113,9 +136,24 @@ static bool run_next_job_in_plan(job_event *jev, bool bg) {
         if (plan->jid == -1)
             xfatal("job id unexpectedly unavailable");
 
-        pline_data pld = exec_pline(&pnxt(plan)->pline, bg);
-        add_job(plan->jid, pld.pids, pld.pgid);
-        free_pline_data(&pld);
+        bool handled = false;
+
+        if (pnxt(plan)->pline.cmds.size == 1 && !bg) {
+            if (try_run_builtin(pnxt(plan)->pline.cmds.data[0].argv, NULL)) {
+                add_job_builtin(plan->jid);
+
+                if (xkill(getpid(), SIGCHLD) == -1)
+                    xfatal("kill");
+
+                handled = true;
+            }
+        }
+
+        if (!handled) {
+            pline_data pld = exec_pline(&pnxt(plan)->pline, bg);
+            add_job(plan->jid, pld.pids, pld.pgid);
+            free_pline_data(&pld);
+        }
 
         execed_pline = true;
         break;
@@ -144,29 +182,6 @@ static void print_job_event(job_event *jev, bool *prompt_upset) {
     }
 
     printf("%s\n", get_jev_str(*jev));
-}
-
-static void hup_to_children(void) {
-    for (size_t i = 0; i < get_jctl()->jobs.size; ++i) {
-        jc_job *job = &get_jctl()->jobs.data[i];
-
-        if (getpgrp() == job->pgrp.pgid || job->pgrp.pgid <= 1)
-            xfatal("unexpected pgid %d", job->pgrp.pgid);
-
-        if (xkill(-job->pgrp.pgid, SIGHUP) == -1 && errno != ESRCH)
-            err_exit("kill");
-
-        if (xkill(-job->pgrp.pgid, SIGCONT) == -1 && errno != ESRCH)
-            err_exit("kill");
-    }
-
-    while (get_wstat(&(wait_event){0}) != -1)
-        continue;
-
-    clear_job_events();
-    clear_job_table();
-
-    LOG_INFO("seashell shutting down");
 }
 
 void reclaim_terminal(void) {
@@ -232,6 +247,8 @@ static void process_signals(void) {
 
     if (need_prompt || (shell_in_fg() && prompt_upset))
         display_prompt(PROMPT_SIMPLE);
+
+    reset_sig_flags();
 }
 
 int main(void) {
@@ -250,15 +267,15 @@ int main(void) {
 
     while (true) {
         int nfds = shell_in_fg() ? 1 : 0;
+
         int ready = xppoll(&events, nfds, NULL, &sh_env.og_mask);
 
-        if (ready == -1 && errno != EINTR)
-            err_exit("sigsuspend");
-
-        if (ready == -1 && errno == EINTR) {
-            process_signals();
-            reset_sig_flags();
-            continue;
+        if (ready == -1) {
+            if (errno == EINTR) {
+                process_signals();
+                continue;
+            } else
+                err_exit("ppoll");
         }
 
         ps_ast *ast = line_to_ast();
@@ -272,25 +289,33 @@ int main(void) {
 
         ps_pline *first_pline = &ast->andors.data[0].pline;
 
-        if (first_pline->cmds.size == 1 && !ast->bg) {
-            if (try_run_builtin(first_pline->cmds.data[0].argv, NULL)) {
-                ps_free(ast);
-                free(ast);
-                continue;
-            }
-        }
-
         int jid = create_job_id();
 
         if (ast->bg) {
             printf("[%d] started\n", jid);
             display_prompt(PROMPT_SIMPLE);
-        } else
+        } else {
             sh_env.fg_jid = jid;
+        }
 
-        pline_data pld = exec_pline(first_pline, ast->bg);
-        add_job(jid, pld.pids, pld.pgid);
-        free_pline_data(&pld);
+        bool handled = false;
+
+        if (first_pline->cmds.size == 1 && !ast->bg) {
+            if (try_run_builtin(first_pline->cmds.data[0].argv, NULL)) {
+                add_job_builtin(jid);
+
+                if (xkill(getpid(), SIGCHLD) == -1)
+                    xfatal("kill");
+
+                handled = true;
+            }
+        }
+
+        if (!handled) {
+            pline_data pld = exec_pline(first_pline, ast->bg);
+            add_job(jid, pld.pids, pld.pgid);
+            free_pline_data(&pld);
+        }
 
         if (ast->andors.size > 1) {
             add_plan(jid, ast);

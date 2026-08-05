@@ -74,6 +74,7 @@ char *get_jev_str(job_event jev);
 void clear_job_table(void);
 void clear_job_events(void);
 
-int add_job(pid_t jid, da_pid *pids, pid_t pgid);
+void add_job_builtin(pid_t jid);
+void add_job(pid_t jid, da_pid *pids, pid_t pgid);
 
 #endif

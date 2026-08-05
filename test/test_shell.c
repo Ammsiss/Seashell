@@ -239,7 +239,7 @@ void tearDown(void) {
 
     bool sigkill_sent = false;
 
-    if (!wait_for(shell_exited, NULL, 1000)) {
+    while (!wait_for(shell_exited, NULL, 1000)) {
         if (sigkill_sent)
             TEST_FAIL_MESSAGE("failed to wait for seashell");
 
@@ -254,7 +254,7 @@ void tearDown(void) {
 }
 
 void test_prompt_after_reclaim_tty(void) {
-    write_verify("echo x\n");
+    write_verify("/bin/echo x\n");
 
     read_verify("x\n" PROMPT);
 }
@@ -265,12 +265,6 @@ void test_prompt_after_launch_bg_cmd(void) {
     read_verify("[1] started\n" PROMPT);
 }
 
-void test_prompt_after_launch_fg_builtin(void) {
-    write_verify("cd .\n");
-
-    read_verify(PROMPT);
-}
-
 void test_prompt_after_bg_job_done(void) {
     write_verify("sleep 0.05 &\n");
 
@@ -278,7 +272,7 @@ void test_prompt_after_bg_job_done(void) {
 }
 
 void test_short_lived_bg_cmd(void) {
-    write_verify("echo x &\n");
+    write_verify("/bin/echo x &\n");
             /* echo prints this newline --v */
     read_verify("[1] started\n" PROMPT "x\n\n[1] exited\n" PROMPT);
 }
@@ -318,16 +312,8 @@ void test_unknown_cmd(void) {
     read_verify("seashell: command not found: zoobar\n" PROMPT);
 }
 
-void test_jobs_builtin(void) {
-    write_verify("jobs\n");
-    write_verify("sleep 100 &\n");
-    write_verify("jobs\n");
-
-    read_verify(PROMPT "[1] started\n" PROMPT "[1] running\n" PROMPT);
-}
-
 void test_pipeline(void) {
-    write_verify("echo hi | grep h | wc -c\n");
+    write_verify("/bin/echo hi | grep h | wc -c\n");
         /* wc outputs 3 because it includes the newline from grep */
     read_verify("3\n" PROMPT);
 }
@@ -367,47 +353,67 @@ void test_pipeline_of_builtins_does_not_duplicate_prompt(void) {
 }
 
 void test_simple_andor_chain(void) {
-    write_verify("sleep 0.05 && echo x\n");
+    write_verify("sleep 0.05 && /bin/echo x\n");
 
     read_verify("x\n" PROMPT);
 }
 
 void test_simple_bg_andor_chain(void) {
-    write_verify("sleep 0.05 && echo x &\n");
+    write_verify("sleep 0.05 && /bin/echo x &\n");
 
     read_verify("[1] started\n" PROMPT "x\n" "\n[1] exited\n" PROMPT);
 }
 
 void test_and_if_logic(void) {
-    write_verify("true && echo x\n");
+    write_verify("true && /bin/echo x\n");
     read_verify("x\n" PROMPT);
 
-    write_verify("false && echo x\n");
+    write_verify("false && /bin/echo x\n");
     read_verify(PROMPT);
 }
 
 void test_or_if_logic(void) {
-    write_verify("false || echo y\n");
+    write_verify("false || /bin/echo y\n");
     read_verify("y\n" PROMPT);
 
-    write_verify("true || echo y\n");
+    write_verify("true || /bin/echo y\n");
     read_verify(PROMPT);
 }
 
 void test_and_if_logic_bg(void) {
-    write_verify("true && echo x &\n");
+    write_verify("true && /bin/echo x &\n");
     read_verify("[1] started\n" PROMPT "x\n\n[1] exited\n" PROMPT);
 
-    write_verify("false && echo x &\n");
+    write_verify("false && /bin/echo x &\n");
     read_verify("[1] started\n" PROMPT "\n[1] exited\n" PROMPT);
 }
 
 void test_or_if_logic_bg(void) {
-    write_verify("false || echo y &\n");
+    write_verify("false || /bin/echo y &\n");
     read_verify("[1] started\n" PROMPT "y\n\n[1] exited\n" PROMPT);
 
-    write_verify("true || echo y &\n");
+    write_verify("true || /bin/echo y &\n");
     read_verify("[1] started\n" PROMPT "\n[1] exited\n" PROMPT);
+}
+
+void test_and_or_chain_with_builtins(void) {
+    write_verify("echo x && echo y\n");
+
+    read_verify("x\ny\n" PROMPT);
+}
+
+void test_prompt_after_launch_fg_builtin(void) {
+    write_verify("cd .\n");
+
+    read_verify(PROMPT);
+}
+
+void test_jobs_builtin(void) {
+    write_verify("jobs\n");
+    write_verify("sleep 100 &\n");
+    write_verify("jobs\n");
+
+    read_verify(PROMPT "[1] started\n" PROMPT "[1] running\n" PROMPT);
 }
 
 int main(void) {
@@ -419,15 +425,12 @@ int main(void) {
     for (int i = 0; i < 1; ++i) {
         RUN_TEST(test_prompt_after_reclaim_tty);
         RUN_TEST(test_prompt_after_launch_bg_cmd);
-        RUN_TEST(test_prompt_after_launch_fg_builtin);
         RUN_TEST(test_prompt_after_bg_job_done);
-
         RUN_TEST(test_short_lived_bg_cmd);
         RUN_TEST(test_int_fg_job);
         RUN_TEST(test_stop_fg_job);
         RUN_TEST(test_bg_jobs_pid_state);
         RUN_TEST(test_unknown_cmd);
-        RUN_TEST(test_jobs_builtin);
         RUN_TEST(test_pipeline);
         RUN_TEST(test_bg_job_done_with_fg_job);
         RUN_TEST(test_builtin_in_bg);
@@ -438,6 +441,10 @@ int main(void) {
         RUN_TEST(test_or_if_logic);
         RUN_TEST(test_or_if_logic_bg);
         RUN_TEST(test_and_if_logic_bg);
+
+        RUN_TEST(test_and_or_chain_with_builtins);
+        RUN_TEST(test_prompt_after_launch_fg_builtin);
+        RUN_TEST(test_jobs_builtin);
     }
 
     return UNITY_END();

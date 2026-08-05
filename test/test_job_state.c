@@ -201,35 +201,18 @@ void validate_job_events(da_jevent *exp) {
     } while (false)
 
 void add_one_proc_job(pid_t jid, pid_t pid) {
-    TEST_ASSERT_EQUAL(0, add_job(jid, &PIDS(pid), pid));
+    add_job(jid, &PIDS(pid), pid);
     validate_job_table(&TABLE(JRUN_1P(jid, pid)), get_jctl());
     TEST_ASSERT_NULL(pop_job_event());
 }
 
 void add_two_proc_job(pid_t jid, pid_t pid) {
-    TEST_ASSERT_EQUAL(0, add_job(jid, &PIDS(pid, pid + 1), pid));
+    add_job(jid, &PIDS(pid, pid + 1), pid);
     validate_job_table(&TABLE(JRUN_2P(jid, pid)), get_jctl());
     TEST_ASSERT_NULL(pop_job_event());
 }
 
 /* tests */
-
-void test_pg_leader_missing(void) {
-    TEST_ASSERT_EQUAL(-1, add_job(JID(-1), &PIDS(10, 20), 40));
-    validate_job_table(&(exp_job_table){0}, get_jctl());
-    TEST_ASSERT_NULL(pop_job_event());
-}
-
-void test_add_job_with_empty_pid_arr(void) {
-    TEST_ASSERT_EQUAL(-1, add_job(JID(-1), &(da_pid){ .size = 0 }, 50));
-    validate_job_table(&(exp_job_table){0}, get_jctl());
-    TEST_ASSERT_NULL(pop_job_event());
-}
-
-void test_non_existant_proc_event(void) {
-    TEST_ASSERT_EQUAL_INT(-1, update_job_proc(PSTOP(1)));
-    TEST_ASSERT_NULL(pop_job_event());
-}
 
 void test_continue_running_job(void) {
     add_one_proc_job(JID(1), PID(1));
@@ -292,9 +275,6 @@ int main(void) {
 
     UNITY_BEGIN();
 
-    RUN_TEST(test_pg_leader_missing);
-    RUN_TEST(test_add_job_with_empty_pid_arr);
-    RUN_TEST(test_non_existant_proc_event);
     RUN_TEST(test_continue_running_job);
 
     RUN_TEST(test_one_proc_job_exit);

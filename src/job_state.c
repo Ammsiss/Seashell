@@ -217,14 +217,26 @@ static bool pg_leader_missing(pid_t pgid, da_pid *pids) {
     return true;
 }
 
-int add_job(pid_t jid, da_pid *pids, pid_t pgid) {
+void add_job_builtin(pid_t jid) {
+    job_event builtin_jev = {
+        .jid = jid,
+        .type = JEXITED,
+        .success = true // TODO: get real exit status
+    };
+
+    LOG_INFO("[%d] started", jid);
+
+    add_job_event(builtin_jev);
+}
+
+void add_job(pid_t jid, da_pid *pids, pid_t pgid) {
     assert(pids);
 
     if (pids->size == 0)
-        return -1;
+        xfatal("empty pid array");
 
     if (pg_leader_missing(pgid, pids))
-        return -1;
+        xfatal("process group leader missing");
 
     jc_job *job = da_push(&jctl.jobs);
     if (!job)
@@ -249,6 +261,4 @@ int add_job(pid_t jid, da_pid *pids, pid_t pgid) {
     }
 
     LOG_INFO("[%d] started", job->jid);
-
-    return 0;
 }
