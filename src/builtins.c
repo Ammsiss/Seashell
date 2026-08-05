@@ -39,10 +39,8 @@ static int run_echo_builtin(char **argv, shell_env *_) {
     if (!validate_argc(argv, 1, 1))
         return EXIT_FAILURE;
 
-    if (write(STDOUT_FILENO, argv[1], strlen(argv[1])) == -1)
-        return EXIT_FAILURE;
-    if (write(STDOUT_FILENO, "\n", 1) == -1)
-        return EXIT_FAILURE;
+    printf("%s\n", argv[1]);
+    fflush(stdout);
 
     return EXIT_SUCCESS;
 }

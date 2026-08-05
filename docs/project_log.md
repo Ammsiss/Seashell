@@ -1,4 +1,96 @@
----------------------------------------------------------------------------------
+----------------------------------------------------------------------------
+
+## 2026-08-08
+
+### Notes
+
+Tommorow going to implement the logger using TDD. Seems like a good module
+to test out the development style. Low dependencies, and pretty deterministic.
+It takes some input, applies some formatting, and outputs the data to an fd.
+
+Going to use CppUTest for this, I tried unity_fixture for the Led driver so
+itll be good to see the differences. Automatic test registration, really is
+nice. But unlike Unity's simplicity CppUTest is a library which I will have
+to link which adds of friction.
+
+----------------------------------------------------------------------------
+
+## 2026-08-07
+
+### Notes
+
+I might switch to CppUTest. The pros over unity_fixture.c are:
+
+- Test cases self register, don't need a separate RUN_TEST_GROUP func.
+
+So admitadely not much. But, c++ offers a lot of nice language features
+that make test writing easier. I can still write my applications in c if
+I want. A big benefit is virtual dispatch for creating test doubles.
+
+----------------------------------------------------------------------------
+
+## 2026-08-06
+
+### Notes
+
+Pushing up against a lot of build/tooling issues today. My terminal emulator
+decided to start bugging the fuck out randomly, artifacting, cursor jumping
+around, and more.
+
+Wezterm is nice but I think its wayland implementation might be struggling a
+bit. Switched to foot cause not only is it wayalnd first its wayland *only*. No
+X11 compatability cruft. It seems much faster on sway, no artifcating at all.
+Also unlinke Wezterm foot has really nice man page docs which fit my work flow.
+
+Couple trade offs though, no ligatures, and no more Wezterm copy mode. That
+feature really is beautiful. The work around is to use tmux because it has its
+own copy mode. Also tmux too has really nice man page docs.
+
+Logging needs some work. The logger shouldn't decide where the logs end up. It
+should just write to an fd that the caller passes in. This makes shell pty
+tests easier because the pty harness can just open a pipe, fork, and pass in
+the fd number refering to the write end to seashell (which is subsequently
+passed to the logger). If no fd argument is specified, seashell just defaults
+to its own log destination, however it wants to do that.
+
+This makes the logger more generic, and testable. It doesn't care what the fd
+is refering to. It also makes it much more testable. Because of this I'm going
+to factor it out of the project and create a new repository for it.
+
+Finally I've decided to work on related machinery that has been causing
+friction. The execution plan before I return to seashell is as follows:
+
+1. Go through the TDD unity chapters, mainly to learn the api of
+   unity_fixtures.c (it offers better test harness capabilities like test
+   groupings within a single binary) but also to learn some testing philopsophy
+   that I may have been neglecting.
+2. Write the Logging library, with a fd first model, tested, and with build
+   files to simplify linking into parent projects.
+3. Read the git submodules chapter in the git book, and nest the logging
+   library as a git submodule into seashell.
+
+----------------------------------------------------------------------------
+
+## 2026-08-05
+
+### Next
+
+- [ ] Change log.c to pass in relevant fd instead of have it open
+
+### Completed
+
+- [x] investigate why just '"' has weird prompt ordering
+- [x] fix job_plan leak when fully short circuited (eg true || true)
+- [x] builtins in first position currenlty short circuit and or chains
+
+### Notes
+
+Single fg cmd buitlins in an and or chain now use the same logic as normal fg
+jobs. This is pretty nice, although I may want to change the shell to not
+actually send sigchild to itself cause that seems a bit hacky. Bit it works
+pretty well.
+
+----------------------------------------------------------------------------
 
 ## 2026-08-04
 
