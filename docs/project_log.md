@@ -1,5 +1,16 @@
 ----------------------------------------------------------------------------
 
+## 2026-08-10
+
+### Notes
+
+Going to use the %m for errno logging. Need to figure out seashell should set
+up the fd initially. The control flow feels a bit wonky so I'm going to set up
+a small opt parser which will be needed anyways intead of adhoc parsing a
+arguemnt. getopt will be nice and simple.
+
+----------------------------------------------------------------------------
+
 ## 2026-08-09
 
 ### Notes

@@ -1,23 +1,30 @@
-BIN      := seashell
-CC       := clang
-SRC_DIR  := src
-INC_DIR  := inc
-BLD_DIR  := build
-COMPCOM  := compile_commands.json
+BIN := seashell
+CC := clang
+COMPCOM := compile_commands.json
 
-CFLAGS   := -g -O0 -fno-omit-frame-pointer -Wall -Wextra -Wpedantic \
+SRC_DIR := src
+DEP_DIR := deps
+
+INCLUDE := inc $(shell find $(DEP_DIR) -type d)
+INCLUDE := $(patsubst %,-I%,$(INCLUDE))
+
+BLD_DIR := build
+
+SRCS := $(wildcard $(SRC_DIR)/*.c)
+OBJS := $(patsubst $(SRC_DIR)/%.c,$(BLD_DIR)/%.o,$(SRCS))
+LIBS := $(shell find $(DEP_DIR) -type f -name '*.a')
+DEPS := $(patsubst $(SRC_DIR)/%.c,$(BLD_DIR)/%.d,$(SRCS))
+
+CFLAGS := -g -O0 -fno-omit-frame-pointer -Wall -Wextra -Wpedantic \
 			-Wno-gnu-statement-expression-from-macro-expansion \
-			-std=c23 -I$(INC_DIR)
-DEPFLAGS := -MMD -MP
+			-std=c23 $(INCLUDE)
 
-SRCS   := $(wildcard $(SRC_DIR)/*.c)
-OBJS   := $(patsubst $(SRC_DIR)/%.c,$(BLD_DIR)/%.o,$(SRCS))
-DEPS   := $(patsubst $(SRC_DIR)/%.c,$(BLD_DIR)/%.d,$(SRCS))
+DEPFLAGS := -MMD -MP
 
 .PHONY: all
 all: $(BIN)
 
-$(BIN): $(OBJS)
+$(BIN): $(OBJS) $(LIBS)
 	$(CC) $(CFLAGS) $^ -o $@
 
 $(BLD_DIR)/%.o: $(SRC_DIR)/%.c
