@@ -24,7 +24,7 @@ DEPFLAGS := -MMD -MP
 .PHONY: all
 all: $(BIN)
 
-$(BIN): $(OBJS) $(LIBS)
+$(BIN): $(OBJS) #$(LIBS)
 	$(CC) $(CFLAGS) $^ -o $@
 
 $(BLD_DIR)/%.o: $(SRC_DIR)/%.c

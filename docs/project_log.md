@@ -4,6 +4,52 @@
 
 ### Notes
 
+I'm going to change the repository structure for my utilities/tools. Instead
+of one submodule per tool, I'm going to create 1 utils repository with all
+of them. They are small tools so it will be simpler.
+
+For example the structure could be:
+
+linc_tools/
+├── makefile
+├── test/
+│   ├── test.c
+│   └── unity/
+│       └── src/
+│           ├── unity.c
+│           ├── unity.h
+│           └── unity_internals.h
+├── inc/
+│   ├── dynarr.h
+│   ├── string.h
+│   └── log.h
+└── src/
+    ├── dynarr.c
+    ├── string.c
+    └── log.c
+
+Then projects just need to clone the single submodule and compile every src
+directly via something like:
+
+```
+SRCS   += $(wildcard, $(UTILS_SRC)/%.c)
+CFLAGS += -I$(UTILS_INC)
+```
+
+This makes dependencies way simpler. If a utility relies on another, no extra
+build details need to be added internally or in project code. This also makes
+building tests easier. There is no need to manually add the specfic object
+files for each test, just build and link them all in.
+
+The only potential downside is global namespace pollution, but for a small libs
+with good naming this shouldn't be an issue.
+
+----------------------------------------------------------------------------
+
+## 2026-08-10
+
+### Notes
+
 Going to use the %m for errno logging. Need to figure out seashell should set
 up the fd initially. The control flow feels a bit wonky so I'm going to set up
 a small opt parser which will be needed anyways intead of adhoc parsing a
