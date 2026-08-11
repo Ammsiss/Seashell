@@ -5,6 +5,7 @@
 #include <poll.h>
 #include <unistd.h>
 #include <wait.h>
+#include <getopt.h>
 
 #include "shell_types.h"
 #include "builtins.h"
@@ -16,6 +17,7 @@
 #include "shell_state.h"
 #include "utils.h"
 #include "log.h"
+#include "llog.h"
 
 #include "job_state.h"
 #include "sig_funcs.h"
@@ -265,13 +267,51 @@ static void process_signals(void) {
     reset_sig_flags();
 }
 
-int main(void) {
+void log_setup(char *logfd_arg) {
+    if (!logfd_arg)
+        xfatal("bad arg");
+
+    char *endptr;
+    int logfd = strtol(logfd_arg, &endptr, 10);
+
+    if (*endptr != '\0')
+        xfatal("strtol");
+
+    llog_set_fd(logfd);
+}
+
+void handle_args(int argc, char **argv) {
+    int option_index;
+
+    struct option options[2] = {
+        { "logfd", required_argument, NULL, 0 },
+        { 0,       0,                 0,     0 }
+    };
+
+    while (true) {
+        char c = getopt_long_only(argc, argv, "", options, &option_index);
+
+        if (c == -1) {
+            break;
+
+        } else if (c == 0) {
+            if (strcmp("logfd", options[option_index].name) == 0)
+                log_setup(optarg);
+
+        } else if (c == '?')
+            exit(EXIT_FAILURE);
+    }
+}
+
+int main(int argc, char **argv) {
     log_init("/home/juta/Projects/Seashell/logs");
     env_init();
     sig_setup();
 
     if (xatexit(hup_to_children) == -1)
         err_exit("atexit");
+
+    handle_args(argc, argv);
 
     LOG_INFO("seashell PID(%d)", getpid());
 
