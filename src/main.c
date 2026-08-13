@@ -267,7 +267,7 @@ static void process_signals(void) {
 }
 
 int main(void) {
-    log_init("/home/juta/Projects/Seashell/logs");
+    log_init("/home/juta/Projects/Seashell/logs/seashell");
     env_init();
     sig_setup();
 

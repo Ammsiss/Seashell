@@ -1,6 +1,52 @@
 ----------------------------------------------------------------------------
 
-## 2026-08-10
+## 2026-08-13
+
+### Next
+
+- [ ] Add short opt processing to args.c
+
+### Notes
+
+Figured out the issue relating to running the tests under make. It wa bear!
+
+Bear basically intercepts every exec call and injects a "wrapper" process. So
+the pid I received was not seahsell itself but the wrapper process. Thats why
+child_pstat returned an array of one. I was inspecting the children of the
+wrapper not seashell, and the wrapper forks and execs seashell.
+
+The process tree looked like so:
+
+bear
+└─ wrapper
+    └─ make
+    └─ wrapper
+        └─ test_all  <- the test function
+            └─ wrapper <- the proc I was inspecting
+                └─ seashell
+
+The fix is just making an alias or shell script to run make with bear then
+separately running the executable. Don't do process introspection with bear.
+
+Also thinking that lua snips could be really nice for test code. Automatically
+creating test files, test cases, test group runners, injected failures, etc.
+
+----------------------------------------------------------------------------
+
+## 2026-08-12
+
+### Notes
+
+Good progress today! Mostly on build system stuff. Migrating to unity_fixture
+for simpler builds becuase it only has 1 binary. Also realized that mirroring
+the build structure simplifies dependency hunting massively.
+
+Need to fix the module thing, cause we don't need the LLog file now. It will
+all come from linc_tools. See .gitmodules
+
+----------------------------------------------------------------------------
+
+## 2026-08-11
 
 ### Notes
 

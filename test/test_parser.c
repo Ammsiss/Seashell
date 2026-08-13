@@ -1,6 +1,10 @@
-#include "unity.h"
+#include "unity_fixture.h"
 #include "parser.h"
 #include "lexer.h"
+
+TEST_GROUP(parser);
+
+/************ Shared utils ************/
 
 #define IO_NUM_IN  0
 #define IO_NUM_OUT 1
@@ -84,9 +88,6 @@
 #define JOB_SIMPLE(...) \
     JOB(NOIF(CMD(__VA_ARGS__)))
 
-void setUp(void) {}
-void tearDown(void) {}
-
 typedef struct {
     char *raw;
     ps_quote quote;
@@ -146,12 +147,12 @@ typedef struct {
     bool bg;
 } exp_job;
 
-void validate_segment(const exp_segment *exp, const ps_segment *segment) {
+static void validate_segment(const exp_segment *exp, const ps_segment *segment) {
     TEST_ASSERT_EQUAL_STRING(exp->raw, segment->raw);
     TEST_ASSERT_EQUAL(exp->quote, segment->quote);
 }
 
-void validate_segments(const exp_da_segment *exp, const da_segment *segments) {
+static void validate_segments(const exp_da_segment *exp, const da_segment *segments) {
     TEST_ASSERT_EQUAL_size_t(exp->size, segments->size);
     for (size_t i = 0; i < segments->size; ++i) {
         const exp_segment *exp_segment = &exp->data[i];
@@ -160,17 +161,17 @@ void validate_segments(const exp_da_segment *exp, const da_segment *segments) {
     }
 }
 
-void validate_tok(const exp_word *exp, const ps_word *word) {
+static void validate_tok(const exp_word *exp, const ps_word *word) {
     validate_segments(&exp->segments, &word->segments);
 }
 
-void validate_redir(const exp_redir *exp, const ps_redir *redir) {
+static void validate_redir(const exp_redir *exp, const ps_redir *redir) {
     TEST_ASSERT_EQUAL_INT(exp->io_num, redir->io_num);
     TEST_ASSERT_EQUAL_INT(exp->append, redir->append);
     validate_tok(&exp->target, &redir->target);
 }
 
-void validate_redirs(const exp_da_redir *exp, const da_redir *redirs) {
+static void validate_redirs(const exp_da_redir *exp, const da_redir *redirs) {
     TEST_ASSERT_EQUAL_size_t(exp->size, redirs->size);
     for (size_t i = 0; i < redirs->size; ++i) {
         const exp_redir *exp_redir = &exp->data[i];
@@ -179,7 +180,7 @@ void validate_redirs(const exp_da_redir *exp, const da_redir *redirs) {
     }
 }
 
-void validate_words(const exp_da_word *exp, const da_word *words) {
+static void validate_words(const exp_da_word *exp, const da_word *words) {
     TEST_ASSERT_EQUAL_size_t(exp->size, words->size);
     for (size_t i = 0; i < words->size; ++i) {
         const exp_word *exp_tok = &exp->data[i];
@@ -188,12 +189,12 @@ void validate_words(const exp_da_word *exp, const da_word *words) {
     }
 }
 
-void validate_cmd(const exp_cmd *exp, const ps_cmd *cmd) {
+static void validate_cmd(const exp_cmd *exp, const ps_cmd *cmd) {
     validate_words(&exp->words, &cmd->words);
     validate_redirs(&exp->redirs, &cmd->redirs);
 }
 
-void validate_cmds(const exp_da_cmd *exp, const da_cmd *cmds) {
+static void validate_cmds(const exp_da_cmd *exp, const da_cmd *cmds) {
     TEST_ASSERT_EQUAL_size_t(exp->size, cmds->size);
     for (size_t i = 0; i < cmds->size; ++i) {
         const exp_cmd *exp_cmd = &exp->data[i];
@@ -202,16 +203,16 @@ void validate_cmds(const exp_da_cmd *exp, const da_cmd *cmds) {
     }
 }
 
-void validate_pipeline(const exp_pipeline *exp, const ps_pline *pipeline) {
+static void validate_pipeline(const exp_pipeline *exp, const ps_pline *pipeline) {
     validate_cmds(&exp->cmds, &pipeline->cmds);
 }
 
-void validate_andor(const exp_andor *exp, const ps_andor *andor) {
+static void validate_andor(const exp_andor *exp, const ps_andor *andor) {
     TEST_ASSERT_EQUAL(exp->op, andor->op);
     validate_pipeline(&exp->pipeline, &andor->pline);
 }
 
-void validate_andors(const exp_da_andor *exp, const da_andor *andors) {
+static void validate_andors(const exp_da_andor *exp, const da_andor *andors) {
     TEST_ASSERT_EQUAL_size_t(exp->size, andors->size);
     for (size_t i = 0; i < andors->size; ++i) {
         const exp_andor *exp_andor = &exp->data[i];
@@ -220,12 +221,12 @@ void validate_andors(const exp_da_andor *exp, const da_andor *andors) {
     }
 }
 
-void validate_job(const exp_job *exp, const ps_ast *job) {
+static void validate_job(const exp_job *exp, const ps_ast *job) {
     TEST_ASSERT_EQUAL_INT(exp->bg, job->bg);
     validate_andors(&exp->andors, &job->andors);
 }
 
-void validate(const char *shell_cmd, const exp_job *exp) {
+static void validate(const char *shell_cmd, const exp_job *exp) {
     da_tok tokens = {0};
     TEST_ASSERT_NOT_EQUAL_INT(-1, lx_tokenize(shell_cmd, &tokens));
 
@@ -238,9 +239,17 @@ void validate(const char *shell_cmd, const exp_job *exp) {
     ps_free(&job);
 }
 
-/************ TESTS ************/
+/************ Fixture ************/
 
-void test_bg_not_final_token_should_fail(void) {
+TEST_SETUP(parser) {
+}
+
+TEST_TEAR_DOWN(parser) {
+}
+
+/************ Tests ************/
+
+TEST(parser, bg_not_final_token_should_fail) {
     da_tok tokens;  /* Start with 'a' so we don't short circuit */
     TEST_ASSERT_EQUAL_INT(0, lx_tokenize("a & b", &tokens));
 
@@ -250,7 +259,7 @@ void test_bg_not_final_token_should_fail(void) {
     lx_free(&tokens);
 }
 
-void test_redirect_with_no_target_fails(void) {
+TEST(parser, redirect_with_no_target_fails) {
     da_tok tokens;
     TEST_ASSERT_EQUAL_INT(0, lx_tokenize("echo hi >", &tokens));
 
@@ -260,7 +269,7 @@ void test_redirect_with_no_target_fails(void) {
     lx_free(&tokens);
 }
 
-void test_pipe_is_final_token_should_fail(void) {
+TEST(parser, pipe_is_final_token_should_fail) {
     da_tok tokens;
     TEST_ASSERT_EQUAL_INT(0, lx_tokenize("cmd |", &tokens));
 
@@ -270,7 +279,7 @@ void test_pipe_is_final_token_should_fail(void) {
     lx_free(&tokens);
 }
 
-void test_andif_is_final_token_should_fail(void) {
+TEST(parser, andif_is_final_token_should_fail) {
     da_tok tokens;
     TEST_ASSERT_EQUAL_INT(0, lx_tokenize("cmd &&", &tokens));
 
@@ -280,7 +289,7 @@ void test_andif_is_final_token_should_fail(void) {
     lx_free(&tokens);
 }
 
-void test_orif_is_final_token_should_fail(void) {
+TEST(parser, orif_is_final_token_should_fail) {
     da_tok tokens;
     TEST_ASSERT_EQUAL_INT(0, lx_tokenize("cmd ||", &tokens));
 
@@ -290,7 +299,7 @@ void test_orif_is_final_token_should_fail(void) {
     lx_free(&tokens);
 }
 
-void test_no_cmd_redir_should_fail(void) {
+TEST(parser, no_cmd_redir_should_fail) {
     da_tok tokens = {0};
     TEST_ASSERT_EQUAL_INT(0, lx_tokenize("echo > |", &tokens));
 
@@ -300,7 +309,7 @@ void test_no_cmd_redir_should_fail(void) {
     lx_free(&tokens);
 }
 
-void test_bg_is_final_token_should_pass(void) {
+TEST(parser, bg_is_final_token_should_pass) {
     exp_job exp = JOB_BG(
         NOIF(
             CMD(
@@ -311,14 +320,14 @@ void test_bg_is_final_token_should_pass(void) {
     validate("a &", &exp);
 }
 
-void test_cmd_1_word(void) {
+TEST(parser, cmd_one_word) {
     exp_job exp = JOB_SIMPLE(
         PLAIN_WORD("a")
     );
     validate("a", &exp);
 }
 
-void test_cmd_2_word(void) {
+TEST(parser, cmd_two_word) {
     exp_job exp = JOB_SIMPLE(
         PLAIN_WORD("a"),
         PLAIN_WORD("b")
@@ -326,7 +335,7 @@ void test_cmd_2_word(void) {
     validate("a b", &exp);
 }
 
-void test_cmd_many_word(void) {
+TEST(parser, cmd_many_word) {
     exp_job exp = JOB_SIMPLE(
         PLAIN_WORD("command"),
         PLAIN_WORD("arg1"),
@@ -337,7 +346,7 @@ void test_cmd_many_word(void) {
     validate("command arg1 arg2 arg3 arg4", &exp);
 }
 
-void test_2_cmd_pipeline(void) {
+TEST(parser, two_cmd_pipeline) {
     exp_job exp = JOB(
         NOIF(
             CMD(PLAIN_WORD("a")),
@@ -347,7 +356,7 @@ void test_2_cmd_pipeline(void) {
     validate("a | b", &exp);
 }
 
-void test_3_cmd_pipeline(void) {
+TEST(parser, three_cmd_pipeline) {
     exp_job exp = JOB(
         NOIF(
             CMD(PLAIN_WORD("a")),
@@ -358,7 +367,7 @@ void test_3_cmd_pipeline(void) {
     validate("a | b | c", &exp);
 }
 
-void test_2_pipeline_and_if(void) {
+TEST(parser, two_pipeline_and_if) {
     exp_job exp = JOB(
         NOIF(
             CMD(PLAIN_WORD("a"))
@@ -370,7 +379,7 @@ void test_2_pipeline_and_if(void) {
     validate("a && b", &exp);
 }
 
-void test_2_pipeline_or_if(void) {
+TEST(parser, two_pipeline_or_if) {
     exp_job exp = JOB(
         NOIF(
             CMD(PLAIN_WORD("a"))
@@ -382,7 +391,7 @@ void test_2_pipeline_or_if(void) {
     validate("a || b", &exp);
 }
 
-void test_container_control_flow(void) {
+TEST(parser, container_control_flow) {
     exp_job exp = JOB(
         NOIF(
             CMD(
@@ -407,7 +416,7 @@ void test_container_control_flow(void) {
             "lines in file.txt!\"", &exp);
 }
 
-void test_and_if_with_redirects(void) {
+TEST(parser, and_if_with_redirects) {
     exp_job exp = JOB(
         NOIF(
             CMD(PLAIN_WORD("a"))
@@ -429,7 +438,7 @@ void test_and_if_with_redirects(void) {
     validate("a && b >> file", &exp);
 }
 
-void test_or_if_then_and_if(void) {
+TEST(parser, or_if_then_and_if) {
     exp_job exp = JOB(
         NOIF(
             CMD(PLAIN_WORD("a"))
@@ -444,7 +453,7 @@ void test_or_if_then_and_if(void) {
     validate("a || b && c", &exp);
 }
 
-void test_redir_in(void) {
+TEST(parser, redir_in) {
     exp_job exp = JOB(
         NOIF(
             CMD_R(
@@ -463,7 +472,7 @@ void test_redir_in(void) {
     validate("cat < input.txt", &exp);
 }
 
-void test_redir_out(void) {
+TEST(parser, redir_out) {
     exp_job exp = JOB(
         NOIF(
             CMD_R(
@@ -482,7 +491,7 @@ void test_redir_out(void) {
     validate("ls > file.txt", &exp);
 }
 
-void test_redir_err(void) {
+TEST(parser, redir_err) {
     exp_job exp = JOB(
         NOIF(
             CMD_R(
@@ -502,7 +511,7 @@ void test_redir_err(void) {
     validate("solaar show 2> /dev/null", &exp);
 }
 
-void test_redir_append(void) {
+TEST(parser, redir_append) {
     exp_job exp = JOB(
         NOIF(
             CMD_R(
@@ -522,7 +531,7 @@ void test_redir_append(void) {
     validate("ping 1.1.1.1 >> log.txt", &exp);
 }
 
-void test_multiple_redirects(void) {
+TEST(parser, multiple_redirects) {
     exp_job exp = JOB(
         NOIF(
             CMD_R(
@@ -549,36 +558,29 @@ void test_multiple_redirects(void) {
     validate("syslog > output > output2 2> errors", &exp);
 }
 
-int main(void) {
-    UNITY_BEGIN();
+/************ Test runner ************/
 
-    RUN_TEST(test_bg_not_final_token_should_fail);
-    RUN_TEST(test_redirect_with_no_target_fails);
-    RUN_TEST(test_no_cmd_redir_should_fail);
-    RUN_TEST(test_pipe_is_final_token_should_fail);
-    RUN_TEST(test_andif_is_final_token_should_fail);
-    RUN_TEST(test_orif_is_final_token_should_fail);
-
-    RUN_TEST(test_bg_is_final_token_should_pass);
-
-    RUN_TEST(test_cmd_1_word);
-    RUN_TEST(test_cmd_2_word);
-    RUN_TEST(test_cmd_many_word);
-
-    RUN_TEST(test_2_cmd_pipeline);
-    RUN_TEST(test_3_cmd_pipeline);
-
-    RUN_TEST(test_2_pipeline_and_if);
-    RUN_TEST(test_2_pipeline_or_if);
-    RUN_TEST(test_or_if_then_and_if);
-    RUN_TEST(test_container_control_flow);
-    RUN_TEST(test_and_if_with_redirects);
-
-    RUN_TEST(test_redir_in);
-    RUN_TEST(test_redir_out);
-    RUN_TEST(test_redir_err);
-    RUN_TEST(test_redir_append);
-    RUN_TEST(test_multiple_redirects);
-
-    return UNITY_END();
+TEST_GROUP_RUNNER(parser) {
+    RUN_TEST_CASE(parser, bg_not_final_token_should_fail);
+    RUN_TEST_CASE(parser, redirect_with_no_target_fails);
+    RUN_TEST_CASE(parser, no_cmd_redir_should_fail);
+    RUN_TEST_CASE(parser, pipe_is_final_token_should_fail);
+    RUN_TEST_CASE(parser, andif_is_final_token_should_fail);
+    RUN_TEST_CASE(parser, orif_is_final_token_should_fail);
+    RUN_TEST_CASE(parser, bg_is_final_token_should_pass);
+    RUN_TEST_CASE(parser, cmd_one_word);
+    RUN_TEST_CASE(parser, cmd_two_word);
+    RUN_TEST_CASE(parser, cmd_many_word);
+    RUN_TEST_CASE(parser, two_cmd_pipeline);
+    RUN_TEST_CASE(parser, three_cmd_pipeline);
+    RUN_TEST_CASE(parser, two_pipeline_and_if);
+    RUN_TEST_CASE(parser, two_pipeline_or_if);
+    RUN_TEST_CASE(parser, or_if_then_and_if);
+    RUN_TEST_CASE(parser, container_control_flow);
+    RUN_TEST_CASE(parser, and_if_with_redirects);
+    RUN_TEST_CASE(parser, redir_in);
+    RUN_TEST_CASE(parser, redir_out);
+    RUN_TEST_CASE(parser, redir_err);
+    RUN_TEST_CASE(parser, redir_append);
+    RUN_TEST_CASE(parser, multiple_redirects);
 }

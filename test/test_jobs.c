@@ -1,7 +1,14 @@
-#include "unity.h"
-#include "log.h"
+#define _GNU_SOURCE
+
+#include <stdio.h>
+
+#include "unity_fixture.h"
 #include "job_state.h"
 #include "wait_stat.h"
+
+TEST_GROUP(jobs);
+
+/************ Shared utils ************/
 
 #define EXP_DA(DA_T, ELEM_T, ...) \
     ((DA_T){ \
@@ -131,13 +138,6 @@ struct job_event {
     bool success;
 };
 
-void setUp(void) {}
-
-void tearDown(void) {
-    clear_job_table();
-    clear_job_events();
-}
-
 void validate_proc(exp_proc *exp, jc_proc *proc) {
     TEST_ASSERT_EQUAL(exp->pid, proc->pid);
     TEST_ASSERT_EQUAL(exp->stat, proc->stat);
@@ -212,9 +212,18 @@ void add_two_proc_job(pid_t jid, pid_t pid) {
     TEST_ASSERT_NULL(pop_job_event());
 }
 
-/* tests */
+/************ Fixture ************/
 
-void test_continue_running_job(void) {
+TEST_SETUP(jobs) {}
+
+TEST_TEAR_DOWN(jobs) {
+    clear_job_table();
+    clear_job_events();
+}
+
+/************ Tests ************/
+
+TEST(jobs, continue_running_job) {
     add_one_proc_job(JID(1), PID(1));
     apply_wevs(PCONT(1));
 
@@ -222,7 +231,7 @@ void test_continue_running_job(void) {
     TEST_ASSERT_NULL(pop_job_event());
 }
 
-void test_one_proc_job_exit(void) {
+TEST(jobs, one_proc_job_exit) {
     add_one_proc_job(JID(1), PID(1));
     apply_wevs(PEXIT_OK(1));
 
@@ -230,7 +239,7 @@ void test_one_proc_job_exit(void) {
     validate_job_events(&JEVS(JEXIT(JID(1))));
 }
 
-void test_one_proc_job_stop(void) {
+TEST(jobs, one_proc_job_stop) {
     add_one_proc_job(JID(1), PID(1));
     apply_wevs(PSTOP(1));
 
@@ -238,7 +247,7 @@ void test_one_proc_job_stop(void) {
     validate_job_events(&JEVS(JSTOP(JID(1))));
 }
 
-void test_one_proc_job_cont(void) {
+TEST(jobs, one_proc_job_cont) {
     add_one_proc_job(JID(1), PID(1));
     apply_wevs(PSTOP(1), PCONT(1));
 
@@ -246,7 +255,7 @@ void test_one_proc_job_cont(void) {
     validate_job_events(&JEVS(JSTOP(JID(1)), JCONT(JID(1))));
 }
 
-void test_two_proc_job_exit(void) {
+TEST(jobs, two_proc_job_exit) {
     add_two_proc_job(JID(1), PID(10));
     apply_wevs(PEXIT_OK(10), PEXIT_OK(11));
 
@@ -254,7 +263,7 @@ void test_two_proc_job_exit(void) {
     validate_job_events(&JEVS(JEXIT(JID(1))));
 }
 
-void test_two_proc_job_stop(void) {
+TEST(jobs, two_proc_job_stop) {
     add_two_proc_job(JID(1), PID(10));
     apply_wevs(PSTOP(10), PSTOP(11));
 
@@ -262,7 +271,7 @@ void test_two_proc_job_stop(void) {
     validate_job_events(&JEVS(JSTOP(JID(1))));
 }
 
-void test_two_proc_job_cont(void) {
+TEST(jobs, two_proc_job_cont) {
     add_two_proc_job(JID(1), PID(10));
     apply_wevs(PSTOP(10), PSTOP(11), PCONT(10), PCONT(11));
 
@@ -270,20 +279,16 @@ void test_two_proc_job_cont(void) {
     validate_job_events(&JEVS(JSTOP(1), JCONT(1)));
 }
 
-int main(void) {
-    log_init("/home/juta/Projects/Seashell/test/logs");
+/************ Test runner ************/
 
-    UNITY_BEGIN();
+TEST_GROUP_RUNNER(jobs) {
+    RUN_TEST_CASE(jobs, continue_running_job);
 
-    RUN_TEST(test_continue_running_job);
+    RUN_TEST_CASE(jobs, one_proc_job_exit);
+    RUN_TEST_CASE(jobs, one_proc_job_stop);
+    RUN_TEST_CASE(jobs, one_proc_job_cont);
 
-    RUN_TEST(test_one_proc_job_exit);
-    RUN_TEST(test_one_proc_job_stop);
-    RUN_TEST(test_one_proc_job_cont);
-
-    RUN_TEST(test_two_proc_job_exit);
-    RUN_TEST(test_two_proc_job_stop);
-    RUN_TEST(test_two_proc_job_cont);
-
-    return UNITY_END();
+    RUN_TEST_CASE(jobs, two_proc_job_exit);
+    RUN_TEST_CASE(jobs, two_proc_job_stop);
+    RUN_TEST_CASE(jobs, two_proc_job_cont);
 }

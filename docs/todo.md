@@ -6,6 +6,8 @@
 
 **Misc**
 
+- [ ] Figure out LOGGING! need to log from pty_fork or anywhere
+- [ ] Figure out why running test_all undermake, causes test_shell to fail
 - [ ] add x helper macros for dyn array failures
 - [ ] Change log.c to pass in relevant fd instead of have it open
 - [ ] add sanitation runs for test_shell

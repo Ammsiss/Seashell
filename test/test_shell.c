@@ -4,10 +4,14 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#include "log.h"
-#include "unity.h"
+#include "unity_fixture.h"
 #include "pty_test.h"
 #include "proc_view.h"
+#include "log.h"
+
+TEST_GROUP(shell);
+
+/************ Shared utils ************/
 
 #define PROMPT "> "
 #define BUF_SIZE 8192
@@ -18,27 +22,13 @@ typedef struct {
     size_t n;
 } pty_io;
 
-// #define VAL_TEST
+static char *argv[] = { "/home/juta/Projects/Seashell/seashell" };
 
-#ifdef VAL_TEST
-char *argv[] = {
-    "valgrind",
-    "--vgdb=no",
-    "--quiet",
-    "--leak-check=full",
-    "--errors-for-leak-kinds=definite,indirect,possible",
-    "/home/juta/Projects/Seashell/seashell",
-    NULL
-};
-#else
-char *argv[] = { "/home/juta/Projects/Seashell/seashell" };
-#endif
+static pty_test ptyt = {0};
+static pid_t cpid = {0};
+static da_pstat pstats;
 
-pty_test ptyt = {0};
-pid_t cpid = {0};
-da_pstat pstats;
-
-bool read_until(void *context) {
+static bool read_until(void *context) {
     pty_io *iost = context;
 
     if (iost->len > BUF_SIZE - 1 || iost->n > iost->len)
@@ -60,7 +50,7 @@ bool read_until(void *context) {
     return iost->len == iost->n;
 }
 
-bool write_until(void *context) {
+static bool write_until(void *context) {
     pty_io *iost = context;
 
     if (iost->n > BUF_SIZE -1 || iost->n > iost->len)
@@ -80,12 +70,12 @@ bool write_until(void *context) {
     return iost->len == iost->n;
 }
 
-bool shell_exited(void *_) {
+static bool shell_exited(void *_) {
     pid_t pid = xwaitpid(cpid, NULL, WNOHANG);
     return pid > 0;
 }
 
-bool pstat_size(void *context) {
+static bool pstat_size(void *context) {
     size_t exp_size = *(size_t *)context;
 
     if (child_pstat(cpid, &pstats) == -1)
@@ -100,7 +90,7 @@ bool pstat_size(void *context) {
     return true;
 }
 
-bool proc_in_fg(void *context) {
+static bool proc_in_fg(void *context) {
     pid_t pid = *(pid_t *)context;
 
     pid_t fg_pgid = xtcgetpgrp(ptyt.mfd);
@@ -114,7 +104,7 @@ bool proc_in_fg(void *context) {
     return fg_pgid == pgid;
 }
 
-bool names_present(void *context) {
+static bool names_present(void *context) {
     char **names = context;
 
     TEST_ASSERT_NOT_EQUAL_INT(-1, child_pstat(cpid, &pstats));
@@ -132,7 +122,7 @@ bool names_present(void *context) {
     return true;
 }
 
-bool wait_for(bool (* pred)(void *context), void *context, int max_ms) {
+static bool wait_for(bool (* pred)(void *context), void *context, int max_ms) {
     int checks = 1000;
     int sleep_time = max_ms / checks;
 
@@ -152,7 +142,7 @@ bool wait_for(bool (* pred)(void *context), void *context, int max_ms) {
     return true;
 }
 
-void read_verify(char *exp_str) {
+static void read_verify(char *exp_str) {
     pty_io rst = {
         .len = strlen(exp_str),
         .buf = "",
@@ -173,7 +163,7 @@ void read_verify(char *exp_str) {
     }
 }
 
-void write_verify(char *str) {
+static void write_verify(char *str) {
     pty_io wst;
 
     wst.len = strlen(str);
@@ -187,7 +177,7 @@ void write_verify(char *str) {
     TEST_ASSERT(wait_for(write_until, &wst, 1000));
 }
 
-void send_tty_cc(int cc_code) {
+static void send_tty_cc(int cc_code) {
     char tty_cc_str[2];
     tty_cc_str[0] = ptyt.tp.c_cc[cc_code];
     tty_cc_str[1] = '\0';
@@ -195,7 +185,7 @@ void send_tty_cc(int cc_code) {
     write_verify(tty_cc_str);
 }
 
-void verify_proc_in_fg(char *name) {
+static void verify_proc_in_fg(char *name) {
     if (!wait_for(names_present, (char *[]){ name, NULL }, 1000))
         TEST_FAIL();
 
@@ -207,7 +197,7 @@ void verify_proc_in_fg(char *name) {
         TEST_FAIL();
 }
 
-int flush_pty(void) {
+static int flush_pty(void) {
     int num_read;
     char buf[BUF_SIZE];
 
@@ -222,7 +212,9 @@ int flush_pty(void) {
     return 0;
 }
 
-void setUp(void) {
+/************ Fixture ************/
+
+TEST_SETUP(shell) {
     cpid = fork_pty_test(&ptyt, argv);
 
     read_verify(PROMPT);
@@ -233,7 +225,7 @@ void setUp(void) {
     TEST_ASSERT_EQUAL_size_t(0, pstats.size);
 }
 
-void tearDown(void) {
+TEST_TEAR_DOWN(shell) {
     if (xkill(cpid, SIGHUP) == -1)
         TEST_FAIL();
 
@@ -253,31 +245,33 @@ void tearDown(void) {
     da_free(&pstats);
 }
 
-void test_prompt_after_reclaim_tty(void) {
+/************ Tests ************/
+
+TEST(shell, prompt_after_reclaim_tty) {
     write_verify("/bin/echo x\n");
 
     read_verify("x\n" PROMPT);
 }
 
-void test_prompt_after_launch_bg_cmd(void) {
+TEST(shell, prompt_after_launch_bg_cmd) {
     write_verify("sleep 100 &\n");
 
     read_verify("[1] started\n" PROMPT);
 }
 
-void test_prompt_after_bg_job_done(void) {
+TEST(shell, prompt_after_bg_job_done) {
     write_verify("sleep 0.05 &\n");
 
     read_verify("[1] started\n" PROMPT "\n[1] exited\n" PROMPT);
 }
 
-void test_short_lived_bg_cmd(void) {
+TEST(shell, short_lived_bg_cmd) {
     write_verify("/bin/echo x &\n");
             /* echo prints this newline --v */
     read_verify("[1] started\n" PROMPT "x\n\n[1] exited\n" PROMPT);
 }
 
-void test_int_fg_job(void) {
+TEST(shell, int_fg_job) {
     write_verify("cat\n");
     write_verify("foo\n");
 
@@ -287,7 +281,7 @@ void test_int_fg_job(void) {
     read_verify("foo\n" PROMPT);
 }
 
-void test_stop_fg_job(void) {
+TEST(shell, stop_fg_job) {
     write_verify("sleep 100\n");
 
     verify_proc_in_fg("sleep");
@@ -296,7 +290,7 @@ void test_stop_fg_job(void) {
     read_verify("\n[1] stopped\n" PROMPT);
 }
 
-void test_bg_jobs_pid_state(void) {
+TEST(shell, bg_jobs_pid_state) {
     write_verify("sleep 100 &\n");
     write_verify("sleep 100 &\n");
 
@@ -306,19 +300,19 @@ void test_bg_jobs_pid_state(void) {
     read_verify("[1] started\n" PROMPT "[2] started\n" PROMPT);
 }
 
-void test_unknown_cmd(void) {
+TEST(shell, unknown_cmd) {
     write_verify("zoobar\n"); /* hopefully no-one ever makes this... */
 
     read_verify("seashell: command not found: zoobar\n" PROMPT);
 }
 
-void test_pipeline(void) {
+TEST(shell, pipeline) {
     write_verify("/bin/echo hi | grep h | wc -c\n");
         /* wc outputs 3 because it includes the newline from grep */
     read_verify("3\n" PROMPT);
 }
 
-void test_bg_job_done_with_fg_job(void) {
+TEST(shell, bg_job_done_with_fg_job) {
 
     /* launch 2 bg jobs to determine if the prompt was not printed.
      * If the prompt does not print between job exit messages it was
@@ -334,14 +328,14 @@ void test_bg_job_done_with_fg_job(void) {
                 "[1] exited\n[2] exited\n");
 }
 
-void test_builtin_in_bg(void) {
+TEST(shell, builtin_in_bg) {
     write_verify("jobs &\n");
 
     read_verify("[1] started\n" PROMPT "jobs: no job control in this shell\n"
                 "\n[1] exited\n" PROMPT);
 }
 
-void test_pipeline_of_builtins_does_not_duplicate_prompt(void) {
+TEST(shell, pipeline_of_builtins_does_not_duplicate_prompt) {
 
     /* Regression: after adding display_prompt() to try_run_builtin()
      * and neglecting to confirm if we are in the fg, and not calling
@@ -352,19 +346,19 @@ void test_pipeline_of_builtins_does_not_duplicate_prompt(void) {
     read_verify("jobs: no job control in this shell\n" PROMPT);
 }
 
-void test_simple_andor_chain(void) {
+TEST(shell, simple_andor_chain) {
     write_verify("sleep 0.05 && /bin/echo x\n");
 
     read_verify("x\n" PROMPT);
 }
 
-void test_simple_bg_andor_chain(void) {
+TEST(shell, simple_bg_andor_chain) {
     write_verify("sleep 0.05 && /bin/echo x &\n");
 
     read_verify("[1] started\n" PROMPT "x\n" "\n[1] exited\n" PROMPT);
 }
 
-void test_and_if_logic(void) {
+TEST(shell, and_if_logic) {
     write_verify("true && /bin/echo x\n");
     read_verify("x\n" PROMPT);
 
@@ -372,7 +366,7 @@ void test_and_if_logic(void) {
     read_verify(PROMPT);
 }
 
-void test_or_if_logic(void) {
+TEST(shell, or_if_logic) {
     write_verify("false || /bin/echo y\n");
     read_verify("y\n" PROMPT);
 
@@ -380,7 +374,7 @@ void test_or_if_logic(void) {
     read_verify(PROMPT);
 }
 
-void test_and_if_logic_bg(void) {
+TEST(shell, and_if_logic_bg) {
     write_verify("true && /bin/echo x &\n");
     read_verify("[1] started\n" PROMPT "x\n\n[1] exited\n" PROMPT);
 
@@ -388,7 +382,7 @@ void test_and_if_logic_bg(void) {
     read_verify("[1] started\n" PROMPT "\n[1] exited\n" PROMPT);
 }
 
-void test_or_if_logic_bg(void) {
+TEST(shell, or_if_logic_bg) {
     write_verify("false || /bin/echo y &\n");
     read_verify("[1] started\n" PROMPT "y\n\n[1] exited\n" PROMPT);
 
@@ -396,19 +390,19 @@ void test_or_if_logic_bg(void) {
     read_verify("[1] started\n" PROMPT "\n[1] exited\n" PROMPT);
 }
 
-void test_and_or_chain_with_builtins(void) {
+TEST(shell, and_or_chain_with_builtins) {
     write_verify("echo x && echo y\n");
 
     read_verify("x\ny\n" PROMPT);
 }
 
-void test_prompt_after_launch_fg_builtin(void) {
+TEST(shell, prompt_after_launch_fg_builtin) {
     write_verify("cd .\n");
 
     read_verify(PROMPT);
 }
 
-void test_jobs_builtin(void) {
+TEST(shell, jobs_builtin) {
     write_verify("jobs\n");
     write_verify("sleep 100 &\n");
     write_verify("jobs\n");
@@ -416,7 +410,7 @@ void test_jobs_builtin(void) {
     read_verify(PROMPT "[1] started\n" PROMPT "[1] running\n" PROMPT);
 }
 
-void test_builtin_and_or_logic(void) {
+TEST(shell, builtin_and_or_logic) {
     write_verify("cd /non-existant || echo ?\n");
     read_verify("cd: chdir: No such file or directory\n?\n" PROMPT);
 
@@ -424,36 +418,33 @@ void test_builtin_and_or_logic(void) {
     read_verify("cd: chdir: No such file or directory\n" PROMPT);
 }
 
-int main(void) {
-    log_init("/home/juta/Projects/Seashell/test/logs");
+/************ Test runner ************/
+
+TEST_GROUP_RUNNER(shell) {
     open_pty_test(&ptyt);
 
-    UNITY_BEGIN();
+    RUN_TEST_CASE(shell, prompt_after_reclaim_tty);
+    RUN_TEST_CASE(shell, prompt_after_launch_bg_cmd);
+    RUN_TEST_CASE(shell, prompt_after_bg_job_done);
+    RUN_TEST_CASE(shell, short_lived_bg_cmd);
+    RUN_TEST_CASE(shell, int_fg_job);
+    RUN_TEST_CASE(shell, stop_fg_job);
+    RUN_TEST_CASE(shell, bg_jobs_pid_state);
+    RUN_TEST_CASE(shell, unknown_cmd);
+    RUN_TEST_CASE(shell, pipeline);
+    RUN_TEST_CASE(shell, bg_job_done_with_fg_job);
+    RUN_TEST_CASE(shell, builtin_in_bg);
+    RUN_TEST_CASE(shell, pipeline_of_builtins_does_not_duplicate_prompt);
+    RUN_TEST_CASE(shell, simple_andor_chain);
+    RUN_TEST_CASE(shell, simple_bg_andor_chain);
+    RUN_TEST_CASE(shell, and_if_logic);
+    RUN_TEST_CASE(shell, or_if_logic);
+    RUN_TEST_CASE(shell, or_if_logic_bg);
+    RUN_TEST_CASE(shell, and_if_logic_bg);
+    RUN_TEST_CASE(shell, and_or_chain_with_builtins);
+    RUN_TEST_CASE(shell, prompt_after_launch_fg_builtin);
+    RUN_TEST_CASE(shell, jobs_builtin);
+    RUN_TEST_CASE(shell, builtin_and_or_logic);
 
-    for (int i = 0; i < 1; ++i) {
-        RUN_TEST(test_prompt_after_reclaim_tty);
-        RUN_TEST(test_prompt_after_launch_bg_cmd);
-        RUN_TEST(test_prompt_after_bg_job_done);
-        RUN_TEST(test_short_lived_bg_cmd);
-        RUN_TEST(test_int_fg_job);
-        RUN_TEST(test_stop_fg_job);
-        RUN_TEST(test_bg_jobs_pid_state);
-        RUN_TEST(test_unknown_cmd);
-        RUN_TEST(test_pipeline);
-        RUN_TEST(test_bg_job_done_with_fg_job);
-        RUN_TEST(test_builtin_in_bg);
-        RUN_TEST(test_pipeline_of_builtins_does_not_duplicate_prompt);
-        RUN_TEST(test_simple_andor_chain);
-        RUN_TEST(test_simple_bg_andor_chain);
-        RUN_TEST(test_and_if_logic);
-        RUN_TEST(test_or_if_logic);
-        RUN_TEST(test_or_if_logic_bg);
-        RUN_TEST(test_and_if_logic_bg);
-        RUN_TEST(test_and_or_chain_with_builtins);
-        RUN_TEST(test_prompt_after_launch_fg_builtin);
-        RUN_TEST(test_jobs_builtin);
-        RUN_TEST(test_builtin_and_or_logic);
-    }
-
-    return UNITY_END();
+    close_pty_test(&ptyt);
 }

@@ -4,11 +4,12 @@
 #include <time.h>
 #include <stdlib.h>
 
-#include "unity.h"
+#include "unity_fixture.h"
 #include "lexer.h"
 
-void setUp(void) {}
-void tearDown(void) {}
+TEST_GROUP(lexer);
+
+/************ Shared utils ************/
 
 void assert_tokens(
         const char *cmd,
@@ -51,7 +52,14 @@ void assert_tokens(
     lx_free(&tokens);
 }
 
-void test_all_operators(void) {
+/************ Fixture ************/
+
+TEST_SETUP(lexer) {}
+TEST_TEAR_DOWN(lexer) {}
+
+/************ Tests ************/
+
+TEST(lexer, all_operators) {
     const lx_kind kind[8] = {
         LX_TOK_PIPE,
         LX_TOK_BG,
@@ -66,7 +74,7 @@ void test_all_operators(void) {
     assert_tokens("|&<>>>&&||2>", kind, NULL, NULL, 8, 0);
 }
 
-void test_shell_usage(void) {
+TEST(lexer, shell_usage) {
     const lx_kind kind[9] = {
         LX_TOK_WORD, LX_TOK_WORD, LX_TOK_RDR_ERR, LX_TOK_WORD,
         LX_TOK_RDR_OUT, LX_TOK_WORD, LX_TOK_BG, LX_TOK_WORD,
@@ -86,7 +94,7 @@ void test_shell_usage(void) {
             kind, raw, quote, 9, 0);
 }
 
-void test_quotes_galore(void) {
+TEST(lexer, quotes_galore) {
     const lx_kind kind[10] = {
         LX_TOK_WORD, LX_TOK_WORD, LX_TOK_WORD, LX_TOK_WORD,
         LX_TOK_WORD
@@ -105,109 +113,109 @@ void test_quotes_galore(void) {
 
 /* Whitespaces */
 
-void test_whitespace_only(void) {
+TEST(lexer, whitespace_only) {
     assert_tokens(" ", NULL, NULL, NULL, 0, 0);
 }
 
 /* Operators */
 
-void test_operator_single(void) {
+TEST(lexer, operator_single) {
     const lx_kind kind[1] = { LX_TOK_PIPE, };
     assert_tokens("|", kind, NULL, NULL, 1, 0);
 }
 
-void test_operator_multiple(void) {
+TEST(lexer, operator_multiple) {
     const lx_kind kind[2] = { LX_TOK_PIPE, LX_TOK_BG };
     assert_tokens("|&", kind, NULL, NULL, 2, 0);
 }
 
-void test_operator_before_word(void) {
+TEST(lexer, operator_before_word) {
     const lx_kind kind[2] = { LX_TOK_PIPE, LX_TOK_WORD };
     const char *raw[2] = { NULL, "a" };
     const lx_quote quote[2] = { LX_Q_NONE, LX_Q_NONE };
     assert_tokens("|a", kind, raw, quote, 2, 0);
 }
 
-void test_operator_before_space(void) {
+TEST(lexer, operator_before_space) {
     const lx_kind kind[1] = { LX_TOK_PIPE };
     assert_tokens("| ", kind, NULL, NULL, 1, 0);
 }
 
-void test_operator_after_space(void) {
+TEST(lexer, operator_after_space) {
     const lx_kind kind[1] = { LX_TOK_PIPE };
     assert_tokens(" |", kind, NULL, NULL, 1, 0);
 }
 
-void test_operator_two_char_op(void) {
+TEST(lexer, operator_two_char_op) {
     const lx_kind kind[1] = { LX_TOK_APPEND };
     assert_tokens(">>", kind, NULL, NULL, 1, 0);
 }
 
-void test_operator_two_char_op_before_word(void) {
+TEST(lexer, operator_two_char_op_before_word) {
     const lx_kind kind[2] = { LX_TOK_APPEND, LX_TOK_WORD };
     const char *raw[2] = { NULL, "a" };
     const lx_quote quote[2] = { LX_Q_NONE, LX_Q_NONE };
     assert_tokens(">>a", kind, raw, quote, 2, 0);
 }
 
-void test_operator_two_char_op_after_word(void) {
+TEST(lexer, operator_two_char_op_after_word) {
     const lx_kind kind[2] = { LX_TOK_WORD, LX_TOK_APPEND };
     const char *raw[2] = { "a",  NULL };
     const lx_quote quote[2] = { LX_Q_NONE, LX_Q_NONE };
     assert_tokens("a>>", kind, raw, quote, 2, 0);
 }
 
-void test_operator_two_char_op_before_op(void) {
+TEST(lexer, operator_two_char_op_before_op) {
     const lx_kind kind[2] = { LX_TOK_APPEND, LX_TOK_PIPE };
     assert_tokens(">>|", kind, NULL, NULL, 2, 0);
 }
 
-void test_operator_two_char_op_after_op(void) {
+TEST(lexer, operator_two_char_op_after_op) {
     const lx_kind kind[2] = { LX_TOK_PIPE, LX_TOK_APPEND };
     assert_tokens("|>>", kind, NULL, NULL, 2, 0);
 }
 
-void test_operator_two_char_op_before_whitespace(void) {
+TEST(lexer, operator_two_char_op_before_whitespace) {
     const lx_kind kind[1] = { LX_TOK_APPEND };
     assert_tokens(">> ", kind, NULL, NULL, 1, 0);
 }
 
-void test_operator_two_char_op_after_whitespace(void) {
+TEST(lexer, operator_two_char_op_after_whitespace) {
     const lx_kind kind[1] = { LX_TOK_APPEND };
     assert_tokens(" >>", kind, NULL, NULL, 1, 0);
 }
 
 /* Words */
 
-void test_word_single_letter(void) {
+TEST(lexer, word_single_letter) {
     const lx_kind kind[1] = { LX_TOK_WORD, };
     const char *raw[1] = { "a" };
     const lx_quote quote[1] = { LX_Q_NONE };
     assert_tokens("a", kind, raw, quote, 1, 0);
 }
 
-void test_word_multiple_letter(void) {
+TEST(lexer, word_multiple_letter) {
     const lx_kind kind[1] = { LX_TOK_WORD, };
     const char *raw[1] = { "ab" };
     const lx_quote quote[1] = { LX_Q_NONE };
     assert_tokens("ab", kind, raw, quote, 1, 0);
 }
 
-void test_word_before_operator(void) {
+TEST(lexer, word_before_operator) {
     const lx_kind kind[2] = { LX_TOK_WORD, LX_TOK_PIPE };
     const char *raw[2] = { "a", NULL };
     const lx_quote quote[2] = { LX_Q_NONE, LX_Q_NONE };
     assert_tokens("a|", kind, raw, quote, 2, 0);
 }
 
-void test_word_before_space(void) {
+TEST(lexer, word_before_space) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[1] = { "a" };
     const lx_quote quote[1] = { LX_Q_NONE };
     assert_tokens("a ", kind, raw, quote, 1, 0);
 }
 
-void test_word_after_space(void) {
+TEST(lexer, word_after_space) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[1] = { "a" };
     const lx_quote quote[1] = { LX_Q_NONE };
@@ -216,249 +224,240 @@ void test_word_after_space(void) {
 
 /* Backslashes */
 
-void test_backslash_only(void) {
+TEST(lexer, backslash_only) {
     assert_tokens("\\", NULL, NULL, NULL, 0, LX_ERREMPTYESC);
 }
 
-void test_backslash_after_backslash(void) {
+TEST(lexer, backslash_after_backslash) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[1] = { "\\\\" };
     const lx_quote quote[1] = { LX_Q_NONE };
     assert_tokens("\\\\", kind, raw, quote, 1, 0);
 }
 
-void test_backslash_before_operator(void) {
+TEST(lexer, backslash_before_operator) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[1] = { "\\|" };
     const lx_quote quote[1] = { LX_Q_NONE };
     assert_tokens("\\|", kind, raw, quote, 1, 0);
 }
 
-void test_backslash_after_operator(void) {
+TEST(lexer, backslash_after_operator) {
     assert_tokens("|\\", NULL, NULL, NULL, 0, LX_ERREMPTYESC);
 }
 
-void test_backslash_before_whitespace(void) {
+TEST(lexer, backslash_before_whitespace) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[1] = { "\\ " };
     const lx_quote quote[1] = { LX_Q_NONE };
     assert_tokens("\\ ", kind, raw, quote, 1, 0);
 }
 
-void test_backslash_after_whitespace(void) {
+TEST(lexer, backslash_after_whitespace) {
     assert_tokens(" \\", NULL, NULL, NULL, 0, LX_ERREMPTYESC);
 }
 
-void test_backslash_before_word(void) {
+TEST(lexer, backslash_before_word) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[1] = { "\\a" };
     const lx_quote quote[1] = { LX_Q_NONE };
     assert_tokens("\\a", kind, raw, quote, 1, 0);
 }
 
-void test_backslash_after_word(void) {
+TEST(lexer, backslash_after_word) {
     assert_tokens("a\\", NULL, NULL, NULL, 0, LX_ERREMPTYESC);
 }
 
 /* Double quotes */
 
-void test_double_quote_empty(void) {
+TEST(lexer, double_quote_empty) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[1] = { "" };
     const lx_quote quote[1] = { LX_Q_DOUBLE };
     assert_tokens("\"\"", kind, raw, quote, 1, 0);
 }
 
-void test_double_quote_word(void) {
+TEST(lexer, double_quote_word) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[1] = { "a" };
     const lx_quote quote[1] = { LX_Q_DOUBLE };
     assert_tokens("\"a\"", kind, raw, quote, 1, 0);
 }
 
-void test_double_quote_operator(void) {
+TEST(lexer, double_quote_operator) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[1] = { "|" };
     const lx_quote quote[1] = { LX_Q_DOUBLE };
     assert_tokens("\"|\"", kind, raw, quote, 1, 0);
 }
 
-void test_double_quote_whitespace(void) {
+TEST(lexer, double_quote_whitespace) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[1] = { " " };
     const lx_quote quote[1] = { LX_Q_DOUBLE };
     assert_tokens("\" \"", kind, raw, quote, 1, 0);
 }
 
-void test_double_quote_escaped_quote(void) {
+TEST(lexer, double_quote_escaped_quote) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[1] = { "\\\"" };
     const lx_quote quote[1] = { LX_Q_DOUBLE };
     assert_tokens("\"\\\"\"", kind, raw, quote, 1, 0);
 }
 
-void test_double_quote_no_end_quote(void) {
+TEST(lexer, double_quote_no_end_quote) {
     assert_tokens("\"", NULL, NULL, NULL, 0, LX_ERRNOENDQUOTE);
 }
 
 /* Single quotes */
 
-void test_single_quote_empty(void) {
+TEST(lexer, single_quote_empty) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[1] = { "" };
     const lx_quote quote[1] = { LX_Q_SINGLE };
     assert_tokens("''", kind, raw, quote, 1, 0);
 }
 
-void test_single_quote_word(void) {
+TEST(lexer, single_quote_word) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[1] = { "a" };
     const lx_quote quote[1] = { LX_Q_SINGLE };
     assert_tokens("'a'", kind, raw, quote, 1, 0);
 }
 
-void test_single_quote_operator(void) {
+TEST(lexer, single_quote_operator) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[1] = { "|" };
     const lx_quote quote[1] = { LX_Q_SINGLE };
     assert_tokens("'|'", kind, raw, quote, 1, 0);
 }
 
-void test_single_quote_whitespace(void) {
+TEST(lexer, single_quote_whitespace) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[1] = { " " };
     const lx_quote quote[1] = { LX_Q_SINGLE };
     assert_tokens("' '", kind, raw, quote, 1, 0);
 }
 
-void test_single_quote_backslash(void) {
+TEST(lexer, single_quote_backslash) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[1] = { "\\" };
     const lx_quote quote[1] = { LX_Q_SINGLE };
     assert_tokens("'\\'", kind, raw, quote, 1, 0);
 }
 
-void test_single_quote_no_end_quote(void) {
+TEST(lexer, single_quote_no_end_quote) {
     assert_tokens("'", NULL, NULL, NULL, 0, LX_ERRNOENDQUOTE);
 }
 
 /* Parts */
 
-void test_part_none_then_double(void) {
+TEST(lexer, part_none_then_double) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[2] = { "a", "b" };
     const lx_quote quote[2] = { LX_Q_NONE, LX_Q_DOUBLE };
     assert_tokens("a\"b\"", kind, raw, quote, 1, 0);
 }
 
-void test_part_double_then_none(void) {
+TEST(lexer, part_double_then_none) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[2] = { "a", "b" };
     const lx_quote quote[2] = { LX_Q_DOUBLE, LX_Q_NONE };
     assert_tokens("\"a\"b", kind, raw, quote, 1, 0);
 }
 
-void test_part_double_then_double(void) {
+TEST(lexer, part_double_then_double) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[2] = { "a", "b" };
     const lx_quote quote[2] = { LX_Q_DOUBLE, LX_Q_DOUBLE };
     assert_tokens("\"a\"\"b\"", kind, raw, quote, 1, 0);
 }
 
-void test_part_none_then_single(void) {
+TEST(lexer, part_none_then_single) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[2] = { "a", "b" };
     const lx_quote quote[2] = { LX_Q_NONE, LX_Q_SINGLE };
     assert_tokens("a'b'", kind, raw, quote, 1, 0);
 }
 
-void test_part_single_then_none(void) {
+TEST(lexer, part_single_then_none) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[2] = { "a", "b" };
     const lx_quote quote[2] = { LX_Q_SINGLE, LX_Q_NONE };
     assert_tokens("'a'b", kind, raw, quote, 1, 0);
 }
 
-void test_part_single_then_single(void) {
+TEST(lexer, part_single_then_single) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[2] = { "a", "b" };
     const lx_quote quote[2] = { LX_Q_SINGLE, LX_Q_SINGLE };
     assert_tokens("'a''b'", kind, raw, quote, 1, 0);
 }
 
-void test_part_double_then_single(void) {
+TEST(lexer, part_double_then_single) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[2] = { "a", "b" };
     const lx_quote quote[2] = { LX_Q_DOUBLE, LX_Q_SINGLE };
     assert_tokens("\"a\"'b'", kind, raw, quote, 1, 0);
 }
 
-void test_part_single_then_double(void) {
+TEST(lexer, part_single_then_double) {
     const lx_kind kind[1] = { LX_TOK_WORD };
     const char *raw[2] = { "a", "b" };
     const lx_quote quote[2] = { LX_Q_SINGLE, LX_Q_DOUBLE };
     assert_tokens("'a'\"b\"", kind, raw, quote, 1, 0);
 }
 
-int main(void) {
-    UNITY_BEGIN();
+/************ Test runner ************/
 
-    RUN_TEST(test_all_operators);
-    RUN_TEST(test_shell_usage);
-    RUN_TEST(test_quotes_galore);
-
-    RUN_TEST(test_whitespace_only);
-
-    RUN_TEST(test_operator_single);
-    RUN_TEST(test_operator_multiple);
-    RUN_TEST(test_operator_before_word);
-    RUN_TEST(test_operator_before_space);
-    RUN_TEST(test_operator_after_space);
-    RUN_TEST(test_operator_two_char_op);
-    RUN_TEST(test_operator_two_char_op_before_word);
-    RUN_TEST(test_operator_two_char_op_after_word);
-    RUN_TEST(test_operator_two_char_op_before_op);
-    RUN_TEST(test_operator_two_char_op_after_op);
-    RUN_TEST(test_operator_two_char_op_before_whitespace);
-    RUN_TEST(test_operator_two_char_op_after_whitespace);
-
-    RUN_TEST(test_word_single_letter);
-    RUN_TEST(test_word_multiple_letter);
-    RUN_TEST(test_word_before_operator);
-    RUN_TEST(test_word_before_space);
-    RUN_TEST(test_word_after_space);
-
-    RUN_TEST(test_backslash_only);
-    RUN_TEST(test_backslash_after_backslash);
-    RUN_TEST(test_backslash_before_operator);
-    RUN_TEST(test_backslash_after_operator);
-    RUN_TEST(test_backslash_before_whitespace);
-    RUN_TEST(test_backslash_after_whitespace);
-    RUN_TEST(test_backslash_before_word);
-    RUN_TEST(test_backslash_after_word);
-
-    RUN_TEST(test_double_quote_empty);
-    RUN_TEST(test_double_quote_word);
-    RUN_TEST(test_double_quote_operator);
-    RUN_TEST(test_double_quote_whitespace);
-    RUN_TEST(test_double_quote_escaped_quote);
-    RUN_TEST(test_double_quote_no_end_quote);
-
-    RUN_TEST(test_single_quote_empty);
-    RUN_TEST(test_single_quote_word);
-    RUN_TEST(test_single_quote_operator);
-    RUN_TEST(test_single_quote_whitespace);
-    RUN_TEST(test_single_quote_backslash);
-    RUN_TEST(test_single_quote_no_end_quote);
-
-    RUN_TEST(test_part_none_then_double);
-    RUN_TEST(test_part_double_then_none);
-    RUN_TEST(test_part_double_then_double);
-    RUN_TEST(test_part_none_then_single);
-    RUN_TEST(test_part_single_then_none);
-    RUN_TEST(test_part_single_then_single);
-    RUN_TEST(test_part_double_then_single);
-    RUN_TEST(test_part_single_then_double);
-
-    return UNITY_END();
+TEST_GROUP_RUNNER(lexer) {
+    RUN_TEST_CASE(lexer, all_operators);
+    RUN_TEST_CASE(lexer, shell_usage);
+    RUN_TEST_CASE(lexer, quotes_galore);
+    RUN_TEST_CASE(lexer, whitespace_only);
+    RUN_TEST_CASE(lexer, operator_single);
+    RUN_TEST_CASE(lexer, operator_multiple);
+    RUN_TEST_CASE(lexer, operator_before_word);
+    RUN_TEST_CASE(lexer, operator_before_space);
+    RUN_TEST_CASE(lexer, operator_after_space);
+    RUN_TEST_CASE(lexer, operator_two_char_op);
+    RUN_TEST_CASE(lexer, operator_two_char_op_before_word);
+    RUN_TEST_CASE(lexer, operator_two_char_op_after_word);
+    RUN_TEST_CASE(lexer, operator_two_char_op_before_op);
+    RUN_TEST_CASE(lexer, operator_two_char_op_after_op);
+    RUN_TEST_CASE(lexer, operator_two_char_op_before_whitespace);
+    RUN_TEST_CASE(lexer, operator_two_char_op_after_whitespace);
+    RUN_TEST_CASE(lexer, word_single_letter);
+    RUN_TEST_CASE(lexer, word_multiple_letter);
+    RUN_TEST_CASE(lexer, word_before_operator);
+    RUN_TEST_CASE(lexer, word_before_space);
+    RUN_TEST_CASE(lexer, word_after_space);
+    RUN_TEST_CASE(lexer, backslash_only);
+    RUN_TEST_CASE(lexer, backslash_after_backslash);
+    RUN_TEST_CASE(lexer, backslash_before_operator);
+    RUN_TEST_CASE(lexer, backslash_after_operator);
+    RUN_TEST_CASE(lexer, backslash_before_whitespace);
+    RUN_TEST_CASE(lexer, backslash_after_whitespace);
+    RUN_TEST_CASE(lexer, backslash_before_word);
+    RUN_TEST_CASE(lexer, backslash_after_word);
+    RUN_TEST_CASE(lexer, double_quote_empty);
+    RUN_TEST_CASE(lexer, double_quote_word);
+    RUN_TEST_CASE(lexer, double_quote_operator);
+    RUN_TEST_CASE(lexer, double_quote_whitespace);
+    RUN_TEST_CASE(lexer, double_quote_escaped_quote);
+    RUN_TEST_CASE(lexer, double_quote_no_end_quote);
+    RUN_TEST_CASE(lexer, single_quote_empty);
+    RUN_TEST_CASE(lexer, single_quote_word);
+    RUN_TEST_CASE(lexer, single_quote_operator);
+    RUN_TEST_CASE(lexer, single_quote_whitespace);
+    RUN_TEST_CASE(lexer, single_quote_backslash);
+    RUN_TEST_CASE(lexer, single_quote_no_end_quote);
+    RUN_TEST_CASE(lexer, part_none_then_double);
+    RUN_TEST_CASE(lexer, part_double_then_none);
+    RUN_TEST_CASE(lexer, part_double_then_double);
+    RUN_TEST_CASE(lexer, part_none_then_single);
+    RUN_TEST_CASE(lexer, part_single_then_none);
+    RUN_TEST_CASE(lexer, part_single_then_single);
+    RUN_TEST_CASE(lexer, part_double_then_single);
+    RUN_TEST_CASE(lexer, part_single_then_double);
 }

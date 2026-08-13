@@ -1,6 +1,0 @@
-[submodule "deps/LLog"]
-	path = deps/LLog
-	url = git@github.com:linux-c-tools/LLog.git
-[submodule "LLog"]
-	path = LLog
-	url = git@github.com:linux-c-tools/LLog.git
