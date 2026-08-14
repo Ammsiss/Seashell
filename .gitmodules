@@ -1,0 +1,3 @@
+[submodule "deps/linc_tools"]
+	path = deps/linc_tools
+	url = git@github.com:Ammsiss/linc_tools.git

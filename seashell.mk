@@ -8,10 +8,11 @@ DEP_DIR := deps
 CC := clang
 
 CFLAGS := -g -O0 -std=gnu23 -Wall -Wextra
-CPPFLAGS := -Iinc
+CPPFLAGS := -Iinc -I$(DEP_DIR)/linc_tools/inc
 DEPFLAGS := -MMD -MP
 
 SRCS := $(wildcard $(SRC_DIR)/*.c)
+SRCS += $(wildcard $(DEP_DIR)/linc_tools/src/*.c)
 
 OBJS := $(patsubst %.c,$(BLD_DIR)/%.o,$(SRCS))
 DEPS := $(patsubst %.c,$(BLD_DIR)/%.d,$(SRCS))
