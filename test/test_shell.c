@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 
+#include <time.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -22,7 +23,7 @@ typedef struct {
     size_t n;
 } pty_io;
 
-static char *argv[] = { "/home/juta/Projects/Seashell/seashell" };
+static char *argv[] = { "/home/juta/Projects/Seashell/seashell", NULL };
 
 static pty_test ptyt = {0};
 static pid_t cpid = {0};

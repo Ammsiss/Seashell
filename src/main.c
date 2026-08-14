@@ -17,9 +17,10 @@
 #include "shell_state.h"
 #include "utils.h"
 #include "log.h"
-
 #include "job_state.h"
 #include "sig_funcs.h"
+#include "args.h"
+#include "opts.h"
 
 #define SIG_READY 1
 #define STDIN_READY 2
@@ -54,8 +55,6 @@ static ps_ast *line_to_ast(void) {
     char *line = get_line();
     if (strlen(line) == 0)
         return NULL;
-
-    LOG_INFO("%s", line);
 
     da_tok toks;
     if (lx_tokenize(line, &toks) != LX_OK) {
@@ -266,15 +265,20 @@ static void process_signals(void) {
     reset_sig_flags();
 }
 
-int main(void) {
-    log_init("/home/juta/Projects/Seashell/logs/seashell");
+int main(int _, char *const *argv) {
+    log_setup();
     env_init();
     sig_setup();
 
+    LOG_INFO("seashell PID(%d)", getpid());
+
+    if (arg_parse(argv, opts, ARG_NO_NON_OPTS) == -1) {
+        LOG_ERR("failed to parse args");
+        exit(EXIT_FAILURE);
+    }
+
     if (xatexit(hup_to_children) == -1)
         err_exit("atexit");
-
-    LOG_INFO("seashell PID(%d)", getpid());
 
     struct pollfd events = { .events = POLLIN, .fd = sh_env.tty_fd };
 

@@ -9,76 +9,13 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h> // IWYU pragma: keep
-#include <time.h>
 
-#define STR_IMP(x) #x
-#define STR(x) STR_IMP(x)
+#include "llog.h"
 
-#define LOG_MSG(type, perrno, fmt, ...) \
-    log_msg(type, perrno, __FILE__, __LINE__, __func__, \
-            fmt __VA_OPT__(,) __VA_ARGS__)
-
-#define LOG_INFO(fmt, ...) \
-    LOG_MSG(L_INFO, NULL, fmt __VA_OPT__(,) __VA_ARGS__)
-
-#define LOG_WARN(fmt, ...) \
-    LOG_MSG(L_WARN, NULL, fmt __VA_OPT__(,) __VA_ARGS__)
-
-#define LOG_ERR(fmt, ...) \
-    LOG_MSG(L_ERR, NULL, fmt __VA_OPT__(,) __VA_ARGS__)
+void log_setup(void);
 
 #define LOG_ERRNO(fmt, ...) \
-    do { \
-        int saved_errno = errno; \
-        LOG_MSG(L_ERR, strerror(saved_errno), (fmt) __VA_OPT__(,) __VA_ARGS__); \
-        errno = saved_errno; \
-    } while (false)
-
-#define PFFORMAT(x, y) __attribute__ ((format(printf, (x), (y))))
-
-/* +100 for format chars, pid, and line number */
-#define OUTPUT_SIZE (LOG_BUF_SIZE * 3 + PATH_MAX + ERRSTR_SIZE + 100)
-#define ERRSTR_SIZE 1024
-#define LOG_BUF_SIZE 128
-
-#define CGREEN   "\033[2;36m"
-#define CRED     "\033[91m"
-#define CBLACK   "\033[30m"
-#define CYELLOW  "\033[33m"
-#define CBLUE    "\033[34m"
-#define CMAGENTA "\033[35m"
-#define CCYAN    "\033[36m"
-#define CWHITE   "\033[37m"
-
-#define CBRIGHTBLACK   "\033[90m"
-#define CBRIGHTRED     "\033[91m"
-#define CBRIGHTGREEN   "\033[92m"
-#define CBRIGHTYELLOW  "\033[93m"
-#define CBRIGHTBLUE    "\033[94m"
-#define CBRIGHTMAGENTA "\033[95m"
-#define CBRIGHTCYAN    "\033[96m"
-#define CBRIGHTWHITE   "\033[97m"
-
-#define CDIM    "\033[90m"
-#define CBOLD   "\033[1m"
-#define CUNDER  "\033[4m"
-#define CREV    "\033[7m"
-
-#define CCL     "\033[m"
-
-typedef enum {
-    L_INFO,
-    L_WARN,
-    L_ERR,
-} log_level;
-
-bool log_is_open(void);
-void log_init(char *log_path);
-void log_free();
-
-PFFORMAT(6, 7)
-void log_msg(log_level type, const char *errstr, const char *file, \
-    int line, const char *function, const char *fmt, ...);
+    ((void)0)
 
 #define xdup2(fd1, fd2) \
     ({ \

@@ -2,7 +2,7 @@
 #include "log.h"
 
 void run_all(void) {
-    log_init("/home/juta/Projects/Seashell/logs/test");
+    log_setup();
 
     RUN_TEST_GROUP(array);
     RUN_TEST_GROUP(string);

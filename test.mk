@@ -15,7 +15,7 @@ CPPFLAGS += -DUNITY_OUTPUT_COLOR -DUNITY_FIXTURE_NO_EXTRAS
 DEPFLAGS := -MMD -MP
 
 SRCS := $(filter-out $(SRC_DIR)/main.c,$(wildcard $(SRC_DIR)/*.c))
-SRCS += $(wildcard $(DEP_DIR)/linc_tools/src)
+SRCS += $(wildcard $(DEP_DIR)/linc_tools/src/*.c)
 SRCS += $(wildcard $(TEST_DIR)/*.c)
 SRCS += $(wildcard $(UNITY_DIR)/*.c)
 
