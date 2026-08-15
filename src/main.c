@@ -20,11 +20,9 @@
 #include "input.h"
 #include "shell_state.h"
 #include "utils.h"
-#include "log.h"
 #include "job_state.h"
 #include "sig_funcs.h"
 #include "args.h"
-#include "opts.h"
 
 #define SIG_READY 1
 #define STDIN_READY 2
@@ -269,16 +267,10 @@ static void process_signals(void) {
 }
 
 int main(int argc, char *const *argv) {
-    env_init();
-
     if (arg_parse(argc, argv, opts, ARG_NO_NON_OPTS) == -1)
         exit(EXIT_FAILURE);
 
-    log_setup();
-    sig_setup();
-
-    LOG_INFO("seashell PID(%d)", getpid());
-
+    env_setup(&sh_env);
     xatexit(hup_to_children);
 
     struct pollfd events = { .events = POLLIN, .fd = sh_env.tty_fd };

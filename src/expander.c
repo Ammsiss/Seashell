@@ -2,7 +2,6 @@
 #include <string.h>
 
 #include "parser.h" // IWYU pragma: keep - See 2026-06-25 Notes
-#include "log.h" // IWYU pragma: keep
 #include "expander.h"
 #include "dyn_str.h"
 #include "utils.h"

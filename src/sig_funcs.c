@@ -3,18 +3,11 @@
 #include <signal.h>
 
 #include "sig_funcs.h"
-#include "shell_state.h"
 #include "xfuncs.h"
 
 volatile sig_atomic_t sigchld_caught = false;
 volatile sig_atomic_t sighup_caught = false;
 volatile sig_atomic_t sigint_caught = false;
-
-void reset_sig_flags(void) {
-    sigchld_caught = false;
-    sighup_caught = false;
-    sigint_caught = false;
-}
 
 void sigchld_handler(int _) {
     sigchld_caught = true;
@@ -28,7 +21,8 @@ void sigint_handler(int _) {
     sigint_caught = true;
 }
 
-void set_sig_action(int sig, sighandler_t handler, int flags, sigset_t *mask) {
+static void set_sig_action(int sig, sighandler_t handler, int flags,
+        sigset_t *mask) {
     struct sigaction sa;
     sa.sa_flags = flags;
     sa.sa_handler = handler;
@@ -41,7 +35,7 @@ void set_sig_action(int sig, sighandler_t handler, int flags, sigset_t *mask) {
     xsigaction(sig, &sa, NULL);
 }
 
-void procmask_add(int sig, int how) {
+static void procmask_add(int sig, int how) {
     sigset_t set;
 
     xsigemptyset(&set);
@@ -49,12 +43,18 @@ void procmask_add(int sig, int how) {
     xsigprocmask(how, &set, NULL);
 }
 
-void block_sig(int sig) {
+static void block_sig(int sig) {
     procmask_add(sig, SIG_BLOCK);
 }
 
-void sig_restore(void) {
-    xsigprocmask(SIG_SETMASK, &sh_env.og_mask, NULL);
+void reset_sig_flags(void) {
+    sigchld_caught = false;
+    sighup_caught = false;
+    sigint_caught = false;
+}
+
+void sig_restore(sigset_t *og_mask) {
+    xsigprocmask(SIG_SETMASK, og_mask, NULL);
     set_sig_action(SIGTTOU, SIG_DFL, 0, NULL);
     set_sig_action(SIGTTIN, SIG_DFL, 0, NULL);
     set_sig_action(SIGTSTP, SIG_DFL, 0, NULL);
@@ -62,8 +62,8 @@ void sig_restore(void) {
     set_sig_action(SIGTERM, SIG_DFL, 0, NULL);
 }
 
-void sig_setup(void) {
-    xsigprocmask(0, NULL, &sh_env.og_mask);
+void sig_setup(sigset_t *og_mask) {
+    xsigprocmask(0, NULL, og_mask);
 
     set_sig_action(SIGTTOU, SIG_IGN, 0, NULL);
     set_sig_action(SIGTTIN, SIG_IGN, 0, NULL);

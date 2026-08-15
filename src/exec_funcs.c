@@ -120,7 +120,7 @@ pline_data exec_pline(const ps_pline *pline, bool bg) {
             child_fd_setup(first, last, next_pipe, prev_rfd);
             child_redir_setup(&cur_cmd->redirs);
 
-            sig_restore();
+            sig_restore(&sh_env.og_mask);
 
             /* is it a builtin? */
 

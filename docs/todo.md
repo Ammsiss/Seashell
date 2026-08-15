@@ -6,11 +6,9 @@
 
 **Misc**
 
-- [ ] Figure out LOGGING! need to log from pty_fork or anywhere
-- [ ] Figure out why running test_all undermake, causes test_shell to fail
+- [ ] add a settable error handler func to llog
+- [ ] dstr should be in a valid state being zeroed out
 - [ ] add x helper macros for dyn array failures
-- [ ] Change log.c to pass in relevant fd instead of have it open
-- [ ] add sanitation runs for test_shell
 - [ ] add pid string context to job control logs
 - [ ] test stopping andor chain with plines left
 - [ ] Declarative pty tests that support cc, lines, and escape sequences

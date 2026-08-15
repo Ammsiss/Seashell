@@ -9,7 +9,6 @@
 
 #include "input.h"
 #include "dyn_str.h"
-#include "log.h"
 #include "utils.h"
 #include "xfuncs.h"
 
