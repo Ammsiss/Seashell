@@ -4,12 +4,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 #include "shell_state.h"
 #include "input.h"
 #include "job_state.h"
 #include "builtins.h"
-#include "log.h"
+#include "llog.h"
 #include "utils.h"
 
 static bool validate_argc(char **argv, size_t min_argc, size_t max_argc) {

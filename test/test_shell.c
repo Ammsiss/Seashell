@@ -1,14 +1,16 @@
 #define _GNU_SOURCE
 
+#include <string.h>
+#include <errno.h>
 #include <time.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include "llog.h"
 #include "unity_fixture.h"
 #include "pty_test.h"
 #include "proc_view.h"
-#include "log.h"
 
 TEST_GROUP(shell);
 
@@ -35,7 +37,7 @@ static bool read_until(void *context) {
     if (iost->len > BUF_SIZE - 1 || iost->n > iost->len)
         return false;
 
-    int num_read = xread(ptyt.mfd, &iost->buf[iost->n], iost->len - iost->n);
+    int num_read = read(ptyt.mfd, &iost->buf[iost->n], iost->len - iost->n);
 
     if (num_read == -1) {
         if (errno == EAGAIN) {
@@ -57,7 +59,7 @@ static bool write_until(void *context) {
     if (iost->n > BUF_SIZE -1 || iost->n > iost->len)
         return false;
 
-    int num_write = xwrite(ptyt.mfd, &iost->buf[iost->n], iost->len - iost->n);
+    int num_write = write(ptyt.mfd, &iost->buf[iost->n], iost->len - iost->n);
 
     if (num_write == -1) {
         if (errno == EAGAIN) {
@@ -72,7 +74,7 @@ static bool write_until(void *context) {
 }
 
 static bool shell_exited(void *_) {
-    pid_t pid = xwaitpid(cpid, NULL, WNOHANG);
+    pid_t pid = waitpid(cpid, NULL, WNOHANG);
     return pid > 0;
 }
 
@@ -94,7 +96,7 @@ static bool pstat_size(void *context) {
 static bool proc_in_fg(void *context) {
     pid_t pid = *(pid_t *)context;
 
-    pid_t fg_pgid = xtcgetpgrp(ptyt.mfd);
+    pid_t fg_pgid = tcgetpgrp(ptyt.mfd);
     if (fg_pgid == -1)
         TEST_FAIL();
 
@@ -136,7 +138,7 @@ static bool wait_for(bool (* pred)(void *context), void *context, int max_ms) {
         if (checks-- < 1)
             return false;
 
-        if (xnanosleep(&ts, NULL) == -1)
+        if (nanosleep(&ts, NULL) == -1)
             TEST_FAIL();
     }
 
@@ -227,7 +229,7 @@ TEST_SETUP(shell) {
 }
 
 TEST_TEAR_DOWN(shell) {
-    if (xkill(cpid, SIGHUP) == -1)
+    if (kill(cpid, SIGHUP) == -1)
         TEST_FAIL();
 
     bool sigkill_sent = false;
@@ -236,7 +238,7 @@ TEST_TEAR_DOWN(shell) {
         if (sigkill_sent)
             TEST_FAIL_MESSAGE("failed to wait for seashell");
 
-        if (xkill(cpid, SIGKILL) == -1)
+        if (kill(cpid, SIGKILL) == -1)
             TEST_FAIL();
 
         sigkill_sent = true;

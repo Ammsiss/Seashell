@@ -1,8 +1,8 @@
 #define _GNU_SOURCE
 
 #include <stdio.h>
+#include <assert.h>
 
-#include "log.h"
 #include "job_state.h"
 #include "wait_stat.h"
 #include "utils.h"

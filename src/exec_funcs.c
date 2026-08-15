@@ -1,23 +1,22 @@
 #define _GNU_SOURCE
 
 #include <stdio.h>
+#include <errno.h>
+#include <assert.h>
 
 #include "utils.h"
 #include "builtins.h"
-#include "log.h"
 #include "parser.h"
 #include "sig_funcs.h"
 #include "exec_funcs.h"
+#include "xfuncs.h"
 
 void move_fd(int fd1, int fd2) {
     if (fd1 == fd2)
         return;
 
-    if (xdup2(fd1, fd2) == -1)
-        err_exit("dup2");
-
-    if (xclose(fd1) == -1)
-        err_exit("close");
+    xdup2(fd1, fd2);
+    xclose(fd1);
 }
 
 void child_fd_setup(bool first, bool last, int next_pipe[2], int prev_rfd) {
@@ -78,8 +77,6 @@ void init_pline_data(pline_data *pld) {
     *pld = (pline_data){0};
 
     da_pid *pids = xmalloc(sizeof(da_pid));
-    if (!pids)
-        err_exit("malloc");
 
     if (da_init(pids) == -1)
         xfatal("da_init");
@@ -103,12 +100,9 @@ pline_data exec_pline(const ps_pline *pline, bool bg) {
         bool last = (i == pline->cmds.size - 1);
 
         if (!last)
-            if (xpipe(next_pipe) == -1)
-                err_exit("pipe");
+            xpipe(next_pipe);
 
         int cpid = xfork();
-        if (cpid == -1)
-            err_exit("fork");
 
         if (first)
             pld.pgid = cpid;
@@ -118,12 +112,10 @@ pline_data exec_pline(const ps_pline *pline, bool bg) {
 
             /* subshell set up */
 
-            if (xsetpgid(0, pld.pgid) == -1)
-                err_exit("setpgid");
+            xsetpgid(0, pld.pgid);
 
             if (!bg && first)
-                if (xtcsetpgrp(sh_env.tty_fd, getpgrp()) == -1)
-                    err_exit("tcsetpgrp");
+                xtcsetpgrp(sh_env.tty_fd, getpgrp());
 
             child_fd_setup(first, last, next_pipe, prev_rfd);
             child_redir_setup(&cur_cmd->redirs);
@@ -138,33 +130,31 @@ pline_data exec_pline(const ps_pline *pline, bool bg) {
 
             /* exec program */
 
-            xexecvp(cur_cmd->argv[0], cur_cmd->argv);
+            execvp(cur_cmd->argv[0], cur_cmd->argv);
 
             if (errno == ENOENT) {
                 err_msg("command not found: %s", cur_cmd->argv[0]);
                 _exit(127);
             } else {
+                LOG_ERR("execvp: %m");
                 err_exit("execvp");
             }
-
-            _exit(EXIT_FAILURE);
         }
 
-        if (xsetpgid(cpid, pld.pgid) == -1 && errno != EACCES)
+        if (setpgid(cpid, pld.pgid) == -1 && errno != EACCES) {
+            llog_log(LLOG_ERR, __FILE__, __LINE__, "setpgid: %m");
             err_exit("setpgid");
+        }
 
         if (!bg && first)
-            if (xtcsetpgrp(sh_env.tty_fd, pld.pgid) == -1)
-                err_exit("tcsetpgrp");
+            xtcsetpgrp(sh_env.tty_fd, pld.pgid);
 
         if (!first)
-            if (xclose(prev_rfd) == -1)
-                err_exit("close");
+            xclose(prev_rfd);
 
         if (!last) {
             prev_rfd = next_pipe[0];
-            if (xclose(next_pipe[1]) == -1)
-                err_exit("close");
+            xclose(next_pipe[1]);
         }
 
         pid_t *pid = da_push(pld.pids);

@@ -2,11 +2,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #include "unity_fixture.h"
 #include "llog.h"
 
 #define DEFAULT_LOG_DIR "/home/juta/Projects/Seashell/logs/test/"
+
+void unity_output_char(int c) {
+    printf("%c", c);
+}
 
 static int log_fd;
 

@@ -12,6 +12,7 @@ CC := clang
 CFLAGS := -g -O0 -std=gnu23 -Wall -Wextra
 CPPFLAGS := -Iinc -I$(DEP_DIR)/linc_tools/inc -I$(TEST_DIR) -I$(UNITY_DIR)
 CPPFLAGS += -DUNITY_OUTPUT_COLOR -DUNITY_FIXTURE_NO_EXTRAS
+CPPFLAGS += -DUNITY_INCLUDE_CONFIG_H
 DEPFLAGS := -MMD -MP
 
 SRCS := $(filter-out $(SRC_DIR)/main.c,$(wildcard $(SRC_DIR)/*.c))

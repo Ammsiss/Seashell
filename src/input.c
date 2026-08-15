@@ -11,6 +11,7 @@
 #include "dyn_str.h"
 #include "log.h"
 #include "utils.h"
+#include "xfuncs.h"
 
 static char input_line[LINE_BUF];
 
@@ -26,9 +27,6 @@ void display_prompt(int mode) {
         static char cwd_str[PATH_MAX];
 
         char *cwd = xgetcwd(cwd_str, PATH_MAX);
-        if (!cwd)
-            err_exit("getcwd");
-
         char *cwd_base = basename(cwd);
 
         if (d_strcat(&prompt, cwd_base) == -1)

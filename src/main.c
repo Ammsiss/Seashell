@@ -1,5 +1,8 @@
 #define _GNU_SOURCE
 
+#include <assert.h>
+#include <string.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <poll.h>
@@ -7,6 +10,7 @@
 #include <wait.h>
 #include <getopt.h>
 
+#include "xfuncs.h"
 #include "shell_types.h"
 #include "builtins.h"
 #include "exec_funcs.h"
@@ -34,11 +38,15 @@ static void hup_to_children(void) {
         if (getpgrp() == job->pgrp.pgid || job->pgrp.pgid <= 1)
             xfatal("unexpected pgid %d", job->pgrp.pgid);
 
-        if (xkill(-job->pgrp.pgid, SIGHUP) == -1 && errno != ESRCH)
+        if (kill(-job->pgrp.pgid, SIGHUP) == -1 && errno != ESRCH) {
+            llog_log(LLOG_ERR, __FILE__, __LINE__, "kill: %m");
             err_exit("kill");
+        }
 
-        if (xkill(-job->pgrp.pgid, SIGCONT) == -1 && errno != ESRCH)
+        if (kill(-job->pgrp.pgid, SIGCONT) == -1 && errno != ESRCH) {
+            llog_log(LLOG_ERR, __FILE__, __LINE__, "kill: %m");
             err_exit("kill");
+        }
     }
 
     while (get_wstat(&(wait_event){0}) != -1)
@@ -63,8 +71,6 @@ static ps_ast *line_to_ast(void) {
     }
 
     ps_ast *ast = xmalloc(sizeof(ps_ast));
-    if (!ast)
-        err_exit("malloc");
 
     if (ps_parse(&toks, ast) == -1) {
         err_msg("syntax error");
@@ -93,11 +99,8 @@ static void launch_job(ps_pline *pline, bool bg, pid_t jid) {
         int status;
 
         if (try_run_builtin(pline->cmds.data[0].argv, &status)) {
-
             queue_builtin_exit_event(jid, status);
-
-            if (xkill(getpid(), SIGCHLD) == -1)
-                xfatal("kill");
+            xkill(getpid(), SIGCHLD);
 
             handled = true;
         }
@@ -266,17 +269,17 @@ static void process_signals(void) {
 }
 
 int main(int argc, char *const *argv) {
+    env_init();
+
     if (arg_parse(argc, argv, opts, ARG_NO_NON_OPTS) == -1)
         exit(EXIT_FAILURE);
 
     log_setup();
-    env_init();
     sig_setup();
 
     LOG_INFO("seashell PID(%d)", getpid());
 
-    if (xatexit(hup_to_children) == -1)
-        err_exit("atexit");
+    xatexit(hup_to_children);
 
     struct pollfd events = { .events = POLLIN, .fd = sh_env.tty_fd };
 
@@ -285,14 +288,16 @@ int main(int argc, char *const *argv) {
     while (true) {
         int nfds = shell_in_fg() ? 1 : 0;
 
-        int ready = xppoll(&events, nfds, NULL, &sh_env.og_mask);
+        int ready = ppoll(&events, nfds, NULL, &sh_env.og_mask);
 
         if (ready == -1) {
             if (errno == EINTR) {
                 process_signals();
                 continue;
-            } else
+            } else {
+                llog_log(LLOG_ERR, __FILE__, __LINE__, "ppoll: %m");
                 err_exit("ppoll");
+            }
         }
 
         ps_ast *ast = line_to_ast();

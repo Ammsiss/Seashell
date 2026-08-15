@@ -1,11 +1,12 @@
 #define _GNU_SOURCE
 
+#include <string.h>
+#include <assert.h>
 #include <stdio.h>
 #include <errno.h>
 #include <sys/wait.h>
 
 #include "utils.h"
-#include "log.h"
 #include "wait_stat.h"
 
 char *get_wstat_str(pid_t pid, int wstat) {
@@ -35,10 +36,12 @@ int get_wstat(wait_event *wev) {
     assert(wev);
 
     int wstat;
-    pid_t cpid = xwaitpid(-1, &wstat, WUNTRACED | WCONTINUED | WNOHANG);
+    pid_t cpid = waitpid(-1, &wstat, WUNTRACED | WCONTINUED | WNOHANG);
 
-    if (cpid == -1 && errno != ECHILD)
+    if (cpid == -1 && errno != ECHILD) {
+        LOG_ERR("waitpid: %m");
         err_exit("waitpid");
+    }
 
     if (cpid == 0 || errno == ECHILD)
         return -1;

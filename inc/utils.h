@@ -3,6 +3,8 @@
 
 #include <stdnoreturn.h>
 
+#include "llog.h"
+
 #define PFFORMAT(x, y) __attribute__ ((format(printf, (x), (y))))
 
 PFFORMAT(1, 2)
