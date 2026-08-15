@@ -265,17 +265,15 @@ static void process_signals(void) {
     reset_sig_flags();
 }
 
-int main(int _, char *const *argv) {
+int main(int argc, char *const *argv) {
+    if (arg_parse(argc, argv, opts, ARG_NO_NON_OPTS) == -1)
+        exit(EXIT_FAILURE);
+
     log_setup();
     env_init();
     sig_setup();
 
     LOG_INFO("seashell PID(%d)", getpid());
-
-    if (arg_parse(argv, opts, ARG_NO_NON_OPTS) == -1) {
-        LOG_ERR("failed to parse args");
-        exit(EXIT_FAILURE);
-    }
 
     if (xatexit(hup_to_children) == -1)
         err_exit("atexit");
