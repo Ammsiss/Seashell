@@ -9,7 +9,7 @@ UNITY_DIR := deps/unity
 
 CC := clang
 
-CFLAGS := -g -O0 -std=gnu23 -Wall -Wextra
+CFLAGS := -g -O0 -std=gnu23 -Wall -Wextra -fcolor-diagnostics
 CPPFLAGS := -Iinc -I$(DEP_DIR)/linc_tools/inc -I$(TEST_DIR) -I$(UNITY_DIR)
 CPPFLAGS += -DUNITY_OUTPUT_COLOR -DUNITY_FIXTURE_NO_EXTRAS
 CPPFLAGS += -DUNITY_INCLUDE_CONFIG_H

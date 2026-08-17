@@ -11,10 +11,17 @@
 #include "shell_state.h"
 #include "sig_funcs.h"
 #include "xfuncs.h"
+#include "llog.h"
+#include "utils.h"
 
 #define DEFAULT_LOG_DIR "/home/juta/Projects/Seashell/logs/shell/"
 
 shell_env sh_env = {0};
+
+XFATAL_HANDLER(xfatal_func) {
+    llog_log(LLOG_ERR, XFILE, XLINE, "%s: %s", XSYSNAME, strerror(XERRNO));
+    err_exit("%s", XSYSNAME);
+}
 
 opt_data opts[] = {
     [LOGFD] = {
@@ -94,6 +101,7 @@ bool shell_in_fg(void) {
 
 void env_setup(shell_env *env) {
     log_setup(&env->log_fd);
+    set_xfatal_handler(&xfatal_func);
     sig_setup(&env->og_mask);
 
     env->subshell = false;

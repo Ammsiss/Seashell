@@ -5,21 +5,20 @@
 
 #include "llog.h"
 
-#define PFFORMAT(x, y) __attribute__ ((format(printf, (x), (y))))
+#define UTIL_PFFORMAT(x, y) __attribute__ ((__format__(printf, (x), (y))))
+#define UTIL_NORETURN __attribute__ ((__noreturn__))
 
-PFFORMAT(1, 2)
+UTIL_PFFORMAT(1, 2) UTIL_NORETURN
 noreturn void fatal(const char *fmt, ...);
 
-PFFORMAT(1, 2)
+UTIL_PFFORMAT(1, 2) UTIL_NORETURN
 void err_exit(const char *fmt, ...);
 
-PFFORMAT(1, 2)
 void err_msg(const char *fmt, ...);
 
-PFFORMAT(1, 2)
 void errno_msg(const char *fmt, ...);
 
-PFFORMAT(1, 2)
+UTIL_PFFORMAT(1, 2) UTIL_NORETURN
 void usage_err(const char *fmt, ...);
 
 #define xfatal(fmt, ...) \

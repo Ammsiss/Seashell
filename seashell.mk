@@ -7,7 +7,7 @@ DEP_DIR := deps
 
 CC := clang
 
-CFLAGS := -g -O0 -std=gnu23 -Wall -Wextra
+CFLAGS := -g -O0 -std=gnu23 -Wall -Wextra -fcolor-diagnostics
 CPPFLAGS := -Iinc -I$(DEP_DIR)/linc_tools/inc
 DEPFLAGS := -MMD -MP
 
