@@ -11,7 +11,6 @@
 #include <getopt.h>
 
 #include "xfuncs.h"
-#include "shell_types.h"
 #include "builtins.h"
 #include "exec_funcs.h"
 #include "expander.h"
@@ -119,8 +118,6 @@ static void add_plan(pid_t jid, ps_ast *ast) {
     LOG_INFO("added plan jid=%d", jid);
 
     job_plan *plan = da_push(&plans);
-    if (!plan)
-        xfatal("da_push");
 
     plan->jid = jid;
     plan->index = 1;
@@ -133,8 +130,7 @@ static void remove_plan(size_t index) {
     ps_free(plans.data[index].ast);
     free(plans.data[index].ast);
 
-    if (da_delete(&plans, index) == -1)
-        xfatal("da_delete");
+    da_delete(&plans, index);
 }
 
 static job_plan *lookup_plan(pid_t jid, size_t *index) {

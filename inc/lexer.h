@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#include "dyn_arr.h"
+#include "darr.h"
 
 typedef enum {
     LX_TOK_PIPE,

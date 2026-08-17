@@ -13,8 +13,7 @@ static da_jevent jevs = {0};
 static void init_job(jc_job *job) {
     *job = (jc_job){0};
 
-    if (da_init(&job->pgrp.procs) == -1)
-        xfatal("da_init");
+    da_init(&job->pgrp.procs);
 }
 
 static void free_job(jc_job *job) {
@@ -133,8 +132,7 @@ job_event *pop_job_event(void) {
 
     jev = jevs.data[0];
 
-    if (da_delete(&jevs, 0) == -1)
-        xfatal("da_delete");
+    da_delete(&jevs, 0);
 
     return &jev;
 }
@@ -143,8 +141,6 @@ void add_job_event(job_event jev) {
     LOG_INFO("%s", get_jev_str(jev));
 
     job_event *new_jev = da_push(&jevs);
-    if (!new_jev)
-        xfatal("da_push");
 
     *new_jev = jev;
 }
@@ -202,8 +198,7 @@ int update_job_proc(wait_event wev) {
         /* delete job */
         size_t i = get_job_index(job->jid);
         free_job(&jctl.jobs.data[i]);
-        if (da_delete(&jctl.jobs, i) == -1)
-            xfatal("da_delete");
+        da_delete(&jctl.jobs, i);
     }
 
     return 0;
@@ -239,8 +234,6 @@ void add_job(pid_t jid, da_pid *pids, pid_t pgid) {
         xfatal("process group leader missing");
 
     jc_job *job = da_push(&jctl.jobs);
-    if (!job)
-        xfatal("da_push");
 
     init_job(job);
 
@@ -250,8 +243,6 @@ void add_job(pid_t jid, da_pid *pids, pid_t pgid) {
 
     for (size_t i = 0; i < pids->size; ++i) {
         jc_proc *proc = da_push(&job->pgrp.procs);
-        if (!proc)
-            xfatal("da_push");
 
         proc->pid = pids->data[i];
         proc->stat = PROC_RUN;

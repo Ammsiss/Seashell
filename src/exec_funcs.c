@@ -78,8 +78,7 @@ void init_pline_data(pline_data *pld) {
 
     da_pid *pids = xmalloc(sizeof(da_pid));
 
-    if (da_init(pids) == -1)
-        xfatal("da_init");
+    da_init(pids);
 
     pld->pids = pids;
 }
@@ -158,8 +157,6 @@ pline_data exec_pline(const ps_pline *pline, bool bg) {
         }
 
         pid_t *pid = da_push(pld.pids);
-        if (!pid)
-            xfatal("da_push");
 
         *pid = cpid;
     }

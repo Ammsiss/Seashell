@@ -8,8 +8,7 @@ typedef void *(* key_func)(map_t *, void *);
 int mp_init(map_t *map, size_t key_size) {
     *map = (map_t){0};
 
-    if (da_init(&map->pairs) == -1)
-        return -1;
+    da_init(&map->pairs);
 
     map->key_size = key_size;
 
@@ -50,8 +49,6 @@ static int mp_add(map_t *map, void *key, void *value, key_func func) {
 
     if (!lookup_index(map, canon_key, &index)) {
         pair = da_push(&map->pairs);
-        if (!pair)
-            goto fail;
 
         pair->key = canon_key;
         pair->value = value;
@@ -101,8 +98,7 @@ static int mp_delete(map_t *map, void *key, key_func func) {
     free(map->pairs.data[index].value);
     free(map->pairs.data[index].key);
 
-    if (da_delete(&map->pairs, index) == -1)
-        goto fail;
+    da_delete(&map->pairs, index);
 
     free(canon_key);
     return 0;

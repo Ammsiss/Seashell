@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "lexer.h"
-#include "dyn_arr.h"
+#include "darr.h"
 
 static lx_status status = LX_OK;
 
@@ -44,10 +44,7 @@ static int init_tok(lx_tok *tok) {
     assert(tok);
 
     *tok = (lx_tok){0};
-    if (da_init(&tok->parts) == -1) {
-        status = LX_ERRMEM;
-        return -1;
-    }
+    da_init(&tok->parts);
 
     return 0;
 }
@@ -116,10 +113,6 @@ static int add_tok(da_tok *tokens, lx_kind kind, lx_scanner *scanner) {
     assert(!scanner->cur_tok);
 
     lx_tok *tok = da_push_init(tokens, init_tok);
-    if (!tok) {
-        status = LX_ERRMEM;
-        return -1;
-    }
 
     tok->kind = kind;
 
@@ -145,10 +138,6 @@ static int add_part(lx_scanner *scanner, lx_quote quote) {
     assert(!scanner->part_start);
 
     lx_part *part = da_push_init(&scanner->cur_tok->parts, init_part);
-    if (!part) {
-        status = LX_ERRMEM;
-        return -1;
-    }
 
     part->quote = quote;
 
@@ -335,8 +324,7 @@ int lx_tokenize(const char *cmd, da_tok *tokens) {
     if (cmd_len <= 0)
         return LX_ERRINPUT;
 
-    if (da_init(tokens) == -1)
-        return LX_ERRMEM;
+    da_init(tokens);
 
     lx_scanner scanner = { LX_M_NORMAL, LX_M_NORMAL, NULL, NULL, cmd };
 

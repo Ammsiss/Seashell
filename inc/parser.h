@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 
-#include "dyn_arr.h"
+#include "darr.h"
 
 typedef enum {
     PS_AND_IF,

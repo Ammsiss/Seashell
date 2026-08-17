@@ -4,7 +4,7 @@
 
 #include "parser.h"
 #include "lexer.h" // IWYU pragma: keep - See 2026-06-25 Notes
-#include "dyn_arr.h"
+#include "darr.h"
 
 typedef struct {
     ps_pline *cur_pline;
@@ -31,8 +31,7 @@ static int init_word(ps_word *word) {
     assert(word);
 
     *word = (ps_word){0};
-    if (da_init(&word->segments) == -1)
-        return -1;
+    da_init(&word->segments);
 
     return 0;
 }
@@ -53,8 +52,7 @@ static int init_redir(ps_redir *redir) {
     assert(redir);
 
     *redir = (ps_redir){0};
-    if (da_init(&redir->target.segments) == -1)
-        return -1;
+    da_init(&redir->target.segments);
 
     return 0;
 }
@@ -71,10 +69,8 @@ static int init_cmd(ps_cmd *cmd) {
     assert(cmd);
 
     *cmd = (ps_cmd){0};
-    if (da_init(&cmd->words) == -1)
-        return -1;
-    if (da_init(&cmd->redirs) == -1)
-        return -1;
+    da_init(&cmd->words);
+    da_init(&cmd->redirs);
 
     return 0;
 }
@@ -100,8 +96,7 @@ static int init_pline(ps_pline *pline) {
     assert(pline);
 
     *pline = (ps_pline){0};
-    if (da_init(&pline->cmds) == -1)
-        return -1;
+    da_init(&pline->cmds);
 
     return 0;
 }
@@ -140,8 +135,7 @@ static int init_job(ps_ast *ast) {
     assert(ast);
 
     *ast = (ps_ast){0};
-    if (da_init(&ast->andors) == -1)
-        return -1;
+    da_init(&ast->andors);
 
     return 0;
 }
@@ -154,8 +148,6 @@ static int cpy_word(ps_word *dst, lx_tok *src) {
         lx_part *src_part = &src->parts.data[i];
 
         ps_segment *dst_segment = da_push_init(&dst->segments, init_ps_segment);
-        if (!dst_segment)
-            return -1;
 
         size_t n = strlen(src_part->raw) + 1;
 
@@ -180,8 +172,6 @@ static int add_andor(da_andor *andors, ps_andor_op op,
     assert(andors);
 
     ps_andor *andor = da_push_init(andors, init_andor);
-    if (!andor)
-        return -1;
 
     andor->op = op;
 
@@ -203,8 +193,6 @@ static int add_cmd(da_cmd *cmds, ps_scanner *scanner) {
     assert(scanner);
 
     ps_cmd *cmd = da_push_init(cmds, init_cmd);
-    if (!cmd)
-        return -1;
 
     scanner->cur_cmd = cmd;
 
@@ -223,8 +211,6 @@ static int queue_redir(lx_kind kind, int append, ps_scanner *scanner) {
     assert(scanner);
 
     ps_redir *redir = da_push_init(&scanner->cur_cmd->redirs, init_redir);
-    if (!redir)
-        return -1;
 
     redir->append = append;
 
@@ -284,6 +270,7 @@ int ps_parse(da_tok *tokens, ps_ast *ast) {
             ensure_cmd(scanner.cur_pline, &scanner);
 
             ps_word *word = da_push_init(&scanner.cur_cmd->words, init_word);
+
             if (init_word(word) == -1)
                 goto fail;
 

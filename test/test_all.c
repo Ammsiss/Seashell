@@ -56,8 +56,6 @@ static int open_log_file(const char *log_dir) {
 void run_all(void) {
     llog_set_fd(open_log_file(DEFAULT_LOG_DIR));
 
-    RUN_TEST_GROUP(array);
-    RUN_TEST_GROUP(string);
     RUN_TEST_GROUP(lexer);
     RUN_TEST_GROUP(parser);
     RUN_TEST_GROUP(jobs);

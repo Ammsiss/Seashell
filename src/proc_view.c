@@ -7,7 +7,7 @@
 #include <sys/types.h>
 #include <dirent.h>
 
-#include "dyn_arr.h"
+#include "darr.h"
 
 #define PPID "PPid"
 #define NAME "Name"
@@ -126,8 +126,6 @@ int child_pstat(pid_t pid, da_pstat *pstats) {
             break;
 
         ps_pstat *pstat = da_push(pstats);
-        if (!pstat)
-            fatal("da_push");
 
         pstat->pid = child_pid;
 

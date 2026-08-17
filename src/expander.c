@@ -3,19 +3,15 @@
 
 #include "parser.h" // IWYU pragma: keep - See 2026-06-25 Notes
 #include "expander.h"
-#include "dyn_str.h"
-#include "utils.h"
+#include "dstr.h"
 
 static int create_arg(ps_word *word) {
-    d_str arg;
-    d_str_init(&arg);
+    dstr arg;
+    dstr_init(&arg);
 
     for (size_t i = 0; i < word->segments.size; ++i) {
-
         ps_segment *segment = &word->segments.data[i];
-
-        if (d_strcat(&arg, segment->raw) == -1)
-            xfatal("d_strcat");
+        dstrcat(&arg, segment->raw);
     }
 
     word->arg = arg.c_str;
