@@ -6,6 +6,7 @@
 #include "job_state.h"
 #include "wait_stat.h"
 #include "utils.h"
+#include "xfuncs.h"
 
 static job_table jctl = {0};
 static da_jevent jevs = {0};
@@ -138,10 +139,7 @@ job_event *pop_job_event(void) {
 }
 
 void add_job_event(job_event jev) {
-    LOG_INFO("%s", get_jev_str(jev));
-
     job_event *new_jev = da_push(&jevs);
-
     *new_jev = jev;
 }
 
@@ -213,15 +211,13 @@ static bool pg_leader_missing(pid_t pgid, da_pid *pids) {
 }
 
 void queue_builtin_exit_event(pid_t jid, int status) {
-    job_event builtin_jev = {
+    add_job_event((job_event){
         .jid = jid,
         .type = JEXITED,
-        .success = status == EXIT_SUCCESS
-    };
+        .success = (status == EXIT_SUCCESS)
+    });
 
-    LOG_INFO("[%d] started (builtin)", jid);
-
-    add_job_event(builtin_jev);
+    xkill(getpid(), SIGCHLD);
 }
 
 void add_job(pid_t jid, da_pid *pids, pid_t pgid) {
@@ -250,6 +246,4 @@ void add_job(pid_t jid, da_pid *pids, pid_t pgid) {
         if (i == pids->size - 1)
             job->last = proc;
     }
-
-    LOG_INFO("[%d] started", job->jid);
 }

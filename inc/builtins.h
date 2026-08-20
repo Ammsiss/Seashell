@@ -12,6 +12,7 @@ typedef struct {
     builtin_func func;
 } sh_builtin;
 
+sh_builtin *get_builtin(const char *arg);
 bool try_run_builtin(char **argv, int *status);
 
 #endif

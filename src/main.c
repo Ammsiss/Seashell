@@ -92,20 +92,24 @@ static void launch_job(ps_pline *pline, bool bg, pid_t jid) {
     bool handled = false;
 
     if (pline->cmds.size == 1 && !bg) {
+        sh_builtin *builtin = get_builtin(pline->cmds.data[0].argv[0]);
 
-        int status;
+        if (builtin) {
+            LOG_INFO("[%d] started (builtin)", jid);
 
-        if (try_run_builtin(pline->cmds.data[0].argv, &status)) {
+            int status = builtin->func(pline->cmds.data[0].argv, &sh_env);
             queue_builtin_exit_event(jid, status);
-            xkill(getpid(), SIGCHLD);
 
             handled = true;
         }
     }
 
     if (!handled) {
+        LOG_INFO("[%d] started", jid);
+
         pline_data pld = exec_pline(pline, bg);
         add_job(jid, pld.pids, pld.pgid);
+
         free_pline_data(&pld);
     }
 }
@@ -219,6 +223,7 @@ static void process_signals(void) {
 
         job_event *jev;
         while ((jev = pop_job_event())) {
+            LOG_INFO("%s", get_jev_str(*jev));
 
             if (!fg_event(jev)) {
                 if (jev->type != JEXITED || !run_next_job_bg(jev))
@@ -283,7 +288,7 @@ int main(int argc, char *const *argv) {
                 process_signals();
                 continue;
             } else {
-                llog_log(LLOG_ERR, __FILE__, __LINE__, "ppoll: %m");
+                LOG_ERR("ppoll: %m");
                 err_exit("ppoll");
             }
         }

@@ -182,7 +182,7 @@ static sh_builtin builtins[BUILTIN_COUNT] = {
     { .name = "echo", .func = run_echo_builtin }
 };
 
-static sh_builtin *get_builtin(const char *arg) {
+sh_builtin *get_builtin(const char *arg) {
     const char *name = arg;
 
     for (size_t i = 0; i < BUILTIN_COUNT; ++i)
