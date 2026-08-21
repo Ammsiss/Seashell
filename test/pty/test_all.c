@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include <errno.h>
 #include <locale.h>
 #include <stdio.h>
@@ -22,54 +24,156 @@
 static int shell_pipe[2];
 static curses_win wins[4];
 
-void curses_err_exit(const char *msg) {
-    wattron(wins[HARNESS_WIN].win, COLOR_PAIR(CP_RED_CL));
-    wprintw(wins[HARNESS_WIN].win, "ERR ncurses: ");
+#define xwprintw(_win, _fmt, ...) \
+    ({ \
+        int rv = wprintw(_win, _fmt __VA_OPT__(,) __VA_ARGS__); \
+        if (rv == ERR) \
+            curs_err("wprintw"); \
+        rv; \
+    })
 
-    wprintw(wins[HARNESS_WIN].win, "%s\n", msg);
+#define xwaddch(_win, _ch) \
+    ({ \
+        int rv = waddch(_win, _ch); \
+        if (rv == ERR) \
+            curs_err("waddch"); \
+        rv; \
+    })
+
+#define xwrefresh(_win) \
+    ({ \
+        int rv = wrefresh(_win); \
+        if (rv == ERR) \
+            curs_err("wrefresh"); \
+        rv; \
+    })
+
+#define xderwin(_orig, _nlines, _ncols, _begin_y, _begin_x) \
+    ({ \
+        WINDOW *rv = derwin(_orig, _nlines, _ncols, _begin_y, _begin_x); \
+        if (!rv) \
+            curs_err("derwin"); \
+        rv; \
+    })
+
+#define xwattron(_win, cp) \
+    ({ \
+        int rv = wattron(_win, cp); \
+        if (rv == ERR) \
+            curs_err("wattron"); \
+        rv; \
+    })
+
+#define xwattroff(_win, cp) \
+    ({ \
+        int rv = wattroff(_win, cp); \
+        if (rv == ERR) \
+            curs_err("wattroff"); \
+        rv; \
+    })
+
+#define xwerase(_win) \
+    ({ \
+        int rv = werase(_win); \
+        if (rv == ERR) \
+            curs_err("werase"); \
+        rv; \
+    })
+
+#define wcprintw(_win, cp_num, _fmt, ...) \
+    wattron(_win, COLOR_PAIR(cp_num)); \
+    wprintw(_win, _fmt __VA_OPT__(,) __VA_ARGS__); \
+    wattroff(_win, COLOR_PAIR(cp_num)); \
+    wattron(_win, COLOR_PAIR(CP_DEFAULT));
+
+#define xwcprintw(_win, cp_num, _fmt, ...) \
+    xwattron(_win, COLOR_PAIR(cp_num)); \
+    xwprintw(_win, _fmt __VA_OPT__(,) __VA_ARGS__); \
+    xwattroff(_win, COLOR_PAIR(cp_num)); \
+    xwattron(_win, COLOR_PAIR(CP_DEFAULT));
+
+static XFATAL_HANDLER(xfatal_func) {
+    wcprintw(wins[HARNESS_WIN].win, CP_RED_CL, "ERROR");
+    wprintw(wins[HARNESS_WIN].win, " %s: %s\n", XSYSNAME, strerror(errno));
+
     wrefresh(wins[HARNESS_WIN].win);
-
-    wattroff(wins[HARNESS_WIN].win, COLOR_PAIR(CP_RED_CL));
-    wattron(wins[HARNESS_WIN].win, CP_DEFAULT);
-
     exit(EXIT_FAILURE);
 }
 
-static XFATAL_HANDLER(xfatal_func) {
-    wattron(wins[HARNESS_WIN].win, COLOR_PAIR(CP_RED_CL));
-    wprintw(wins[HARNESS_WIN].win, "ERR xfunc: ");
+static void curs_err(const char *msg) {
+    wcprintw(wins[HARNESS_WIN].win, CP_RED_CL, "ERROR");
+    wprintw(wins[HARNESS_WIN].win, " ncurses: %s\n", msg);
 
-    wprintw(wins[HARNESS_WIN].win, "%s: %s\n", XSYSNAME, strerror(errno));
     wrefresh(wins[HARNESS_WIN].win);
-
     exit(EXIT_FAILURE);
+}
+
+LLOG_SINK(pty_test_sink) {
+    int level_cp = CP_DEFAULT;
+    char *lvl_str;
+
+    switch (info->log_level) {
+    case LLOG_INFO: lvl_str = "INFO";  level_cp = CP_CYAN_CL;   break;
+    case LLOG_WARN: lvl_str = "WARN";  level_cp = CP_YELLOW_CL; break;
+    case LLOG_ERR:  lvl_str = "ERROR"; level_cp = CP_RED_CL;    break;
+    }
+
+    xwcprintw(wins[HARNESS_WIN].win, level_cp, "%s", lvl_str);
+    xwprintw(wins[HARNESS_WIN].win, " llog: %s:%d: %s\n",
+            info->site->file, info->site->line, info->msg);
+
+    wrefresh(wins[HARNESS_WIN].win);
 }
 
 void unity_output_char(int c) {
-    if (waddch(wins[UNITY_WIN].win, c) == ERR)
-        curses_err_exit("waddch");
-    if (wrefresh(wins[UNITY_WIN].win) == ERR)
-        curses_err_exit("wrefresh");
+    xwaddch(wins[UNITY_WIN].win, c);
+    xwrefresh(wins[UNITY_WIN].win);
 }
 
-void llog_output_func(const char *msg, size_t _, llog_lvl lvl) {
-    int cp = CP_DEFAULT;
+curses_win *init_wins(curses_win wins[4]) {
+    int y, x;
+    getmaxyx(stdscr, y, x);
 
-    switch (lvl) {
-    case LLOG_INFO: cp = CP_CYAN_CL; break;
-    case LLOG_WARN: cp = CP_YELLOW_CL; break;
-    case LLOG_ERR:  cp = CP_RED_CL; break;
+    int by = (y % 2 == 0) ? y / 2 : y / 2 + 1;
+    int bx = (x % 2 == 0) ? x / 2 : x / 2 + 1;
+
+    wins[0] = (curses_win){
+        .nlines = by - 1, .ncols = bx - 1,
+        .y      = 0,      .x     = 0
+    };
+
+    wins[1] = (curses_win){
+        .nlines = by - 1, .ncols = x / 2,
+        .y      = 0,      .x     = bx
+    };
+
+    wins[2] = (curses_win){
+        .nlines = y / 2, .ncols = bx - 1,
+        .y      = by,    .x     = 0
+    };
+
+    wins[3] = (curses_win){
+        .nlines = y / 2, .ncols = x / 2,
+        .y      = by,    .x     = bx
+    };
+
+    for (size_t i = 0; i < 4; ++i) {
+        curses_win *cwin = &wins[i];
+
+        cwin->win = xderwin(stdscr, cwin->nlines, cwin->ncols, cwin->y, cwin->x);
+        scrollok(wins[i].win, true);
+        wbkgdset(wins[i].win, ' ');
+        xwerase(cwin->win);
+        xwrefresh(cwin->win);
     }
 
-    wattron(wins[HARNESS_WIN].win, COLOR_PAIR(cp));
+    return wins;
+}
 
-    if (wprintw(wins[HARNESS_WIN].win, "%s", msg) == ERR)
-        curses_err_exit("wprintw");
-    if (wrefresh(wins[HARNESS_WIN].win) == ERR)
-        curses_err_exit("wrefresh");
-
-    wattroff(wins[HARNESS_WIN].win, COLOR_PAIR(cp));
-    wattron(wins[HARNESS_WIN].win, CP_DEFAULT);
+static void test_init(void) {
+    set_xfatal_handler(xfatal_func);
+    llog_set_sink(pty_test_sink);
+    xpipe2(shell_pipe, O_NONBLOCK);
 }
 
 static void ncurses_cleanup(void) {
@@ -77,7 +181,7 @@ static void ncurses_cleanup(void) {
     endwin();
 }
 
-static void test_init(void) {
+static void ncurses_setup(void) {
     setlocale(LC_ALL, "");
     initscr();
     cbreak();
@@ -93,59 +197,7 @@ static void test_init(void) {
     refresh();
     init_wins(wins);
 
-    if (atexit(ncurses_cleanup) == -1)
-        curses_err_exit("atexit");
-
-    set_xfatal_handler(xfatal_func);
-    llog_set_output_handler(llog_output_func);
-    llog_color_on(false);
-    xpipe2(shell_pipe, O_NONBLOCK);
-}
-
-static void curses_newwin(curses_win *cwin) {
-    cwin->win = derwin(stdscr, cwin->nlines, cwin->ncols, cwin->y, cwin->x);
-    if (!cwin->win)
-        curses_err_exit("derwin");
-    wbkgdset(cwin->win, ' ');
-    if (werase(cwin->win) == ERR)
-        curses_err_exit("werase");
-    if (wrefresh(cwin->win) == ERR)
-        curses_err_exit("wrefresh");
-}
-
-curses_win *init_wins(curses_win wins[4]) {
-    int y, x;
-    getmaxyx(stdscr, y, x);
-
-    int by = (y % 2 == 0) ? y / 2 : y / 2 + 1;
-    int bx = (x % 2 == 0) ? x / 2 : x / 2 + 1;
-
-    wins[0].nlines = by - 1;
-    wins[0].ncols = bx - 1;
-    wins[0].y = 0;
-    wins[0].x = 0;
-
-    wins[1].nlines = by - 1;
-    wins[1].ncols = x / 2;
-    wins[1].y = 0;
-    wins[1].x = bx;
-
-    wins[2].nlines = y / 2;
-    wins[2].ncols = bx - 1;
-    wins[2].y = by;
-    wins[2].x = 0;
-
-    wins[3].nlines = y / 2;
-    wins[3].ncols = x / 2;
-    wins[3].y = by;
-    wins[3].x = bx;
-
-    for (size_t i = 0; i < 4; ++i) {
-        curses_newwin(&wins[i]);
-        scrollok(wins[i].win, true);
-    }
-
-    return wins;
+    xatexit(ncurses_cleanup);
 }
 
 void run_all(void) {
@@ -153,19 +205,13 @@ void run_all(void) {
 }
 
 int main(void) {
+    ncurses_setup();
     test_init();
 
     int argc = 2;
     const char *argv[] = { "test_pty", "-s", NULL };
 
     int tests_failed = UnityMain(argc, argv, run_all);
-
-    for (int i = 0; i < 10; ++i) {
-        LOG_ERR("this is err %d", i);
-        LOG_INFO("this is info %d", i);
-        LOG_WARN("this is warn %d", i);
-        sleep(1);
-    }
 
     return tests_failed;
 }
