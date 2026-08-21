@@ -1,12 +1,15 @@
 BUILD ?= seashell
 
-include $(BUILD).mk
+include config/$(BUILD).mk
 
 .PHONY: test clean
 
-test:
+pty:
 	$(MAKE) BUILD=seashell
-	$(MAKE) BUILD=test
+	$(MAKE) BUILD=pty
+
+unit:
+	$(MAKE) BUILD=unit
 
 clean:
-	rm -rf seashell test_all build compile_commands.json
+	rm -rf seashell pty_test unit_test build compile_commands.json

@@ -8,6 +8,7 @@ test_*
 !test_all.mk
 !test_*.c
 !test_*.old
+!test_utils.h
 shell-debug
 log*
 !log.h
@@ -15,3 +16,4 @@ log*
 job_mon
 vg.err
 pty_test
+unit_test

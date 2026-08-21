@@ -6,5 +6,8 @@ VALGRIND='valgrind
     --leak-check=full
     --errors-for-leak-kinds=definite,indirect,possible'
 
-bear --append -- make --quiet test
-$VALGRIND ./test_all -s
+bear --append -- make --quiet unit
+$VALGRIND ./unit_test -s
+
+bear --append -- make --quiet pty
+$VALGRIND ./pty_test -s

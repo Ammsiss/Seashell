@@ -1,19 +1,22 @@
-BIN := test_all
-BLD_DIR := build/test
+BIN := pty_test
+BLD_DIR := build/pty
 COMPCOM := compile_commands.json
 
 SRC_DIR := src
 DEP_DIR := deps
-TEST_DIR := test
+TEST_DIR := test/pty
 UNITY_DIR := deps/unity
 
 CC := clang
 
 CFLAGS := -g -O0 -std=gnu23 -Wall -Wextra -fcolor-diagnostics
+
 CPPFLAGS := -Iinc -I$(DEP_DIR)/linc_tools/inc -I$(TEST_DIR) -I$(UNITY_DIR)
-CPPFLAGS += -DUNITY_OUTPUT_COLOR -DUNITY_FIXTURE_NO_EXTRAS
-CPPFLAGS += -DUNITY_INCLUDE_CONFIG_H
+CPPFLAGS += -DUNITY_FIXTURE_NO_EXTRAS -DUNITY_INCLUDE_CONFIG_H
+
 DEPFLAGS := -MMD -MP
+
+LDFLAGS := -lncurses
 
 SRCS := $(filter-out $(SRC_DIR)/main.c,$(wildcard $(SRC_DIR)/*.c))
 SRCS += $(wildcard $(DEP_DIR)/linc_tools/src/*.c)
@@ -29,7 +32,7 @@ COMP_FLAGS := $(CFLAGS) $(CPPFLAGS) $(DEPFLAGS)
 all: $(BIN)
 
 $(BIN): $(OBJS)
-	$(CC) $(COMP_FLAGS) $^ -o $@
+	$(CC) $(COMP_FLAGS) $(LDFLAGS) $^ -o $@
 
 $(BLD_DIR)/%.o: %.c Makefile
 	mkdir -p $(dir $@)

@@ -6,12 +6,17 @@
 
 **Misc**
 
+- [ ] Make macro/function wrapper for pipe synchronization
+- [ ] make an file io utilities lib, for opening files, temps, etc
+- [ ] Add generic allocator interface to linc_tools
+- [ ] Add Arena allocater to linc_tools
+- [ ] Add linked list module to linc_tools
+- [ ] Add map to linc_tools
 - [ ] add a settable error handler func to llog
 - [ ] dstr should be in a valid state being zeroed out
 - [ ] add x helper macros for dyn array failures
 - [ ] add pid string context to job control logs
 - [ ] test stopping andor chain with plines left
-- [ ] Declarative pty tests that support cc, lines, and escape sequences
 
 ### Unresolved
 

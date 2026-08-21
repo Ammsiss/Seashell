@@ -9,10 +9,6 @@
 
 #define DEFAULT_LOG_DIR "/home/juta/Projects/Seashell/logs/test/"
 
-void unity_output_char(int c) {
-    printf("%c", c);
-}
-
 static int log_fd;
 
 static int open_log_file(const char *log_dir) {
