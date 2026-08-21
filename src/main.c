@@ -36,12 +36,12 @@ static void hup_to_children(void) {
             xfatal("unexpected pgid %d", job->pgrp.pgid);
 
         if (kill(-job->pgrp.pgid, SIGHUP) == -1 && errno != ESRCH) {
-            llog_log(LLOG_ERR, __FILE__, __LINE__, "kill: %m");
+            LOG_ERR("kill: %m");
             err_exit("kill");
         }
 
         if (kill(-job->pgrp.pgid, SIGCONT) == -1 && errno != ESRCH) {
-            llog_log(LLOG_ERR, __FILE__, __LINE__, "kill: %m");
+            LOG_ERR("kill: %m");
             err_exit("kill");
         }
     }

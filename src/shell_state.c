@@ -13,13 +13,34 @@
 #include "xfuncs.h"
 #include "llog.h"
 #include "utils.h"
+#include "dstr.h"
 
 #define DEFAULT_LOG_DIR "/home/juta/Projects/Seashell/logs/shell/"
 
 shell_env sh_env = {0};
 
+LLOG_SINK(shell_llog_sink) {
+    dstr output_msg;
+    dstr_init(&output_msg);
+
+    char *lvl_str;
+
+    switch (info->log_level) {
+    case LLOG_INFO: lvl_str = "INFO"; break;
+    case LLOG_ERR: lvl_str = "ERROR"; break;
+    case LLOG_WARN: lvl_str = "WARN"; break;
+    }
+
+    dstr_printf(&output_msg, "%s %s:%d: %s\n",
+            lvl_str, info->site->file, info->site->line, info->msg);
+
+    write(sh_env.log_fd, output_msg.c_str, output_msg.len);
+
+    dstr_free(&output_msg);
+}
+
 XFATAL_HANDLER(xfatal_func) {
-    llog_log(LLOG_ERR, XFILE, XLINE, "%s: %s", XSYSNAME, strerror(XERRNO));
+    LOG_ERR("%s: %s", XSYSNAME, strerror(XERRNO));
     err_exit("%s", XSYSNAME);
 }
 
@@ -92,7 +113,7 @@ static void log_setup(int *log_fd) {
     } else
         *log_fd = open_log_file(DEFAULT_LOG_DIR);
 
-    llog_set_fd(*log_fd);
+    llog_set_sink(shell_llog_sink);
 }
 
 bool shell_in_fg(void) {

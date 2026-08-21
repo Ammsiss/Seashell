@@ -141,7 +141,7 @@ pline_data exec_pline(const ps_pline *pline, bool bg) {
         }
 
         if (setpgid(cpid, pld.pgid) == -1 && errno != EACCES) {
-            llog_log(LLOG_ERR, __FILE__, __LINE__, "setpgid: %m");
+            LOG_ERR("setpgid: %m");
             err_exit("setpgid");
         }
 
